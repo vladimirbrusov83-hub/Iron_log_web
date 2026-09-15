@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getFinishedSessions, getSettings } from "@/lib/db";
 import { Empty, Header, Page } from "@/components/ui";
-import { effectiveRepsCoverage, totalEffectiveReps } from "@/lib/effective-reps";
+import { effectiveRepsByMuscle, effectiveRepsCoverage, totalEffectiveReps } from "@/lib/effective-reps";
 import { formatDuration, sessionVolume } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -17,35 +17,42 @@ export default async function HistoryPage() {
         <Empty>Finished workouts show up here.</Empty>
       ) : (
         <ul className="space-y-2">
-          {sessions.map((s) => {
+          {sessions.map((s, i) => {
             const sets = s.exercises.flatMap((e) => e.sets);
             const coverage = effectiveRepsCoverage(sets);
+            const muscles = effectiveRepsByMuscle(s.exercises).slice(0, 3);
             return (
-              <li key={s.id}>
+              <li key={s.id} className={`rise ${i < 4 ? `rise-${i}` : ""}`}>
                 <Link
                   href={`/history/${s.id}`}
-                  className="block rounded-xl border border-line bg-panel px-4 py-3"
+                  className="flex items-center gap-3 rounded-2xl border border-line bg-panel px-4 py-3
+                             transition-colors hover:border-line-2"
                 >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <div className="min-w-0">
-                      <h2 className="truncate font-medium">{s.dayName}</h2>
-                      {s.programName && (
-                        <p className="truncate text-[11px] text-ink-faint">{s.programName}</p>
-                      )}
+                  <div className="shrink-0 text-center">
+                    <div className="display text-xl font-semibold leading-none">
+                      {new Date(s.startedAt).toLocaleDateString(undefined, { day: "numeric" })}
                     </div>
-                    <span className="tnum shrink-0 text-xs text-ink-faint">
-                      {new Date(s.startedAt).toLocaleDateString(undefined, {
-                        month: "short", day: "numeric",
-                      })}
-                    </span>
+                    <div className="eyebrow" style={{ fontSize: 9 }}>
+                      {new Date(s.startedAt).toLocaleDateString(undefined, { month: "short" })}
+                    </div>
                   </div>
-                  <div className="tnum mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
-                    <span className="text-accent">{totalEffectiveReps(sets)} eff reps</span>
-                    <span className="text-ink-faint">
-                      {Math.round(sessionVolume(s)).toLocaleString()} {settings.weightUnit}
-                    </span>
-                    <span className="text-ink-faint">{coverage.working} sets</span>
-                    <span className="text-ink-faint">{formatDuration(s.durationSeconds)}</span>
+                  <div className="min-w-0 flex-1 border-l border-line pl-3">
+                    <h2 className="truncate font-medium">{s.dayName}</h2>
+                    <p className="tnum truncate text-[11px] text-ink-faint">
+                      {muscles.length > 0
+                        ? muscles.map((m) => `${m.muscleGroup} ${m.effectiveReps}`).join(" · ")
+                        : s.programName || "Freestyle"}
+                    </p>
+                    <p className="tnum text-[11px] text-ink-faint">
+                      {coverage.working} sets · {Math.round(sessionVolume(s)).toLocaleString()}{" "}
+                      {settings.weightUnit} · {formatDuration(s.durationSeconds)}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="display tnum text-2xl font-semibold text-accent">
+                      {totalEffectiveReps(sets)}
+                    </div>
+                    <div className="eyebrow" style={{ fontSize: 9 }}>eff reps</div>
                   </div>
                 </Link>
               </li>

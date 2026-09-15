@@ -35,6 +35,22 @@ genuinely easy set can score zero, which is unreachable on the iOS app's 0–4.
 
 Never store it in a column. It is derived on read.
 
+## Reference bands (lib/targets.ts)
+
+The only "targets" in the app, taken from Vladimir's own paper *Hypertrophy Training —
+Principles That Work* (2026, rev3, `~/Documents/Hyper_gulde/`): 5 hard sets a week per
+muscle is the floor, 10–16 the productive range; 20–40 effective reps per muscle per
+session; 2 sessions a week. A "hard set" is a working set at RIR ≤ 3. They colour bars on
+Today, Stats, History and the program editor. They never turn into a suggested load —
+that stays the line. `getMuscleTotals` returns `hardSets` and `sessions` for them.
+
+## Design
+
+Barlow Condensed (display, all big numbers) + Barlow (body) via `next/font`. Tokens in
+`app/globals.css`; `.display`, `.eyebrow`, `.tnum`, `.rise` are the utility classes.
+Band colours: green in range, amber under/over, red below floor. The gym screen hides
+the bottom nav and floats the rest timer instead; it auto-starts when a set is ticked.
+
 ## Setup
 
 ```

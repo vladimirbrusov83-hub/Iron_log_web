@@ -5,6 +5,7 @@ import Link from "next/link";
 import { removeProgram, saveProgramAction, startWorkout } from "@/app/actions";
 import { Button, Header, Page, Panel, inputClass } from "@/components/ui";
 import { MUSCLE_GROUPS } from "@/lib/types";
+import { WEEKLY_SETS_FLOOR, WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW } from "@/lib/targets";
 import type { Exercise, Program } from "@/lib/types";
 
 type DraftExercise = {
@@ -119,8 +120,10 @@ export function ProgramEditor({
 
   return (
     <Page>
-      <Link href="/programs" className="text-sm text-accent">‹ Programs</Link>
-      <Header title={program ? "Edit program" : "New program"} />
+      <Header
+        back={{ href: "/programs", label: "Programs" }}
+        title={program ? "Edit program" : "New program"}
+      />
 
       <div className="space-y-2">
         <input
@@ -138,14 +141,35 @@ export function ProgramEditor({
         />
       </div>
 
-      <p className="tnum mt-2 text-xs text-ink-faint">
-        {days.length} days · {weeklySets} planned sets a week
-        {perMuscle.size > 0 && " · "}
-        {[...perMuscle.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .map(([m, n]) => `${m} ${n}`)
-          .join(", ")}
-      </p>
+      <div className="mt-3 rounded-2xl border border-line bg-panel p-3">
+        <p className="eyebrow">Planned sets a week</p>
+        <p className="tnum mt-1 text-sm text-ink-dim">
+          {days.length} day{days.length === 1 ? "" : "s"} · {weeklySets} sets
+        </p>
+        {perMuscle.size > 0 && (
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {[...perMuscle.entries()]
+              .sort((a, b) => b[1] - a[1])
+              .map(([m, n]) => (
+                <li
+                  key={m}
+                  className={`rounded-lg border px-2 py-1 text-xs ${
+                    n >= WEEKLY_SETS_LOW && n <= WEEKLY_SETS_HIGH
+                      ? "border-good/40 text-good"
+                      : n < WEEKLY_SETS_FLOOR ? "border-bad/40 text-bad" : "border-line-2 text-ink-dim"
+                  }`}
+                >
+                  {m} <span className="display text-sm font-semibold">{n}</span>
+                </li>
+              ))}
+          </ul>
+        )}
+        <p className="mt-2 text-[11px] text-ink-faint">
+          Green: {WEEKLY_SETS_LOW}–{WEEKLY_SETS_HIGH} sets a week, the productive range.
+          Red: under the {WEEKLY_SETS_FLOOR}-set floor. Planned, not performed — hard sets are
+          counted after the fact on Stats.
+        </p>
+      </div>
 
       <div className="mt-4 space-y-3">
         {days.map((day, dayIndex) => (

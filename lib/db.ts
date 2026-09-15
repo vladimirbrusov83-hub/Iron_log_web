@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { effectiveRepsSQL } from "./effective-reps";
+import { HARD_SET_MAX_RIR } from "./targets";
 import { estimated1RM } from "./types";
 import type {
   BodyweightEntry, Exercise, ExerciseLog, PersonalRecord, Program, ProgramDay,
@@ -688,18 +689,24 @@ export async function getWeeklyTotals(weeks = 12): Promise<WeeklyTotals[]> {
 export type MuscleTotals = {
   muscleGroup: string;
   workingSets: number;
+  /** Working sets rated at or under HARD_SET_MAX_RIR — the paper's "hard set". */
+  hardSets: number;
   effectiveReps: number;
   ratedSets: number;
   volume: number;
+  /** Distinct finished sessions in which this muscle was trained. */
+  sessions: number;
 };
 
 export async function getMuscleTotals(days = 7): Promise<MuscleTotals[]> {
   const rows = (await sql.query(
     `SELECT el.muscle_group,
             count(*) FILTER (WHERE NOT sl.is_warmup) AS working_sets,
+            count(*) FILTER (WHERE NOT sl.is_warmup AND sl.rir <= $2) AS hard_sets,
             coalesce(sum(${effectiveRepsSQL}), 0) AS effective_reps,
             count(*) FILTER (WHERE NOT sl.is_warmup AND sl.rir IS NOT NULL) AS rated_sets,
-            coalesce(sum(sl.weight * sl.reps) FILTER (WHERE NOT sl.is_warmup), 0) AS volume
+            coalesce(sum(sl.weight * sl.reps) FILTER (WHERE NOT sl.is_warmup), 0) AS volume,
+            count(DISTINCT s.id) FILTER (WHERE NOT sl.is_warmup) AS sessions
        FROM sessions s
        JOIN exercise_logs el ON el.session_id = s.id
        JOIN set_logs sl ON sl.exercise_log_id = el.id
@@ -707,17 +714,19 @@ export async function getMuscleTotals(days = 7): Promise<MuscleTotals[]> {
         AND s.started_at >= now() - ($1::int * interval '1 day')
         AND sl.is_completed
       GROUP BY 1 ORDER BY effective_reps DESC, working_sets DESC`,
-    [days],
+    [days, HARD_SET_MAX_RIR],
   )) as {
-    muscle_group: string; working_sets: string; effective_reps: string;
-    rated_sets: string; volume: string;
+    muscle_group: string; working_sets: string; hard_sets: string; effective_reps: string;
+    rated_sets: string; volume: string; sessions: string;
   }[];
   return rows.map((r) => ({
     muscleGroup: r.muscle_group,
     workingSets: Number(r.working_sets),
+    hardSets: Number(r.hard_sets),
     effectiveReps: Number(r.effective_reps),
     ratedSets: Number(r.rated_sets),
     volume: Number(r.volume),
+    sessions: Number(r.sessions),
   }));
 }
 

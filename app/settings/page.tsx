@@ -31,7 +31,7 @@ export default async function SettingsPage() {
       </section>
 
       <Panel className="mt-5">
-        <h2 className="text-sm font-medium">Effective reps</h2>
+        <h2 className="eyebrow">Effective reps</h2>
         <p className="mt-1 text-xs leading-relaxed text-ink-dim">
           Every working set you tick off and rate scores{" "}
           <span className="text-ink">{EFFECTIVE_REP_THRESHOLD} − RIR</span> effective reps,
@@ -44,11 +44,12 @@ export default async function SettingsPage() {
       </Panel>
 
       <Panel className="mt-3">
-        <h2 className="text-sm font-medium">About</h2>
+        <h2 className="eyebrow">About</h2>
         <p className="mt-1 text-xs leading-relaxed text-ink-dim">
-          IronLog on the web — a rebuild of the iOS app on a Neon Postgres database.
-          The AI coach from that version is gone on purpose: nothing here suggests a
-          load or tells you to deload. It records what you did and counts it.
+          IronLog records what you did and counts it. Nothing here suggests a load or
+          tells you to deload. The reference bands on Today and Stats (5-set floor, 10–16
+          hard sets a week, 20–40 effective reps per muscle per session, 2× a week) come
+          from <em>Hypertrophy Training — Principles That Work</em>, 2026 edition.
         </p>
       </Panel>
 

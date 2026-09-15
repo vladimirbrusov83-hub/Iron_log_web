@@ -86,3 +86,35 @@ export function effectiveRepsLabel(set: ScorableSet): string {
   const value = effectiveReps(set);
   return value === null ? "—" : `${value}`;
 }
+
+/* ------------------------------------------------------------ by muscle */
+
+export type MuscleSlice = {
+  muscleGroup: string;
+  effectiveReps: number;
+  workingSets: number;
+  scoredSets: number;
+};
+
+/** Effective reps and set counts per muscle group for a set of exercise logs,
+ *  biggest first. Same null rules as everything above. */
+export function effectiveRepsByMuscle(
+  exercises: { muscleGroup: string; sets: ScorableSet[] }[],
+): MuscleSlice[] {
+  const map = new Map<string, MuscleSlice>();
+  for (const ex of exercises) {
+    const slice = map.get(ex.muscleGroup) ?? {
+      muscleGroup: ex.muscleGroup, effectiveReps: 0, workingSets: 0, scoredSets: 0,
+    };
+    for (const s of ex.sets) {
+      if (s.isWarmup || !s.isCompleted) continue;
+      slice.workingSets += 1;
+      const er = effectiveReps(s);
+      if (er !== null) { slice.scoredSets += 1; slice.effectiveReps += er; }
+    }
+    map.set(ex.muscleGroup, slice);
+  }
+  return [...map.values()]
+    .filter((m) => m.workingSets > 0)
+    .sort((a, b) => b.effectiveReps - a.effectiveReps || b.workingSets - a.workingSets);
+}

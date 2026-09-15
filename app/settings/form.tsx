@@ -34,7 +34,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
               onClick={() => update({ weightUnit: unit })}
               className={`min-h-11 flex-1 rounded-lg border text-sm ${
                 draft.weightUnit === unit
-                  ? "border-accent text-accent"
+                  ? "border-accent bg-accent-soft text-accent"
                   : "border-line bg-panel-2 text-ink-dim"
               }`}
             >
@@ -56,7 +56,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
               onClick={() => update({ defaultRestSeconds: s })}
               className={`min-h-11 flex-1 rounded-lg border px-2 text-sm ${
                 draft.defaultRestSeconds === s
-                  ? "border-accent text-accent"
+                  ? "border-accent bg-accent-soft text-accent"
                   : "border-line bg-panel-2 text-ink-dim"
               }`}
             >

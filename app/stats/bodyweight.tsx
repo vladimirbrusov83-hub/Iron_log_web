@@ -22,7 +22,7 @@ export function BodyweightPanel({
 
   return (
     <section className="mb-5">
-      <h2 className="mb-2 text-sm font-medium text-ink-dim">Bodyweight</h2>
+      <h2 className="eyebrow mb-2">Bodyweight</h2>
       <Panel>
         <form
           className="flex gap-2"

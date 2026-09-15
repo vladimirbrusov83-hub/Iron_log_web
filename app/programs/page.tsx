@@ -24,10 +24,10 @@ export default async function ProgramsPage() {
               (sum, d) => sum + d.exercises.reduce((n, e) => n + e.plannedSets, 0), 0);
             return (
               <li key={p.id}>
-                <Panel className={p.isPinned ? "border-accent-dim" : ""}>
+                <Panel className={p.isPinned ? "border-accent/40" : ""}>
                   <div className="flex items-start justify-between gap-2">
                     <Link href={`/programs/${p.id}`} className="min-w-0 flex-1">
-                      <h2 className="truncate font-medium">{p.name}</h2>
+                      <h2 className="display truncate text-xl font-semibold">{p.name}</h2>
                       <p className="tnum text-[11px] text-ink-faint">
                         {p.days.length} days · {sets} planned sets a week
                         {p.isPreset && " · preset"}
@@ -38,10 +38,10 @@ export default async function ProgramsPage() {
                     </Link>
                     <form action={togglePin.bind(null, p.id, p.isPinned)}>
                       <button
-                        className={`h-10 w-10 rounded-lg border text-sm ${
+                        className={`h-10 w-10 rounded-xl border text-base ${
                           p.isPinned
-                            ? "border-accent text-accent"
-                            : "border-line text-ink-faint"
+                            ? "border-accent bg-accent-soft text-accent"
+                            : "border-line-2 text-ink-faint"
                         }`}
                         aria-label={p.isPinned ? "Unpin program" : "Pin to home screen"}
                         title={p.isPinned ? "Unpin" : "Pin to home screen"}

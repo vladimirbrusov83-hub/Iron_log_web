@@ -13,21 +13,33 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * The alert is a Web Audio beep plus `navigator.vibrate` where it exists — iOS
  * Safari has no haptics and ignores vibrate, so the beep has to carry it alone.
  * Both fire only after a tap has unlocked audio, which starting the timer is.
+ *
+ * `autoStartKey` changes every time a set is ticked off; the timer restarts on
+ * the default length when it does. Ticking the set is the tap that unlocks
+ * audio, so the beep still fires.
  */
-export function RestTimer({ defaultSeconds }: { defaultSeconds: number }) {
+export function RestTimer({
+  defaultSeconds, autoStartKey = 0,
+}: { defaultSeconds: number; autoStartKey?: number }) {
   const [endsAt, setEndsAt] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(0);
   const [seconds, setSeconds] = useState(defaultSeconds);
   const audioRef = useRef<AudioContext | null>(null);
   const firedRef = useRef(false);
+  const lastKey = useRef(autoStartKey);
 
-  const beep = useCallback(() => {
+  const unlockAudio = useCallback(() => {
     try {
       const Ctor = window.AudioContext
         ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!Ctor) return;
-      const ctx = audioRef.current ?? new Ctor();
-      audioRef.current = ctx;
+      if (Ctor) { audioRef.current = audioRef.current ?? new Ctor(); void audioRef.current.resume(); }
+    } catch { /* no audio on this device; the on-screen countdown still works */ }
+  }, []);
+
+  const beep = useCallback(() => {
+    try {
+      const ctx = audioRef.current;
+      if (!ctx) return;
       void ctx.resume();
       // Three short pips rather than one long tone — audible over gym noise and
       // over headphones without being a siren.
@@ -44,12 +56,23 @@ export function RestTimer({ defaultSeconds }: { defaultSeconds: number }) {
         osc.start(start);
         osc.stop(start + 0.18);
       });
-    } catch {
-      // No audio on this device or the context was blocked. The timer still
-      // reaches zero on screen, which is the part that has to work.
-    }
+    } catch { /* see unlockAudio */ }
     navigator.vibrate?.([120, 80, 120]);
   }, []);
+
+  const start = useCallback((forSeconds: number) => {
+    firedRef.current = false;
+    setSeconds(forSeconds);
+    setEndsAt(Date.now() + forSeconds * 1000);
+    unlockAudio();
+  }, [unlockAudio]);
+
+  useEffect(() => {
+    if (autoStartKey !== lastKey.current) {
+      lastKey.current = autoStartKey;
+      start(defaultSeconds);
+    }
+  }, [autoStartKey, defaultSeconds, start]);
 
   useEffect(() => {
     if (endsAt === null) return;
@@ -70,42 +93,40 @@ export function RestTimer({ defaultSeconds }: { defaultSeconds: number }) {
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
   }, [endsAt, beep]);
 
-  function start(forSeconds: number) {
-    firedRef.current = false;
-    setSeconds(forSeconds);
-    setEndsAt(Date.now() + forSeconds * 1000);
-    // Created inside the tap so iOS treats audio as user-initiated; without
-    // this the beep at zero is silently dropped.
-    try {
-      const Ctor = window.AudioContext
-        ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (Ctor) { audioRef.current = audioRef.current ?? new Ctor(); void audioRef.current.resume(); }
-    } catch { /* see beep() */ }
-  }
-
   const running = endsAt !== null && remaining > 0;
   const done = endsAt !== null && remaining === 0;
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
+  const fraction = seconds > 0 ? remaining / seconds : 0;
 
   return (
-    <div className="rounded-xl border border-line bg-panel p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-[11px] uppercase tracking-wide text-ink-faint">Rest</div>
-          <div className={`tnum text-2xl font-semibold ${done ? "text-good" : ""}`}>
-            {endsAt === null ? "—" : `${mins}:${String(secs).padStart(2, "0")}`}
+    <div
+      className={`relative overflow-hidden rounded-2xl border p-3 transition-colors ${
+        running ? "border-accent/50 bg-panel" : done ? "border-good/50 bg-panel" : "border-line bg-panel"
+      }`}
+    >
+      {running && (
+        <div
+          className="absolute inset-y-0 left-0 bg-accent/10 transition-[width] duration-200"
+          style={{ width: `${fraction * 100}%` }}
+        />
+      )}
+      <div className="relative flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className={`display tnum text-4xl font-semibold ${done ? "text-good" : ""}`}>
+            {endsAt === null ? "—:——" : `${mins}:${String(secs).padStart(2, "0")}`}
           </div>
+          <div className="eyebrow">{done ? "Go" : "Rest"}</div>
         </div>
         <div className="flex flex-wrap justify-end gap-1.5">
-          {[60, 90, 120, 180, 300].map((s) => (
+          {[60, 90, 120, 180].map((s) => (
             <button
               key={s}
               onClick={() => start(s)}
-              className={`min-h-9 rounded-lg border px-2.5 text-xs font-medium ${
+              className={`display min-h-9 min-w-10 rounded-lg border px-2 text-sm font-semibold ${
                 running && seconds === s
                   ? "border-accent text-accent"
-                  : "border-line bg-panel-2 text-ink-dim"
+                  : "border-line-2 bg-panel-2 text-ink-dim"
               }`}
             >
               {s < 60 ? `${s}s` : `${s / 60}m`}
@@ -115,20 +136,13 @@ export function RestTimer({ defaultSeconds }: { defaultSeconds: number }) {
             <button
               onClick={() => { setEndsAt(null); setRemaining(0); firedRef.current = false; }}
               className="min-h-9 rounded-lg border border-line px-2.5 text-xs text-ink-faint"
+              aria-label="Stop timer"
             >
-              Stop
+              ✕
             </button>
           )}
         </div>
       </div>
-      {running && (
-        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-panel-2">
-          <div
-            className="h-full rounded-full bg-accent transition-[width] duration-200"
-            style={{ width: `${(remaining / seconds) * 100}%` }}
-          />
-        </div>
-      )}
     </div>
   );
 }

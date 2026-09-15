@@ -71,7 +71,7 @@ export function Library({ exercises }: { exercises: Exercise[] }) {
         <div className="space-y-5">
           {[...byGroup.entries()].map(([group, list]) => (
             <section key={group}>
-              <h2 className="mb-2 text-xs uppercase tracking-wide text-ink-faint">{group}</h2>
+              <h2 className="eyebrow mb-2">{group}</h2>
               <ul className="space-y-1.5">
                 {list.map((e) => (
                   <li key={e.id}>
@@ -103,7 +103,7 @@ export function Library({ exercises }: { exercises: Exercise[] }) {
                     ) : (
                       <button
                         onClick={() => setEditingId(e.id)}
-                        className="flex w-full items-center justify-between rounded-lg border
+                        className="flex w-full items-center justify-between rounded-xl border
                                    border-line bg-panel px-3 py-3 text-left"
                       >
                         <span className="min-w-0">

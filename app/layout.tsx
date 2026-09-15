@@ -1,6 +1,21 @@
 import type { Metadata, Viewport } from "next";
+import { Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/nav";
+
+const barlow = Barlow({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-barlow",
+  display: "swap",
+});
+
+const barlowCondensed = Barlow_Condensed({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-barlow-condensed",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "IronLog",
@@ -8,7 +23,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#09090b",
+  themeColor: "#0b0b0c",
   width: "device-width",
   initialScale: 1,
   // The gym screen is a grid of small number inputs. Pinch-zoom stays available;
@@ -19,9 +34,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${barlow.variable} ${barlowCondensed.variable}`}>
       <body>
-        {children}
+        <div className="relative z-10">{children}</div>
         <Nav />
       </body>
     </html>

@@ -30,20 +30,25 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
-      <h1 className="text-3xl font-semibold tracking-tight">IronLog</h1>
-      <p className="mt-1 text-sm text-ink-dim">Enter the passcode to continue.</p>
+      <div className="rise">
+        <p className="eyebrow text-accent">Strength log</p>
+        <h1 className="display mt-1 text-6xl font-semibold">IronLog</h1>
+        <p className="mt-2 text-sm text-ink-dim">
+          Counts the reps that count. Enter the passcode to continue.
+        </p>
+      </div>
 
-      <form action={signIn} className="mt-6 space-y-3">
+      <form action={signIn} className="rise rise-2 mt-8 space-y-3">
         <input
           name="passcode"
           type="password"
           autoFocus
           autoComplete="current-password"
           placeholder="Passcode"
-          className={inputClass}
+          className={`${inputClass} min-h-12`}
         />
-        {wrong && <p className="text-sm text-red-400">That passcode is not right.</p>}
-        <Button type="submit" variant="primary" className="w-full">Enter</Button>
+        {wrong && <p className="text-sm text-bad">That passcode is not right.</p>}
+        <Button type="submit" variant="primary" className="w-full min-h-12">Enter</Button>
       </form>
     </main>
   );
