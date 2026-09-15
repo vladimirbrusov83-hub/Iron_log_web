@@ -51,10 +51,24 @@ Barlow Condensed (display, all big numbers) + Barlow (body) via `next/font`. Tok
 Band colours: green in range, amber under/over, red below floor. The gym screen hides
 the bottom nav and floats the rest timer instead; it auto-starts when a set is logged.
 
-Picking a RIR chip logs the set: `rate()` sends `rir`, `isCompleted` and the typed
-weight/reps in **one** `saveSet` call, so effective reps appear on the rating rather than
-waiting for a second tap on ✓. Two patches here would race two revalidations on one row.
-Clearing the rating with ✕ leaves the set logged — ✓ is what unticks it.
+## The gym screen
+
+Modelled on the iOS app Vladimir showed in September 2026: each lift is **two columns** —
+last session's complete set list on the left, today's on the right — and sets are entered
+through a **sheet**, never inline. There are no number boxes in the card any more.
+
+- `getLastSessionSets` supplies the left column: the most recent *finished* session per
+  lift, every completed set of it. It merges duplicate logs of the same name in that
+  session rather than dropping one, which `DISTINCT ON` alone would do.
+- `logSet` is the only way a set is written. It sends weight, reps, RIR and `isCompleted`
+  in **one** call, so nothing lands half-saved. `saveSet`/`appendSet`/`db.addSet` were
+  deleted when the inline grid went; do not bring back a two-write path.
+- A program day still lays its planned sets out as empty rows. The sheet **fills the next
+  empty row** (`fillId`) before appending, so the plan is consumed instead of sitting
+  blank beside what happened. `finishSession` still sweeps any left over.
+- The sheet prefills from **this session's previous set**, never from last week. Last
+  week's numbers are on the left to be read. That distinction is the no-suggestions line.
+- Saving a new working set starts the rest timer; editing an old one does not.
 
 ## Setup
 

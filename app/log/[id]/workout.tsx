@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import {
-  addExercise, appendSet, discardWorkout, dropExercise, finishWorkout,
-  noteExercise, noteSession, removeSet, saveSet,
+  addExercise, discardWorkout, dropExercise, finishWorkout,
+  logSet, noteExercise, noteSession, removeSet,
 } from "@/app/actions";
 import { RestTimer } from "@/components/rest-timer";
 import { BAND_COLOR, Button, inputClass } from "@/components/ui";
@@ -14,20 +14,33 @@ import {
 } from "@/lib/effective-reps";
 import { SESSION_ER_HIGH, SESSION_ER_LOW, sessionErBand } from "@/lib/targets";
 import { setVolume } from "@/lib/types";
+import type { LastSession } from "@/lib/db";
 import type { Exercise, ExerciseLog, Session, SetLog, Settings } from "@/lib/types";
-
-type Last = { date: string; weight: number; reps: number; rir: number | null };
 
 type Props = {
   session: Session;
   settings: Settings;
   library: Exercise[];
-  lastTime: Record<string, Last>;
+  lastTime: Record<string, LastSession>;
+};
+
+/** The set the sheet is open on: an existing row to edit, or a new one. */
+type SheetTarget = {
+  log: ExerciseLog;
+  set: SetLog | null;
+  setNumber: number;
+  /** The row to write into when one is already laid out by a program day. */
+  fillId: string | null;
+  weight: number;
+  reps: number;
+  rir: number | null;
+  isWarmup: boolean;
 };
 
 export function Workout({ session, settings, library, lastTime }: Props) {
   const [pending, startTransition] = useTransition();
   const [picking, setPicking] = useState(false);
+  const [sheet, setSheet] = useState<SheetTarget | null>(null);
   const [restKey, setRestKey] = useState(0);
   const unit = settings.weightUnit;
 
@@ -42,9 +55,9 @@ export function Workout({ session, settings, library, lastTime }: Props) {
   return (
     <>
       {/* Sticky scoreboard. The one number this rebuild exists for stays on
-          screen while the set list scrolls under it. The coverage line is not
-          decoration: without it a low total is ambiguous between an easy session
-          and an unrated one. */}
+          screen while the exercise list scrolls under it. The coverage line is
+          not decoration: without it a low total is ambiguous between an easy
+          session and an unrated one. */}
       <div
         className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md"
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
@@ -101,11 +114,9 @@ export function Workout({ session, settings, library, lastTime }: Props) {
               log={log}
               sessionId={session.id}
               unit={unit}
-              trackRir={settings.trackRir}
               last={lastTime[log.name.toLowerCase()]}
-              pending={pending}
               run={run}
-              onTick={() => setRestKey((k) => k + 1)}
+              onOpenSet={setSheet}
             />
           ))}
         </div>
@@ -159,7 +170,7 @@ export function Workout({ session, settings, library, lastTime }: Props) {
       </main>
 
       {/* The timer floats over the list so it is readable between sets without
-          scrolling back up. It starts itself when a set is ticked. */}
+          scrolling back up. It starts itself when a set is saved. */}
       <div
         className="fixed inset-x-0 bottom-0 z-30 px-3"
         style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
@@ -168,6 +179,28 @@ export function Workout({ session, settings, library, lastTime }: Props) {
           <RestTimer defaultSeconds={settings.defaultRestSeconds} autoStartKey={restKey} />
         </div>
       </div>
+
+      {sheet && (
+        <SetSheet
+          target={sheet}
+          unit={unit}
+          trackRir={settings.trackRir}
+          last={lastTime[sheet.log.name.toLowerCase()]}
+          onClose={() => setSheet(null)}
+          onDelete={() => {
+            const id = sheet.set?.id;
+            setSheet(null);
+            if (id) run(() => { void removeSet(session.id, id); });
+          }}
+          onSave={(values) => {
+            const isNew = !sheet.set;
+            setSheet(null);
+            run(() => { void logSet(session.id, sheet.log.id, sheet.set?.id ?? sheet.fillId, values); });
+            // Rest starts when a set is recorded, not when one is corrected.
+            if (isNew && !values.isWarmup) setRestKey((k) => k + 1);
+          }}
+        />
+      )}
 
       {picking && (
         <ExercisePicker
@@ -183,7 +216,7 @@ export function Workout({ session, settings, library, lastTime }: Props) {
   );
 }
 
-/** Minutes since the session started, refreshed once a minute. */
+/** Minutes since the session started, refreshed twice a minute. */
 function useElapsedMinutes(startedAt: string): number {
   const compute = () => Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 60000));
   const [minutes, setMinutes] = useState(compute);
@@ -197,107 +230,177 @@ function useElapsedMinutes(startedAt: string): number {
 
 /* ------------------------------------------------------------------ card */
 
+/**
+ * One lift, as two columns: what you did last time on the left, what you have
+ * done today on the right.
+ *
+ * The left column is the whole of the previous session's list, not its top set,
+ * because the question in the gym is "what did I do for set three last time",
+ * and reading it off the screen beats the app guessing for you. Nothing here
+ * proposes a load — it only shows what already happened.
+ */
 function ExerciseCard({
-  index, log, sessionId, unit, trackRir, last, pending, run, onTick,
+  index, log, sessionId, unit, last, run, onOpenSet,
 }: {
   index: number;
   log: ExerciseLog;
   sessionId: string;
   unit: string;
-  trackRir: boolean;
-  last?: Last;
-  pending: boolean;
+  last?: LastSession;
   run: (fn: () => void) => void;
-  onTick: () => void;
+  onOpenSet: (t: SheetTarget) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const done = log.sets.filter((s) => s.isCompleted);
   const exerciseTotal = totalEffectiveReps(log.sets);
-  const done = log.sets.filter((s) => s.isCompleted && !s.isWarmup).length;
-  const working = log.sets.filter((s) => !s.isWarmup).length;
-  const emptySets = log.sets.filter((s) => !s.isWarmup && !s.isCompleted && s.weight === 0);
-  const allDone = working > 0 && done === working;
+  const working = done.filter((s) => !s.isWarmup).length;
+  // A program day lays its planned sets out in advance. Fill those rows before
+  // appending new ones, so the plan is used up rather than sitting empty beside
+  // what actually happened.
+  const nextPlanned = log.sets.find((s) => !s.isCompleted) ?? null;
+  const planned = Math.max(log.plannedSets, 0);
+
+  function openNew() {
+    const previous = done[done.length - 1];
+    onOpenSet({
+      log,
+      set: null,
+      fillId: nextPlanned?.id ?? null,
+      setNumber: done.length + 1,
+      // Carried from the set just done, which is nearly always the same load.
+      // Never from last week — that number is on the left to be read, not applied.
+      weight: previous?.weight ?? 0,
+      reps: previous?.reps ?? nextPlanned?.reps ?? 0,
+      rir: null,
+      isWarmup: false,
+    });
+  }
 
   return (
-    <section className={`rounded-2xl border bg-panel ${allDone ? "border-good/30" : "border-line"}`}>
-      <div className="flex items-start justify-between gap-2 px-4 pt-3">
-        <div className="min-w-0">
-          <div className="flex items-baseline gap-2">
-            <span className="display tnum text-sm font-semibold text-ink-faint">
-              {String(index + 1).padStart(2, "0")}
-            </span>
+    <section className="overflow-hidden rounded-2xl border border-line bg-panel">
+      <div className="flex items-start justify-between gap-2 px-3 pt-3">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <span className="display tnum text-sm font-semibold text-ink-faint">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <div className="min-w-0">
             <h2 className="display truncate text-xl font-semibold">{log.name}</h2>
+            <p className="text-[11px] text-ink-faint">
+              {log.muscleGroup}
+              {planned > 0 && ` · ${working}/${planned} planned`}
+            </p>
           </div>
-          <p className="mt-0.5 text-[11px] text-ink-faint">
-            {log.muscleGroup}
-            {last && (
-              <>
-                {" · last "}
-                <span className="tnum text-ink-dim">
-                  {last.weight}{unit} × {last.reps}{last.rir !== null ? ` @${last.rir}` : ""}
-                </span>
-              </>
-            )}
-          </p>
         </div>
-        <div className="shrink-0 text-right">
-          <div className={`display tnum text-2xl font-semibold ${exerciseTotal ? "text-accent" : "text-ink-faint"}`}>
-            {exerciseTotal}
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="text-right">
+            <div className={`display tnum text-2xl font-semibold leading-none ${
+              exerciseTotal ? "text-accent" : "text-ink-faint"
+            }`}>
+              {exerciseTotal}
+            </div>
+            <div className="eyebrow" style={{ fontSize: 9 }}>eff reps</div>
           </div>
-          <div className="eyebrow" style={{ fontSize: 9 }}>eff reps</div>
-        </div>
-      </div>
-
-      <div className="mt-2 px-2 pb-1">
-        <div className="grid grid-cols-[1.75rem_1fr_1fr_3.25rem_1.75rem_2.5rem] gap-1.5 px-1 pb-1">
-          <span className="eyebrow" style={{ fontSize: 9 }}>Set</span>
-          <span className="eyebrow text-center" style={{ fontSize: 9 }}>{unit}</span>
-          <span className="eyebrow text-center" style={{ fontSize: 9 }}>Reps</span>
-          <span className="eyebrow text-center" style={{ fontSize: 9 }}>{trackRir ? "RIR" : ""}</span>
-          <span className="eyebrow text-center" style={{ fontSize: 9 }}>ER</span>
-          <span />
-        </div>
-        {log.sets.map((set) => (
-          <SetRow
-            key={set.id}
-            set={set}
-            sessionId={sessionId}
-            trackRir={trackRir}
-            pending={pending}
-            run={run}
-            onTick={onTick}
-          />
-        ))}
-      </div>
-
-      <div className="flex items-center gap-2 px-3 pb-3 pt-1">
-        <Button
-          className="flex-1"
-          disabled={pending}
-          onClick={() => run(() => { void appendSet(sessionId, log.id); })}
-        >
-          + Set
-        </Button>
-        {last && emptySets.length > 0 && (
-          // Fills what you lifted last time into the empty rows. Your own
-          // history, one tap — not a suggestion.
-          <Button
-            className="flex-1 text-xs"
-            disabled={pending}
-            onClick={() => run(() => {
-              for (const s of emptySets) void saveSet(sessionId, s.id, { weight: last.weight });
-            })}
+          <button
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Exercise options"
+            className="h-9 w-9 rounded-lg border border-line-2 bg-panel-2 text-ink-dim"
           >
-            Use last {last.weight}{unit}
-          </Button>
-        )}
-        <span className="tnum px-1 text-xs text-ink-faint">{done}/{working}</span>
-        <Button className="px-3" onClick={() => setOpen((v) => !v)} aria-label="Exercise options">
-          ⋯
-        </Button>
+            ⋯
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2">
+        {/* ------------------------------------------------ last time */}
+        <div className="border-r border-line px-3 pb-3">
+          <p className="eyebrow mb-1.5">
+            {last
+              ? `Last · ${new Date(last.date).toLocaleDateString(undefined, {
+                  day: "numeric", month: "short",
+                })}`
+              : "Last"}
+          </p>
+          {last ? (
+            <ul className="tnum space-y-0.5">
+              {last.sets.map((s) => (
+                <li
+                  key={s.setNumber}
+                  className="flex items-baseline gap-2 border-b border-line/60 py-1 text-sm last:border-0"
+                >
+                  <span className="display w-4 shrink-0 text-xs font-semibold text-ink-faint">
+                    {s.isWarmup ? "W" : s.setNumber}
+                  </span>
+                  <span className="text-ink-dim">
+                    <span className="text-ink">{s.weight}</span>
+                    <span className="text-ink-faint"> × </span>
+                    <span className="text-ink">{s.reps}</span>
+                    {s.rir !== null && (
+                      <span className="text-ink-faint"> @{s.rir === MAX_RIR ? `${MAX_RIR}+` : s.rir}</span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="py-2 text-xs text-ink-faint">
+              First time logging this one.
+            </p>
+          )}
+        </div>
+
+        {/* ---------------------------------------------------- today */}
+        <div className="px-3 pb-3">
+          <p className="eyebrow mb-1.5 text-accent">Today</p>
+          {done.length > 0 && (
+            <ul className="tnum mb-2 space-y-0.5">
+              {done.map((s, i) => {
+                const score = effectiveReps(s);
+                return (
+                  <li key={s.id}>
+                    <button
+                      onClick={() => onOpenSet({
+                        log, set: s, fillId: null,
+                        setNumber: s.isWarmup ? i + 1 : done.filter((d, j) => !d.isWarmup && j <= i).length,
+                        weight: s.weight, reps: s.reps, rir: s.rir, isWarmup: s.isWarmup,
+                      })}
+                      className="flex w-full items-baseline gap-1.5 border-b border-line/60 py-1
+                                 text-left text-sm last:border-0 active:bg-panel-2"
+                    >
+                      <span className="display w-4 shrink-0 text-xs font-semibold text-ink-faint">
+                        {s.isWarmup ? "W" : done.filter((d, j) => !d.isWarmup && j <= i).length}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
+                        <span className="text-ink">{s.weight}</span>
+                        <span className="text-ink-faint"> × </span>
+                        <span className="text-ink">{s.reps}</span>
+                        {s.rir !== null && (
+                          <span className="text-ink-faint"> @{s.rir === MAX_RIR ? `${MAX_RIR}+` : s.rir}</span>
+                        )}
+                      </span>
+                      <span className={`display shrink-0 text-base font-semibold ${
+                        score ? "text-accent" : "text-ink-faint"
+                      }`}>
+                        {score === null ? "–" : score}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          <button
+            onClick={openNew}
+            className="display w-full rounded-xl border border-dashed border-accent/50 bg-accent-soft
+                       py-2.5 text-base font-semibold text-accent active:bg-accent/20"
+          >
+            + Add set
+          </button>
+        </div>
       </div>
 
       {open && (
-        <div className="space-y-2 border-t border-line px-4 py-3">
+        <div className="space-y-2 border-t border-line px-3 py-3">
           <textarea
             defaultValue={log.notes}
             rows={2}
@@ -325,211 +428,204 @@ function ExerciseCard({
   );
 }
 
-/* ------------------------------------------------------------------- row */
+/* ------------------------------------------------------------- set sheet */
 
-const cell =
-  "tnum h-11 w-full rounded-lg border border-line-2 bg-panel-2 text-center text-base " +
-  "outline-none focus:border-accent focus:bg-panel-3";
+type SetValues = { weight: number; reps: number; rir: number | null; isWarmup: boolean };
 
-function SetRow({
-  set, sessionId, trackRir, pending, run, onTick,
+/**
+ * The one place a set is entered. Weight × reps × rating, on controls big
+ * enough to hit with a chalked thumb, with the effective reps the set will
+ * score shown before it is saved.
+ */
+function SetSheet({
+  target, unit, trackRir, last, onSave, onDelete, onClose,
 }: {
-  set: SetLog; sessionId: string; trackRir: boolean;
-  pending: boolean; run: (fn: () => void) => void; onTick: () => void;
+  target: SheetTarget;
+  unit: string;
+  trackRir: boolean;
+  last?: LastSession;
+  onSave: (v: SetValues) => void;
+  onDelete: () => void;
+  onClose: () => void;
 }) {
-  // Mirrored locally so typing stays responsive while the server action is in
-  // flight; the server value wins again on the next render after it lands.
-  const [weight, setWeight] = useState(String(set.weight || ""));
-  const [reps, setReps] = useState(String(set.reps || ""));
-  const [menu, setMenu] = useState(false);
-  const [rirOpen, setRirOpen] = useState(false);
-  const [flash, setFlash] = useState(false);
-  const repsRef = useRef<HTMLInputElement>(null);
+  const [weight, setWeight] = useState(target.weight ? String(target.weight) : "");
+  const [reps, setReps] = useState(target.reps ? String(target.reps) : "");
+  const [rir, setRir] = useState<number | null>(target.rir);
+  const [isWarmup, setIsWarmup] = useState(target.isWarmup);
 
-  useEffect(() => { setWeight(String(set.weight || "")); }, [set.weight]);
-  useEffect(() => { setReps(String(set.reps || "")); }, [set.reps]);
+  const weightNum = Number(weight) || 0;
+  const repsNum = Number(reps) || 0;
+  const score = effectiveReps({
+    reps: repsNum, rir, isWarmup, isCompleted: true,
+  });
+  // What this set number looked like last week, shown so the sheet answers the
+  // question without the user closing it to go and read the card.
+  const lastMatch = last?.sets.find((s) => s.setNumber === target.setNumber);
 
-  const score = effectiveReps({ ...set, reps: Number(reps) || 0 });
-
-  function patch(next: Parameters<typeof saveSet>[2]) {
-    run(() => { void saveSet(sessionId, set.id, next); });
-  }
-
-  /** Marks the set done and carries whatever is typed in the boxes with it, so a
-   *  set can be logged in one tap without blurring each box first. */
-  function complete(extra: Parameters<typeof saveSet>[2] = {}) {
-    patch({
-      ...extra,
-      isCompleted: true,
-      weight: Number(weight) || 0,
-      reps: Number(reps) || 0,
-    });
-    // Only on the transition, so re-rating a finished set does not restart rest.
-    if (!set.isCompleted) {
-      setFlash(true);
-      setTimeout(() => setFlash(false), 600);
-      if (!set.isWarmup) onTick();
-    }
-  }
-
-  function tick() {
-    if (set.isCompleted) {
-      patch({ isCompleted: false, weight: Number(weight) || 0, reps: Number(reps) || 0 });
-      return;
-    }
-    complete();
-  }
-
-  /** Rating a set is the user saying they did it, so the rating ticks it off and
-   *  scores it in the same write — one tap, not two. Effective reps appear the
-   *  moment the RIR lands rather than waiting for a separate ✓. */
-  function rate(rir: number) {
-    setRirOpen(false);
-    complete({ rir });
-  }
-
-  const rowTone = set.isCompleted
-    ? "bg-good/[0.06]"
-    : set.isWarmup ? "opacity-70" : "";
+  const step = (setter: (v: string) => void, current: number, by: number, min = 0) => () =>
+    setter(String(Math.max(min, Math.round((current + by) * 100) / 100)));
 
   return (
-    <>
+    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-sm">
+      <button className="flex-1" aria-label="Close" onClick={onClose} />
       <div
-        className={`grid grid-cols-[1.75rem_1fr_1fr_3.25rem_1.75rem_2.5rem] items-center gap-1.5
-                    rounded-xl px-1 py-1 ${rowTone}`}
+        className="rise mx-auto w-full max-w-2xl rounded-t-3xl border-t border-line-2 bg-panel px-4 pt-4"
+        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
       >
-        {/* The set number doubles as this row's menu button. At 375px a seventh
-            column would push the number boxes under a comfortable thumb. */}
-        <button
-          onClick={() => setMenu((v) => !v)}
-          aria-label={`Options for set ${set.setNumber}`}
-          className={`display tnum h-11 rounded-lg text-base font-semibold ${
-            menu ? "bg-panel-3 text-ink" : set.isWarmup ? "text-ink-faint" : "text-ink-dim"
-          }`}
-        >
-          {set.isWarmup ? "W" : set.setNumber}
-        </button>
-
-        <input
-          inputMode="decimal"
-          enterKeyHint="next"
-          value={weight}
-          placeholder="0"
-          onChange={(e) => setWeight(e.target.value)}
-          onBlur={() => { if (Number(weight) !== set.weight) patch({ weight: Number(weight) || 0 }); }}
-          onKeyDown={(e) => { if (e.key === "Enter") repsRef.current?.focus(); }}
-          className={cell}
-        />
-
-        <input
-          ref={repsRef}
-          inputMode="numeric"
-          enterKeyHint="done"
-          value={reps}
-          placeholder="0"
-          onChange={(e) => setReps(e.target.value)}
-          onBlur={() => { if (Number(reps) !== set.reps) patch({ reps: Number(reps) || 0 }); }}
-          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-          className={cell}
-        />
-
-        {/* One tap opens a strip of chips; RIR has seven states including "not
-            rated" and each should be one more tap away. Warmups are never
-            scored, so theirs is disabled. */}
-        {trackRir ? (
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="eyebrow text-accent">
+              {isWarmup ? "Warm-up set" : `Set ${target.setNumber}`}
+            </p>
+            <h2 className="display truncate text-2xl font-semibold">{target.log.name}</h2>
+            {lastMatch && (
+              <p className="tnum mt-0.5 text-xs text-ink-faint">
+                Last time: {lastMatch.weight} {unit} × {lastMatch.reps}
+                {lastMatch.rir !== null && ` @${lastMatch.rir} RIR`}
+              </p>
+            )}
+          </div>
           <button
-            onClick={() => setRirOpen((v) => !v)}
-            disabled={set.isWarmup}
-            aria-label="Reps in reserve"
-            className={`display tnum h-11 w-full rounded-lg border text-base font-semibold
-                        disabled:opacity-30 ${
-              rirOpen ? "border-accent bg-panel-3 text-accent"
-              : set.rir === null ? "border-dashed border-line-2 bg-panel-2 text-ink-faint"
-              : "border-line-2 bg-panel-2 text-ink"
-            }`}
+            onClick={onClose}
+            aria-label="Close"
+            className="h-9 w-9 shrink-0 rounded-lg border border-line-2 text-ink-dim"
           >
-            {set.rir === null ? "–" : set.rir === MAX_RIR ? `${MAX_RIR}+` : set.rir}
+            ✕
           </button>
-        ) : (
-          <span />
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <NumberField
+            label={unit}
+            value={weight}
+            onChange={setWeight}
+            onMinus={step(setWeight, weightNum, -2.5)}
+            onPlus={step(setWeight, weightNum, 2.5)}
+            decimal
+          />
+          <NumberField
+            label="Reps"
+            value={reps}
+            onChange={setReps}
+            onMinus={step(setReps, repsNum, -1)}
+            onPlus={step(setReps, repsNum, 1)}
+          />
+        </div>
+
+        {trackRir && !isWarmup && (
+          <div className="mt-4">
+            <div className="flex items-baseline justify-between">
+              <p className="eyebrow">Reps in reserve</p>
+              <p className="text-[11px] text-ink-faint">
+                {score === null
+                  ? "Rate it to score effective reps"
+                  : `Scores ${score} effective rep${score === 1 ? "" : "s"}`}
+              </p>
+            </div>
+            <div className="mt-1.5 flex gap-1">
+              {Array.from({ length: MAX_RIR + 1 }, (_, n) => (
+                <button
+                  key={n}
+                  onClick={() => setRir(rir === n ? null : n)}
+                  className={`display tnum h-12 flex-1 rounded-xl border text-lg font-semibold ${
+                    rir === n
+                      ? "border-accent bg-accent text-black"
+                      : "border-line-2 bg-panel-2 text-ink"
+                  }`}
+                >
+                  {n === MAX_RIR ? `${n}+` : n}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[11px] leading-snug text-ink-faint">
+              Reps you could still have done. {EFFECTIVE_REP_THRESHOLD} − RIR counts, capped at
+              the reps you did. Leave it blank and the set is logged but not scored.
+            </p>
+          </div>
         )}
 
-        <span
-          className={`display tnum text-center text-lg font-semibold ${score ? "text-accent" : "text-ink-faint"}`}
-          title="Effective reps for this set"
-        >
-          {score === null ? "–" : score}
-        </span>
+        <label className="mt-4 flex items-center justify-between gap-3 rounded-xl border
+                          border-line-2 bg-panel-2 px-3 py-2.5">
+          <span className="text-sm">
+            Warm-up set
+            <span className="block text-[11px] text-ink-faint">Never scored, never counted.</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={isWarmup}
+            onChange={(e) => setIsWarmup(e.target.checked)}
+            className="h-6 w-6 shrink-0 accent-[var(--accent)]"
+          />
+        </label>
 
+        <div className="mt-4 flex gap-2">
+          {target.set && (
+            <Button
+              variant="danger"
+              className="px-4"
+              onClick={() => {
+                if (confirm("Delete this set?")) onDelete();
+              }}
+            >
+              Delete
+            </Button>
+          )}
+          <Button
+            variant="primary"
+            className="flex-1"
+            disabled={repsNum <= 0}
+            onClick={() => onSave({ weight: weightNum, reps: repsNum, rir, isWarmup })}
+          >
+            {target.set ? "Save set" : "Log set"}
+          </Button>
+        </div>
+        {repsNum <= 0 && (
+          <p className="mt-2 text-center text-[11px] text-ink-faint">Enter the reps to log it.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NumberField({
+  label, value, onChange, onMinus, onPlus, decimal = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onMinus: () => void;
+  onPlus: () => void;
+  decimal?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-line-2 bg-panel-2 p-2">
+      <p className="eyebrow text-center">{label}</p>
+      <input
+        inputMode={decimal ? "decimal" : "numeric"}
+        value={value}
+        placeholder="0"
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={label}
+        className="display tnum mt-1 w-full bg-transparent text-center text-4xl font-semibold
+                   text-ink outline-none placeholder:text-ink-faint"
+      />
+      <div className="mt-2 flex gap-2">
         <button
-          onClick={tick}
-          disabled={pending}
-          aria-label={set.isCompleted ? "Mark set not done" : "Mark set done"}
-          className={`h-11 w-full rounded-lg border text-base transition-colors ${flash ? "ticked" : ""} ${
-            set.isCompleted
-              ? "border-good bg-good/20 text-good"
-              : "border-line-2 bg-panel-2 text-ink-faint active:bg-panel-3"
-          }`}
+          onClick={onMinus}
+          aria-label={`${label} down`}
+          className="display h-11 flex-1 rounded-xl border border-line-2 bg-panel text-xl font-semibold text-ink-dim active:bg-panel-3"
         >
-          <svg className="mx-auto" width="18" height="18" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12.5l4.5 4.5L19 7" />
-          </svg>
+          −
+        </button>
+        <button
+          onClick={onPlus}
+          aria-label={`${label} up`}
+          className="display h-11 flex-1 rounded-xl border border-line-2 bg-panel text-xl font-semibold text-ink-dim active:bg-panel-3"
+        >
+          +
         </button>
       </div>
-
-      {rirOpen && trackRir && !set.isWarmup && (
-        <div className="mb-1.5 mt-0.5 px-1">
-          <div className="flex items-center gap-1">
-            <span className="eyebrow mr-1 shrink-0" style={{ fontSize: 9 }}>RIR</span>
-            {Array.from({ length: MAX_RIR + 1 }, (_, n) => (
-              <button
-                key={n}
-                onClick={() => rate(n)}
-                className={`display tnum h-10 flex-1 rounded-lg border text-base font-semibold ${
-                  set.rir === n
-                    ? "border-accent bg-accent text-black"
-                    : "border-line-2 bg-panel-2 text-ink"
-                }`}
-              >
-                {n === MAX_RIR ? `${n}+` : n}
-              </button>
-            ))}
-            {/* Clears the rating only. The set stays logged — untick it with ✓. */}
-            <button
-              onClick={() => { patch({ rir: null }); setRirOpen(false); }}
-              className="h-10 w-9 shrink-0 rounded-lg border border-line text-xs text-ink-faint"
-              aria-label="Clear rating"
-            >
-              ✕
-            </button>
-          </div>
-          <p className="mt-1 text-[10px] text-ink-faint">
-            {set.isCompleted
-              ? `Scores ${EFFECTIVE_REP_THRESHOLD} − RIR effective reps, capped at the reps done.`
-              : "Rating logs the set and scores it."}
-          </p>
-        </div>
-      )}
-
-      {menu && (
-        <div className="mb-1.5 mt-0.5 flex gap-2 px-1">
-          <Button
-            className="flex-1 text-xs"
-            onClick={() => { patch({ isWarmup: !set.isWarmup }); setMenu(false); }}
-          >
-            {set.isWarmup ? "Make working set" : "Mark as warmup"}
-          </Button>
-          <Button
-            variant="danger"
-            className="flex-1 text-xs"
-            onClick={() => { setMenu(false); run(() => { void removeSet(sessionId, set.id); }); }}
-          >
-            Delete set
-          </Button>
-        </div>
-      )}
-    </>
+    </div>
   );
 }
 

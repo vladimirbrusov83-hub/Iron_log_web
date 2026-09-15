@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getLastPerformance, getExercises, getSession, getSettings } from "@/lib/db";
+import { getLastSessionSets, getExercises, getSession, getSettings } from "@/lib/db";
 import { Workout } from "./workout";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ export default async function LogPage({ params }: { params: Promise<{ id: string
   const [settings, library, last] = await Promise.all([
     getSettings(),
     getExercises(),
-    getLastPerformance(session.exercises.map((e) => e.name)),
+    getLastSessionSets(session.exercises.map((e) => e.name)),
   ]);
 
   return (

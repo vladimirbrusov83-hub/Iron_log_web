@@ -449,22 +449,6 @@ export async function saveExerciseLogNotes(logId: string, notes: string): Promis
   await sql`UPDATE exercise_logs SET notes = ${notes} WHERE id = ${logId}`;
 }
 
-/** Appends a set, carrying the previous set's weight and reps forward — the
- *  next set is nearly always the same load, and typing it again in a gym is
- *  the kind of friction that stops people logging. */
-export async function addSet(logId: string): Promise<void> {
-  await sql`
-    INSERT INTO set_logs (exercise_log_id, set_number, weight, reps, is_warmup)
-    SELECT ${logId},
-           coalesce(max(set_number), 0) + 1,
-           coalesce((SELECT weight FROM set_logs WHERE exercise_log_id = ${logId}
-                      ORDER BY set_number DESC LIMIT 1), 0),
-           coalesce((SELECT reps FROM set_logs WHERE exercise_log_id = ${logId}
-                      ORDER BY set_number DESC LIMIT 1), 0),
-           false
-      FROM set_logs WHERE exercise_log_id = ${logId}`;
-}
-
 export type SetPatch = {
   weight?: number; reps?: number; rir?: number | null; rpe?: number | null;
   isCompleted?: boolean; isWarmup?: boolean; notes?: string;
@@ -803,25 +787,65 @@ export async function getHeadline(days: number): Promise<Headline> {
   };
 }
 
-/** The last time each lift was trained, with its top working set — what the
- *  gym screen shows above the sets so you know what you did last time. */
-export async function getLastPerformance(
-  names: string[],
-): Promise<Map<string, { date: string; weight: number; reps: number; rir: number | null }>> {
+/**
+ * The previous session for each lift, with every set it contained — the "last
+ * time" column on the gym screen.
+ *
+ * `DISTINCT ON` picks the most recent finished session that has a completed set
+ * of that lift; the join back then collects **every** log of that name in that
+ * session, so a freestyle day that added "Cable Row" twice reads as one list
+ * rather than silently dropping half of it.
+ */
+export type LastSessionSet = {
+  setNumber: number; weight: number; reps: number; rir: number | null; isWarmup: boolean;
+};
+export type LastSession = { date: string; sets: LastSessionSet[] };
+
+export async function getLastSessionSets(names: string[]): Promise<Map<string, LastSession>> {
   if (names.length === 0) return new Map();
   const rows = (await sql`
-    SELECT DISTINCT ON (lower(el.name))
-           el.name, s.started_at::text AS date, sl.weight, sl.reps, sl.rir
-      FROM sessions s
-      JOIN exercise_logs el ON el.session_id = s.id
-      JOIN set_logs sl ON sl.exercise_log_id = el.id
-     WHERE s.finished_at IS NOT NULL AND sl.is_completed AND NOT sl.is_warmup
-       AND lower(el.name) = ANY(${names.map((n) => n.toLowerCase())}::text[])
-     ORDER BY lower(el.name), s.started_at DESC, sl.weight DESC`) as {
-    name: string; date: string; weight: number; reps: number; rir: number | null;
+    WITH latest AS (
+      SELECT DISTINCT ON (lower(el.name))
+             lower(el.name) AS key, s.id AS session_id, s.started_at
+        FROM sessions s
+        JOIN exercise_logs el ON el.session_id = s.id
+        JOIN set_logs sl ON sl.exercise_log_id = el.id AND sl.is_completed
+       WHERE s.finished_at IS NOT NULL
+         AND lower(el.name) = ANY(${names.map((n) => n.toLowerCase())}::text[])
+       ORDER BY lower(el.name), s.started_at DESC
+    )
+    SELECT l.key, l.started_at::text AS date, sl.set_number, sl.weight, sl.reps,
+           sl.rir, sl.is_warmup
+      FROM latest l
+      JOIN exercise_logs el ON el.session_id = l.session_id AND lower(el.name) = l.key
+      JOIN set_logs sl ON sl.exercise_log_id = el.id AND sl.is_completed
+     ORDER BY l.key, el.position, sl.set_number`) as {
+    key: string; date: string; set_number: number; weight: number;
+    reps: number; rir: number | null; is_warmup: boolean;
   }[];
-  return new Map(rows.map((r) => [
-    r.name.toLowerCase(),
-    { date: r.date, weight: r.weight, reps: r.reps, rir: r.rir },
-  ]));
+
+  const out = new Map<string, LastSession>();
+  for (const r of rows) {
+    const entry = out.get(r.key) ?? { date: r.date, sets: [] };
+    entry.sets.push({
+      setNumber: entry.sets.length + 1,
+      weight: r.weight, reps: r.reps, rir: r.rir, isWarmup: r.is_warmup,
+    });
+    out.set(r.key, entry);
+  }
+  return out;
+}
+
+/** Inserts an already-performed set. The gym screen adds sets through the set
+ *  sheet, which knows the numbers before the row exists, so there is no empty
+ *  row in between to patch. */
+export async function insertCompletedSet(
+  logId: string,
+  values: { weight: number; reps: number; rir: number | null; isWarmup: boolean },
+): Promise<void> {
+  await sql`
+    INSERT INTO set_logs (exercise_log_id, set_number, weight, reps, rir, is_completed, is_warmup)
+    SELECT ${logId}, coalesce(max(set_number), 0) + 1, ${values.weight}, ${values.reps},
+           ${values.rir}::int, true, ${values.isWarmup}
+      FROM set_logs WHERE exercise_log_id = ${logId}`;
 }

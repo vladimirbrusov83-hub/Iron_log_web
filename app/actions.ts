@@ -73,49 +73,40 @@ export async function noteSession(sessionId: string, notes: string) {
 
 /* ------------------------------------------------------------------- sets */
 
-export async function appendSet(sessionId: string, logId: string) {
-  await db.addSet(logId);
+/**
+ * Records one performed set from the set sheet — the only way sets are entered
+ * on the gym screen now.
+ *
+ * `setId` is an existing row when the workout came from a program day, which
+ * lays out its planned sets in advance; the sheet fills the first one that has
+ * not been done yet rather than leaving a blank row behind and appending beside
+ * it. When there is no such row the set is inserted outright. Either way the
+ * weight, reps, rating and the completed flag go up in one write, so nothing
+ * can land half-saved.
+ */
+export async function logSet(
+  sessionId: string,
+  logId: string,
+  setId: string | null,
+  values: { weight: number; reps: number; rir: number | null; isWarmup: boolean },
+) {
+  const clean = {
+    weight: clampNumber(values.weight, 0, 999, 0),
+    reps: Math.round(clampNumber(values.reps, 0, 500, 0)),
+    rir: values.rir === null || values.rir === undefined
+      ? null
+      : Math.round(clampNumber(values.rir, 0, MAX_RIR, 0)),
+    isWarmup: Boolean(values.isWarmup),
+  };
+
+  if (setId) await db.updateSet(setId, { ...clean, isCompleted: true });
+  else await db.insertCompletedSet(logId, clean);
+
   revalidatePath(`/log/${sessionId}`);
 }
 
 export async function removeSet(sessionId: string, setId: string) {
   await db.deleteSet(setId);
-  revalidatePath(`/log/${sessionId}`);
-}
-
-/**
- * The one write the gym screen makes constantly. Values are clamped rather than
- * rejected: a fat-fingered 9999 kg should land as 999, not throw away the tap.
- *
- * `rir` and `rpe` distinguish three inputs — a number, an empty string meaning
- * "clear the rating", and absent meaning "leave it alone". Collapsing the last
- * two would wipe a rating every time the weight box saved.
- */
-export async function saveSet(
-  sessionId: string,
-  setId: string,
-  patch: {
-    weight?: number; reps?: number; rir?: number | null; rpe?: number | null;
-    isCompleted?: boolean; isWarmup?: boolean;
-  },
-) {
-  const clean: Parameters<typeof db.updateSet>[1] = {};
-  if (patch.weight !== undefined) clean.weight = clampNumber(patch.weight, 0, 999, 0);
-  if (patch.reps !== undefined) clean.reps = Math.round(clampNumber(patch.reps, 0, 500, 0));
-  if ("rir" in patch) {
-    clean.rir = patch.rir === null || patch.rir === undefined
-      ? null
-      : Math.round(clampNumber(patch.rir, 0, MAX_RIR, 0));
-  }
-  if ("rpe" in patch) {
-    clean.rpe = patch.rpe === null || patch.rpe === undefined
-      ? null
-      : clampNumber(patch.rpe, 1, 10, 10);
-  }
-  if (patch.isCompleted !== undefined) clean.isCompleted = patch.isCompleted;
-  if (patch.isWarmup !== undefined) clean.isWarmup = patch.isWarmup;
-
-  await db.updateSet(setId, clean);
   revalidatePath(`/log/${sessionId}`);
 }
 
