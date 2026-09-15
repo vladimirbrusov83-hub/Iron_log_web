@@ -9,7 +9,8 @@ import {
 import { RestTimer } from "@/components/rest-timer";
 import { BAND_COLOR, Button, inputClass } from "@/components/ui";
 import {
-  MAX_RIR, effectiveReps, effectiveRepsByMuscle, effectiveRepsCoverage, totalEffectiveReps,
+  EFFECTIVE_REP_THRESHOLD, MAX_RIR, effectiveReps, effectiveRepsByMuscle,
+  effectiveRepsCoverage, totalEffectiveReps,
 } from "@/lib/effective-reps";
 import { SESSION_ER_HIGH, SESSION_ER_LOW, sessionErBand } from "@/lib/targets";
 import { setVolume } from "@/lib/types";
@@ -354,20 +355,37 @@ function SetRow({
     run(() => { void saveSet(sessionId, set.id, next); });
   }
 
-  function tick() {
-    const completing = !set.isCompleted;
-    // Whatever is typed in the boxes goes with the tick, so a set can be logged
-    // in one tap without blurring each box first.
+  /** Marks the set done and carries whatever is typed in the boxes with it, so a
+   *  set can be logged in one tap without blurring each box first. */
+  function complete(extra: Parameters<typeof saveSet>[2] = {}) {
     patch({
-      isCompleted: completing,
+      ...extra,
+      isCompleted: true,
       weight: Number(weight) || 0,
       reps: Number(reps) || 0,
     });
-    if (completing) {
+    // Only on the transition, so re-rating a finished set does not restart rest.
+    if (!set.isCompleted) {
       setFlash(true);
       setTimeout(() => setFlash(false), 600);
       if (!set.isWarmup) onTick();
     }
+  }
+
+  function tick() {
+    if (set.isCompleted) {
+      patch({ isCompleted: false, weight: Number(weight) || 0, reps: Number(reps) || 0 });
+      return;
+    }
+    complete();
+  }
+
+  /** Rating a set is the user saying they did it, so the rating ticks it off and
+   *  scores it in the same write — one tap, not two. Effective reps appear the
+   *  moment the RIR lands rather than waiting for a separate ✓. */
+  function rate(rir: number) {
+    setRirOpen(false);
+    complete({ rir });
   }
 
   const rowTone = set.isCompleted
@@ -461,28 +479,36 @@ function SetRow({
       </div>
 
       {rirOpen && trackRir && !set.isWarmup && (
-        <div className="mb-1.5 mt-0.5 flex items-center gap-1 px-1">
-          <span className="eyebrow mr-1 shrink-0" style={{ fontSize: 9 }}>RIR</span>
-          {Array.from({ length: MAX_RIR + 1 }, (_, n) => (
+        <div className="mb-1.5 mt-0.5 px-1">
+          <div className="flex items-center gap-1">
+            <span className="eyebrow mr-1 shrink-0" style={{ fontSize: 9 }}>RIR</span>
+            {Array.from({ length: MAX_RIR + 1 }, (_, n) => (
+              <button
+                key={n}
+                onClick={() => rate(n)}
+                className={`display tnum h-10 flex-1 rounded-lg border text-base font-semibold ${
+                  set.rir === n
+                    ? "border-accent bg-accent text-black"
+                    : "border-line-2 bg-panel-2 text-ink"
+                }`}
+              >
+                {n === MAX_RIR ? `${n}+` : n}
+              </button>
+            ))}
+            {/* Clears the rating only. The set stays logged — untick it with ✓. */}
             <button
-              key={n}
-              onClick={() => { patch({ rir: n }); setRirOpen(false); }}
-              className={`display tnum h-10 flex-1 rounded-lg border text-base font-semibold ${
-                set.rir === n
-                  ? "border-accent bg-accent text-black"
-                  : "border-line-2 bg-panel-2 text-ink"
-              }`}
+              onClick={() => { patch({ rir: null }); setRirOpen(false); }}
+              className="h-10 w-9 shrink-0 rounded-lg border border-line text-xs text-ink-faint"
+              aria-label="Clear rating"
             >
-              {n === MAX_RIR ? `${n}+` : n}
+              ✕
             </button>
-          ))}
-          <button
-            onClick={() => { patch({ rir: null }); setRirOpen(false); }}
-            className="h-10 w-9 shrink-0 rounded-lg border border-line text-xs text-ink-faint"
-            aria-label="Clear rating"
-          >
-            ✕
-          </button>
+          </div>
+          <p className="mt-1 text-[10px] text-ink-faint">
+            {set.isCompleted
+              ? `Scores ${EFFECTIVE_REP_THRESHOLD} − RIR effective reps, capped at the reps done.`
+              : "Rating logs the set and scores it."}
+          </p>
         </div>
       )}
 

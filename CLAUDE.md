@@ -49,7 +49,12 @@ that stays the line. `getMuscleTotals` returns `hardSets` and `sessions` for the
 Barlow Condensed (display, all big numbers) + Barlow (body) via `next/font`. Tokens in
 `app/globals.css`; `.display`, `.eyebrow`, `.tnum`, `.rise` are the utility classes.
 Band colours: green in range, amber under/over, red below floor. The gym screen hides
-the bottom nav and floats the rest timer instead; it auto-starts when a set is ticked.
+the bottom nav and floats the rest timer instead; it auto-starts when a set is logged.
+
+Picking a RIR chip logs the set: `rate()` sends `rir`, `isCompleted` and the typed
+weight/reps in **one** `saveSet` call, so effective reps appear on the rating rather than
+waiting for a second tap on ✓. Two patches here would race two revalidations on one row.
+Clearing the rating with ✕ leaves the set logged — ✓ is what unticks it.
 
 ## Setup
 
