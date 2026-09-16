@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { startWorkout } from "@/app/actions";
 import { getActiveSession, getLastDayUse, getProgramsByRecentUse } from "@/lib/db";
-import { Button, Empty, Header, Page, Panel } from "@/components/ui";
+import { Button, Empty, Header, Page } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -62,53 +62,46 @@ export default async function StartPage({
           freestyle below.
         </Empty>
       ) : (
-        <ul className="rise rise-1 space-y-3">
+        /* One compact row per day: what it is called, how many lifts, when it
+           was last trained, and which lifts. Sets and reps belong in the editor
+           and on the gym screen, not in a list you are scanning to pick from. */
+        <ul className="rise rise-1 space-y-2">
           {program.days.map((day, i) => {
             const last = lastUse[day.id];
-            const sets = day.exercises.reduce((n, e) => n + e.plannedSets, 0);
             return (
               <li key={day.id}>
-                <Panel>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-baseline gap-2">
-                      <span className="display tnum text-sm font-semibold text-ink-faint">
-                        {String(i + 1).padStart(2, "0")}
+                <form action={startWorkout.bind(null, day.id)}>
+                  <button
+                    className="flex w-full items-center gap-3 rounded-2xl border border-line
+                               bg-panel px-3 py-3 text-left transition-colors
+                               hover:border-accent/60 active:bg-panel-2"
+                  >
+                    <span className="display tnum w-7 shrink-0 text-2xl font-semibold text-ink-faint">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="display block truncate text-xl font-semibold">
+                        {day.name}
                       </span>
-                      <div className="min-w-0">
-                        <h2 className="display truncate text-2xl font-semibold">{day.name}</h2>
-                        <p className="tnum text-[11px] text-ink-faint">
-                          {day.exercises.length} lifts · {sets} planned sets
-                          {last && ` · last ${new Date(last).toLocaleDateString(undefined, {
-                            weekday: "short", day: "numeric", month: "short",
-                          })}`}
-                          {!last && " · never trained"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <ul className="mt-3 space-y-1">
-                    {day.exercises.map((e) => (
-                      <li
-                        key={e.id}
-                        className="flex items-baseline justify-between gap-2 border-b border-line/60
-                                   pb-1 text-sm last:border-0 last:pb-0"
-                      >
-                        <span className="min-w-0 truncate">{e.name}</span>
-                        <span className="tnum shrink-0 text-xs text-ink-faint">
-                          {e.plannedSets} × {e.plannedReps}
-                          <span className="ml-2 text-ink-faint">{e.muscleGroup}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <form action={startWorkout.bind(null, day.id)} className="mt-3">
-                    <Button type="submit" variant="primary" className="w-full">
-                      Start {day.name}
-                    </Button>
-                  </form>
-                </Panel>
+                      <span className="tnum block truncate text-[11px] text-ink-faint">
+                        {day.exercises.length} lifts
+                        {last
+                          ? ` · last ${new Date(last).toLocaleDateString(undefined, {
+                              day: "numeric", month: "short",
+                            })}`
+                          : " · never trained"}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-ink-dim">
+                        {day.exercises.map((e) => e.name).join(" · ")}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-accent">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                           stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"
+                           strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+                    </span>
+                  </button>
+                </form>
               </li>
             );
           })}

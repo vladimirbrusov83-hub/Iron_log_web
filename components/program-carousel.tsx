@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { startWorkout } from "@/app/actions";
 import type { Program } from "@/lib/types";
 
@@ -16,25 +16,13 @@ import type { Program } from "@/lib/types";
  *
  * Programs arrive most-recently-trained first, so the card opens on the one
  * being run without anyone choosing it.
+ *
+ * The card is a fixed height whatever the program, so nothing below it moves
+ * when you swipe. A program with more days than fit scrolls its list inside.
  */
 export function ProgramCarousel({ programs }: { programs: Program[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const slideRefs = useRef<(HTMLElement | null)[]>([]);
   const [index, setIndex] = useState(0);
-  // Flex children all stretch to the tallest, which would leave a two-program
-  // card padded out to the length of the longest one. The track is given the
-  // height of the page actually showing instead, and follows it on a swipe.
-  const [height, setHeight] = useState<number | undefined>(undefined);
-
-  useEffect(() => {
-    const slide = slideRefs.current[index];
-    if (!slide) return;
-    const measure = () => setHeight(slide.offsetHeight);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(slide);
-    return () => observer.disconnect();
-  }, [index, programs]);
 
   const current = programs[Math.min(index, programs.length - 1)] ?? programs[0];
   if (!current) return null;
@@ -57,17 +45,11 @@ export function ProgramCarousel({ programs }: { programs: Program[] }) {
       <div
         ref={trackRef}
         onScroll={onScroll}
-        style={{ height }}
-        className="flex snap-x snap-mandatory items-start overflow-x-auto overflow-y-hidden
-                   transition-[height] duration-200
+        className="flex h-80 snap-x snap-mandatory overflow-x-auto overflow-y-hidden
                    [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {programs.map((program, i) => (
-          <section
-            key={program.id}
-            ref={(el) => { slideRefs.current[i] = el; }}
-            className="w-full shrink-0 snap-center pb-4"
-          >
+        {programs.map((program) => (
+          <section key={program.id} className="flex h-full w-full shrink-0 snap-center flex-col">
             <div className="flex items-baseline justify-between gap-2 px-4 pt-4">
               <div className="min-w-0">
                 <p className="eyebrow text-accent">Start a workout</p>
@@ -81,7 +63,11 @@ export function ProgramCarousel({ programs }: { programs: Program[] }) {
                 This program has no days yet.
               </p>
             ) : (
-              <ul className="mt-3 space-y-2 px-4">
+              /* Scrolls inside the fixed card when a program has more days than
+                 fit, so the card never changes height. */
+              <ul className="mt-3 flex-1 space-y-2 overflow-y-auto px-4 pb-4
+                             [-ms-overflow-style:none] [scrollbar-width:none]
+                             [&::-webkit-scrollbar]:hidden">
                 {program.days.map((day, i) => (
                   <li key={day.id}>
                     <form action={startWorkout.bind(null, day.id)}>

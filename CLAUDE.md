@@ -76,12 +76,13 @@ The program card is the point of the page and sits in the middle of the glass. I
 **swipeable carousel** (`components/program-carousel.tsx`) over `getProgramsByRecentUse`,
 which orders by the last session started from each program — so it opens on the one being
 run, with no pinned-program logic involved. Two details that will bite if removed: the
-swipe is native `snap-x` scrolling, not a gesture handler, and the track's height is set
-from the **active slide** because flex children otherwise all stretch to the tallest
-program, padding a two-day card out to a six-day one.
+swipe is native `snap-x` scrolling, not a gesture handler, and the card is a **fixed
+height** (`h-80`) whatever the program, so nothing below it moves on a swipe. A program
+with more days than fit scrolls its day list inside the card.
 
-`Start` on the card goes to **`/start`**, the week: every day of that program in full with
-the last date it was trained, each with its own start button, and freestyle at the bottom.
+`Start` on the card goes to **`/start`**, the week: one compact row per day — name, lift
+count, last trained, lift names — and freestyle at the bottom. No sets or reps there; it
+is a list you scan to pick from, and the whole row is the start button.
 Tapping a day on the home card still starts it directly and skips that screen. `/start`
 redirects into the open session if there is one, because there is only ever one.
 
