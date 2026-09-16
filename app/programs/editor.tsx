@@ -381,6 +381,7 @@ function Picker({
   const [group, setGroup] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Exercise[]>([]);
   const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
   const [newGroup, setNewGroup] = useState<string>(MUSCLE_GROUPS[0]);
   const [newCompound, setNewCompound] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -390,7 +391,6 @@ function Picker({
   const groups = MUSCLE_GROUPS.filter((m) => library.some((e) => e.muscleGroup === m));
   const matches = library.filter((e) =>
     (q === "" || e.name.toLowerCase().includes(q)) && (group === null || e.muscleGroup === group));
-  const exact = library.some((e) => e.name.trim().toLowerCase() === q);
   const isChosen = (id: string) => chosen.some((c) => c.id === id);
 
   function toggle(exercise: Exercise) {
@@ -399,8 +399,17 @@ function Picker({
       : [...current, exercise]);
   }
 
+  /** Opens the new-exercise dialog, seeded with whatever was typed in the search
+   *  box and with the group already filtered to, since both are usually right. */
+  function openCreate() {
+    setNewName(query.trim());
+    if (group) setNewGroup(group);
+    setError(null);
+    setCreating(true);
+  }
+
   function create() {
-    const name = query.trim();
+    const name = newName.trim();
     if (!name) return;
     setError(null);
     startTransition(async () => {
@@ -415,6 +424,7 @@ function Picker({
       onCreated(made);
       setChosen((current) => [...current, made]);
       setCreating(false);
+      setNewName("");
       setQuery("");
     });
   }
@@ -452,52 +462,18 @@ function Picker({
         </div>
 
         <div className="mt-2 min-h-0 flex-1 overflow-y-auto pb-4">
-          {/* Not in the library yet: make it, and it arrives already chosen. */}
-          {q !== "" && !exact && (
-            <div className="mb-2 rounded-xl border border-dashed border-accent/50 p-3">
-              {creating ? (
-                <div className="space-y-2">
-                  <p className="text-sm">
-                    Add <span className="text-accent">&ldquo;{query.trim()}&rdquo;</span> to the library
-                  </p>
-                  <div className="flex gap-2">
-                    <select
-                      value={newGroup}
-                      onChange={(e) => setNewGroup(e.target.value)}
-                      className={inputClass}
-                      aria-label="Muscle group"
-                    >
-                      {MUSCLE_GROUPS.map((m) => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <label className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl border
-                                      border-line-2 bg-panel-2 px-3 text-sm text-ink-dim">
-                      <input
-                        type="checkbox"
-                        checked={newCompound}
-                        onChange={(e) => setNewCompound(e.target.checked)}
-                        className="h-4 w-4 accent-[var(--accent)]"
-                      />
-                      Compound
-                    </label>
-                  </div>
-                  {error && <p className="text-sm text-bad">{error}</p>}
-                  <div className="flex gap-2">
-                    <Button variant="primary" className="flex-1" disabled={pending} onClick={create}>
-                      {pending ? "Adding…" : "Add to library"}
-                    </Button>
-                    <Button onClick={() => { setCreating(false); setError(null); }}>Cancel</Button>
-                  </div>
-                </div>
-              ) : (
-                <button onClick={() => setCreating(true)} className="w-full text-left text-sm text-accent">
-                  + Create &ldquo;{query.trim()}&rdquo;
-                  <span className="block text-[11px] text-ink-faint">
-                    Added to the library and to this day.
-                  </span>
-                </button>
-              )}
-            </div>
-          )}
+          {/* Always here, not only when a search misses — adding a lift is a
+              thing you set out to do, not only something you fall back to. */}
+          <button
+            onClick={openCreate}
+            className="mb-2 w-full rounded-xl border border-dashed border-accent/50 px-3 py-3
+                       text-left text-sm text-accent active:bg-accent-soft"
+          >
+            + New exercise
+            <span className="block text-[11px] text-ink-faint">
+              Added to the library and straight into this day.
+            </span>
+          </button>
 
           <ul className="space-y-1">
             {matches.map((e) => {
@@ -530,12 +506,71 @@ function Picker({
             })}
           </ul>
 
-          {matches.length === 0 && q === "" && (
+          {matches.length === 0 && (
             <p className="py-8 text-center text-sm text-ink-faint">
-              Nothing in {group ?? "the library"} yet.
+              {q === ""
+                ? `Nothing in ${group ?? "the library"} yet.`
+                : `Nothing matches “${query.trim()}”.`}
             </p>
           )}
         </div>
+
+        {creating && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75
+                          px-4 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-2xl border border-line-2 bg-panel p-4">
+              <h3 className="display text-2xl font-semibold">New exercise</h3>
+              <p className="mt-0.5 text-[11px] text-ink-faint">
+                Goes into the library and into this day.
+              </p>
+
+              <input
+                autoFocus
+                value={newName}
+                onChange={(e) => { setNewName(e.target.value); setError(null); }}
+                onKeyDown={(e) => { if (e.key === "Enter" && newName.trim()) create(); }}
+                placeholder="Exercise name"
+                aria-label="Exercise name"
+                className={`${inputClass} mt-3`}
+              />
+
+              <div className="mt-2 flex gap-2">
+                <select
+                  value={newGroup}
+                  onChange={(e) => setNewGroup(e.target.value)}
+                  className={inputClass}
+                  aria-label="Muscle group"
+                >
+                  {MUSCLE_GROUPS.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <label className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl border
+                                  border-line-2 bg-panel-2 px-3 text-sm text-ink-dim">
+                  <input
+                    type="checkbox"
+                    checked={newCompound}
+                    onChange={(e) => setNewCompound(e.target.checked)}
+                    className="h-4 w-4 accent-[var(--accent)]"
+                  />
+                  Compound
+                </label>
+              </div>
+
+              {error && <p className="mt-2 text-sm text-bad">{error}</p>}
+
+              <div className="mt-3 flex gap-2">
+                <Button onClick={() => { setCreating(false); setError(null); }}>Cancel</Button>
+                <Button
+                  variant="primary"
+                  className="flex-1"
+                  disabled={pending || !newName.trim()}
+                  onClick={create}
+                >
+                  {pending ? "Adding…" : "Add exercise"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stays put while the list scrolls, so the count is always in sight. */}
         <div
