@@ -71,6 +71,33 @@ export async function getExercises(): Promise<Exercise[]> {
   }));
 }
 
+/**
+ * How much each library entry is actually used: how many programs plan it and
+ * how many sessions contain it. Matched on the name, which is unique in the
+ * library case-insensitively, so a lift logged as a one-off still counts.
+ *
+ * The exercises page shows this beside every row, because deleting a lift you
+ * have trained for a year and deleting a typo you saved by accident should not
+ * look identical.
+ */
+export type ExerciseUsage = { programs: number; sessions: number };
+
+export async function getExerciseUsage(): Promise<Record<string, ExerciseUsage>> {
+  const rows = (await sql`
+    SELECT e.id,
+           (SELECT count(DISTINCT d.program_id)
+              FROM planned_exercises pe
+              JOIN program_days d ON d.id = pe.day_id
+             WHERE lower(pe.name) = lower(e.name)) AS programs,
+           (SELECT count(DISTINCT el.session_id)
+              FROM exercise_logs el
+             WHERE lower(el.name) = lower(e.name)) AS sessions
+      FROM exercises e`) as { id: string; programs: string; sessions: string }[];
+  return Object.fromEntries(rows.map((r) => [
+    r.id, { programs: Number(r.programs), sessions: Number(r.sessions) },
+  ]));
+}
+
 /** Returns null when the name is already taken — the unique index is
  *  case-insensitive, so "bench press" collides with "Bench Press". */
 export async function addExercise(

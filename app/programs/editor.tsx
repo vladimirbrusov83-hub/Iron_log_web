@@ -389,6 +389,13 @@ function Picker({
 
   const q = query.trim().toLowerCase();
   const groups = MUSCLE_GROUPS.filter((m) => library.some((e) => e.muscleGroup === m));
+  // "Seal Row", "seal-row" and "Seal  Row" are the same lift. The unique index
+  // only catches the case difference, so the near-miss is caught here instead of
+  // quietly becoming a second entry.
+  const flatten = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const similar = newName.trim() === ""
+    ? undefined
+    : library.find((e) => flatten(e.name) === flatten(newName));
   const matches = library.filter((e) =>
     (q === "" || e.name.toLowerCase().includes(q)) && (group === null || e.muscleGroup === group));
   const isChosen = (id: string) => chosen.some((c) => c.id === id);
@@ -521,7 +528,8 @@ function Picker({
             <div className="w-full max-w-sm rounded-2xl border border-line-2 bg-panel p-4">
               <h3 className="display text-2xl font-semibold">New exercise</h3>
               <p className="mt-0.5 text-[11px] text-ink-faint">
-                Goes into the library and into this day.
+                Goes into the library for good, and into this day. Remove it later under
+                More → Exercise library.
               </p>
 
               <input
@@ -554,6 +562,27 @@ function Picker({
                   Compound
                 </label>
               </div>
+
+              {similar && (
+                <div className="mt-2 rounded-xl border border-warn/40 bg-warn/5 p-2.5">
+                  <p className="text-xs text-warn">
+                    <span className="font-medium">{similar.name}</span> is already in the
+                    library.
+                  </p>
+                  <Button
+                    className="mt-2 w-full text-xs"
+                    onClick={() => {
+                      setChosen((current) => current.some((c) => c.id === similar.id)
+                        ? current : [...current, similar]);
+                      setCreating(false);
+                      setNewName("");
+                      setQuery("");
+                    }}
+                  >
+                    Use {similar.name} instead
+                  </Button>
+                </div>
+              )}
 
               {error && <p className="mt-2 text-sm text-bad">{error}</p>}
 

@@ -105,6 +105,20 @@ with **no z-index**. It used to be `z-10`, which made a stacking context and pin
 `z-50` picker underneath the `z-40` nav — the Add button was unclickable. The gym screen
 never showed it because it hides the nav. Do not put a z-index back on that wrapper.
 
+## The exercise base
+
+`/exercises`, reached from **More**, which is a hub of places (Exercise library, Programs)
+above the preferences rather than two buttons under them. Every row carries how many
+programs plan it and how many sessions contain it — `getExerciseUsage`, matched on the
+name because that is what a one-off log keeps — and **Unused** is a filter chip of its own.
+That is the point of the page: finding the typo saved in a hurry from a picker and removing
+it. Deleting is a two-step confirm that says what survives, because `exercise_id` is
+`ON DELETE SET NULL` everywhere and history and programs keep the name.
+
+The editor's create dialog also refuses near-duplicates: names are compared with all
+non-alphanumerics stripped, so `bench-press` finds `Bench Press` and offers to use it
+instead. The unique index only catches the case difference.
+
 ## The home screen
 
 The program card is the point of the page and sits in the middle of the glass. It is a

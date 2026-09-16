@@ -1,9 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getSettings } from "@/lib/db";
+import { getExercises, getPrograms, getSettings } from "@/lib/db";
 import { AUTH_COOKIE } from "@/lib/auth";
-import { Button, ButtonLink, Header, Page, Panel } from "@/components/ui";
+import { Button, Header, Page, Panel, SectionTitle } from "@/components/ui";
 import { EFFECTIVE_REP_THRESHOLD, MAX_COUNTED_RIR } from "@/lib/effective-reps";
 import { SettingsForm } from "./form";
 
@@ -16,19 +16,32 @@ async function signOut() {
   redirect("/login");
 }
 
-export default async function SettingsPage() {
-  const settings = await getSettings();
+export default async function MorePage() {
+  const [settings, exercises, programs] = await Promise.all([
+    getSettings(), getExercises(), getPrograms(),
+  ]);
 
   return (
     <Page>
-      <Header title="Settings" />
+      <Header title="More" />
 
+      {/* The two things kept here are places, not preferences, so they get rows
+          of their own rather than a pair of buttons under the sliders. */}
+      <nav className="rise mb-5 space-y-2">
+        <MenuRow
+          href="/exercises"
+          title="Exercise library"
+          detail={`${exercises.length} lift${exercises.length === 1 ? "" : "s"} · add or delete`}
+        />
+        <MenuRow
+          href="/programs"
+          title="Programs"
+          detail={`${programs.length} program${programs.length === 1 ? "" : "s"}`}
+        />
+      </nav>
+
+      <SectionTitle>Preferences</SectionTitle>
       <SettingsForm settings={settings} />
-
-      <section className="mt-5 space-y-2">
-        <ButtonLink href="/exercises" className="w-full">Exercise library</ButtonLink>
-        <ButtonLink href="/programs" className="w-full">Programs</ButtonLink>
-      </section>
 
       <Panel className="mt-5">
         <h2 className="eyebrow">Effective reps</h2>
@@ -59,5 +72,28 @@ export default async function SettingsPage() {
         <Button variant="danger" className="w-full">Sign out</Button>
       </form>
     </Page>
+  );
+}
+
+function MenuRow({
+  href, title, detail,
+}: { href: string; title: string; detail: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex min-h-16 items-center gap-3 rounded-2xl border border-line bg-panel
+                 px-4 transition-colors hover:border-accent/60 active:bg-panel-2"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="display block truncate text-xl font-semibold">{title}</span>
+        <span className="tnum block truncate text-[11px] text-ink-faint">{detail}</span>
+      </span>
+      <span className="shrink-0 text-accent">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 5l7 7-7 7" />
+        </svg>
+      </span>
+    </Link>
   );
 }
