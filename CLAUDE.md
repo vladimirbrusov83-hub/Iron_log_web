@@ -91,40 +91,51 @@ through a **sheet**, never inline. There are no number boxes in the card any mor
   scrolls and the Log/Save buttons are pinned outside it, so they stay reachable with
   only a few hundred pixels of screen left.
 
-## The program editor
-
-`+ Add lifts` opens a multi-select picker: muscle-group chips, name search, and a tick per
-row with an `Add N lifts` footer, so a day is filled in one visit. `+ New exercise` is
-always in that list and opens a **dialog with its own name field** (seeded from the search
-box and the active group chip when there is one). `createExercise` writes it, and it comes
-back **already selected** and in the list, so it is never searched for twice. The editor
-holds `library` in state for exactly that reason; the server prop only seeds it.
-
-**Overlays must not be trapped.** The root layout wraps pages in a plain `relative` div
-with **no z-index**. It used to be `z-10`, which made a stacking context and pinned every
-`z-50` picker underneath the `z-40` nav — the Add button was unclickable. The gym screen
-never showed it because it hides the nav. Do not put a z-index back on that wrapper.
-
 ## The program editor is per-day
 
 `/programs/[id]` is the program: name, the days in order, and what the week adds up to.
-`/programs/[id]/days/[dayId]` is one day, and it is the only place lifts are added or
-ordered. **Save day** is explicit and the button doubles as the dirty flag — `No changes`,
-`Save day`, `Saved`.
+`/programs/[id]/days/[dayId]` is one day, and it is the only place lifts are added, ordered
+or removed. **Save day** is explicit and the button doubles as the dirty flag — `No
+changes`, `Save day`, `Saved`.
 
 - `saveProgramDay` replaces one day's name and planned rows and leaves the rest of the
   program alone. This is better than the old whole-program `saveProgram`, which deleted and
   reinserted **every** day and so detached every past session from its `day_id`.
   `saveProgram` survives only because `duplicateProgram` uses it.
-- Reordering is drag, not arrows: `useDragReorder` in `components/drag-list.tsx`, built on
-  pointer events because HTML5 drag-and-drop does not exist on touch. The handle captures
-  the pointer and sets `touch-action: none`; the list reorders live and `onSettle` fires
-  once at the end, which is where the save goes.
 - A row is name + muscle-group chip; sets × reps live behind the `3 × 10` summary line.
   Vladimir asked for that specifically — the day list is scanned for which lifts and in
   what order, not for rep schemes.
-- The picker moved to `components/exercise-picker.tsx` so the day editor and anything else
-  can use it.
+
+### Adding lifts
+
+`+ Add lifts` opens `components/exercise-picker.tsx`: muscle-group chips, name search, a
+tick per row and an `Add N lifts` footer, so a day is filled in one visit. `+ New exercise`
+is always in that list and opens a **dialog with its own name field** (seeded from the
+search box and the active group chip when there is one). `createExercise` writes it, and it
+comes back **already selected** and in the list, so it is never searched for twice. The
+editor holds `library` in state for exactly that reason; the server prop only seeds it.
+
+Near-duplicates are refused before saving: names are compared with all non-alphanumerics
+stripped, so `bench-press` finds `Bench Press` and offers to use it instead. The unique
+index only catches the case difference.
+
+### Dragging
+
+`useDragReorder` in `components/drag-list.tsx`, on pointer events because HTML5
+drag-and-drop does not exist on touch. The handle captures the pointer and sets
+`touch-action: none`; the list reorders live and `onSettle` fires once at the end, which is
+where the save goes. The handle is a **44px column of its own**, ruled off from the text,
+and the drag turns selection off on `document.body` for its duration — otherwise a drag
+starting near the lift name selected it, magnifier and copy bubble included. `select-none`
+on the handle alone does not do it, because the pointer leaves the handle the moment the
+drag starts.
+
+### Overlays must not be trapped
+
+The root layout wraps pages in a plain `relative` div with **no z-index**. It used to be
+`z-10`, which made a stacking context and pinned every `z-50` picker underneath the `z-40`
+nav — the Add button was unclickable. The gym screen never showed it because it hides the
+nav. Do not put a z-index back on that wrapper.
 
 ## The exercise base
 

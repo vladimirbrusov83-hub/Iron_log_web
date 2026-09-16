@@ -22,6 +22,8 @@ ORM. No third-party services beyond the database.
 - [Reference bands](#reference-bands)
 - [Screens](#screens)
 - [The gym screen](#the-gym-screen)
+- [The program editor](#the-program-editor)
+- [The exercise base](#the-exercise-base)
 - [Setup](#setup)
 - [Access and the passcode](#access-and-the-passcode)
 - [Project layout](#project-layout)
@@ -161,10 +163,12 @@ returns `hardSets` and `sessions` so the per-muscle rows can be measured against
 | `/history` | Every finished session, newest first, with its top muscle groups. |
 | `/history/[id]` | One session in full — effective reps by muscle, then every set with its RIR and score. |
 | `/programs` | Program list. Pin, open or duplicate. |
-| `/programs/[id]`, `/programs/new` | Day and exercise editor with reorder, planned sets × reps, and a weekly per-muscle set count coloured against the bands. |
+| `/programs/[id]` | One program: its name, its days in order (drag to reorder), and what the week adds up to per muscle against the bands. |
+| `/programs/[id]/days/[dayId]` | **One day.** The only place lifts are added, ordered or removed. See below. |
+| `/programs/new` | Name it; days come next. |
 | `/stats` | Per-muscle hard sets, effective reps per week and per session, and training frequency over 7 / 30 / 365 days. Effective reps by week and by lift. Personal records. Bodyweight. |
-| `/exercises` | The library — 45 seeded lifts plus anything you add. |
-| `/settings` | kg/lb, default rest, RIR tracking on/off, sign out. |
+| `/exercises` | **The exercise base.** Every lift with how much it is used, an Unused filter, add, edit and delete. |
+| `/settings` | **More.** A hub: the exercise base and programs as rows, then kg/lb, default rest, RIR tracking, sign out. |
 | `/login` | The passcode gate. The only page outside it. |
 
 The bottom bar runs **Programs · History · Today · Stats · More**, with Today raised out of
@@ -202,6 +206,62 @@ Four details that are easy to break:
 A running effective-rep total and a per-muscle breakdown stay pinned at the top. The rest
 timer floats at the bottom, and the tab bar is hidden here — Finish is at the bottom of
 this page and a nav bar under it invites a mis-tap out of a live workout.
+
+---
+
+## The program editor
+
+A program is a name and a list of days; **each day is edited on its own page**. That split
+is not cosmetic. `saveProgramDay` replaces one day's name and planned rows and leaves the
+rest alone, where the old whole-program save deleted and reinserted *every* day — which
+detached every past session from the `day_id` it was started from.
+
+On a day page each row is the lift name and a **muscle-group chip beside it**, with sets
+and reps folded away behind a `3 × 10` summary that opens on a tap. A day list is scanned
+for which lifts are in it and in what order, not for rep schemes.
+
+**Save day is explicit**, and the button is also the dirty flag: `No changes`, then
+`Save day`, then `Saved`, with a warning line while there is unsaved work.
+
+### Adding lifts
+
+`+ Add lifts` opens a multi-select picker — muscle-group chips, name search, a tick per row
+and an `Add N lifts` footer, so a day is filled in one visit. `+ New exercise` is always in
+that list and opens a dialog with its own name field, seeded from the search box and the
+active group chip. The new lift is written to the library and comes back **already
+selected**, so it is never searched for twice.
+
+Near-duplicates are caught before saving: names are compared with every non-alphanumeric
+character stripped, so `bench-press` finds `Bench Press` and offers to use it instead. The
+unique index only ever caught the difference in capitalisation.
+
+### Dragging
+
+Reordering is by a handle, on both the day list and the lift list, and it is built on
+pointer events — HTML5 drag-and-drop does not exist on touch. Three details make it usable
+on a phone:
+
+- The handle **captures the pointer**, so the drag survives the finger leaving the row.
+- `touch-action: none` on the handle stops the page scrolling underneath it.
+- Selection is switched off on `document.body` for the length of the drag. Without it a
+  drag starting near the text selects it, magnifier and copy bubble included. `select-none`
+  on the handle alone does nothing, because the pointer leaves the handle immediately.
+
+The list reorders live as you cross a neighbour, and `onSettle` fires once at the end,
+which is where the save goes.
+
+---
+
+## The exercise base
+
+`/exercises`, the first row under **More**. Every entry carries how much it is actually
+used — how many programs plan it, how many sessions contain it — and **Unused** is a filter
+of its own. That is what the page is for: finding the typo saved in a hurry from a picker
+and getting rid of it.
+
+Deleting is a two-step confirm that says what survives. `exercise_id` is `ON DELETE SET
+NULL` everywhere and both history and programs keep their own copy of the name, so removing
+a lift only stops it appearing in the pickers.
 
 ---
 
@@ -287,7 +347,13 @@ app/
 ├── history/              list + one session
 ├── programs/
 │   ├── page.tsx          list, pin, duplicate
-│   └── editor.tsx        day/exercise editor (client)
+│   ├── new/page.tsx      name a new program
+│   └── [id]/
+│       ├── page.tsx      loads the program
+│       ├── program.tsx   name, day order (client)
+│       └── days/[dayId]/
+│           ├── page.tsx  loads the day
+│           └── day.tsx   the day editor (client)
 ├── stats/
 │   ├── page.tsx          per-muscle bands, aggregates, PRs
 │   └── bodyweight.tsx    log and list (client)
@@ -306,6 +372,8 @@ lib/
 components/
 ├── nav.tsx               bottom tab bar, Today raised in the middle
 ├── program-carousel.tsx  swipeable program card (client)
+├── exercise-picker.tsx   multi-select picker + new-exercise dialog (client)
+├── drag-list.tsx         useDragReorder + DragHandle, pointer-event reordering
 ├── rest-timer.tsx        countdown, beep, vibrate
 └── ui.tsx                Page, Panel, Button, Stat, Bar, band bars, input styles
 
@@ -418,12 +486,19 @@ interpolated into a tagged template they would be sent as string *values*. Only 
 constants built from numbers are ever interpolated into query text; nothing a request
 carries goes near it.
 
-**Editing a program deletes and reinserts its days.** Safe because sessions reference
-`day_id` with `ON DELETE SET NULL` and keep their own name snapshot, so old sessions detach
-cleanly rather than breaking or silently re-pointing.
+**Saving a day replaces only that day's planned rows.** Nothing references
+`planned_exercises` — a session copies what it needs the moment it starts — so deleting and
+reinserting them is safe, and the `program_days` row keeps its id, so sessions started from
+that day stay attached to it. The older whole-program `saveProgram` still exists, but only
+`duplicateProgram` uses it.
 
 **Number inputs are `font-size: 16px` minimum.** Below that iOS Safari zooms the whole page
 when one is focused, which in a gym means fighting the viewport between sets.
+
+**No z-index on the page wrapper.** The root layout wraps pages in a plain `relative` div.
+It used to be `relative z-10`, which made a stacking context and pinned every `z-50` picker
+and sheet underneath the `z-40` nav bar — the picker's Add button was physically
+unclickable. The gym screen never showed it because it hides the nav.
 
 **Drawers are native `<details>`.** The home screen's two collapsible sections cost no
 JavaScript and work before the page finishes hydrating. Each carries its headline on the
