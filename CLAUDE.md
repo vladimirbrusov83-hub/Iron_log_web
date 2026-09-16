@@ -24,20 +24,28 @@ logged. They never point forward.
 `effectiveRepsSQL`. Change one, change the other.
 
 ```
-min(reps, 5 − rir), floored at 0
+min(reps, 5 − rir), floored at 0 — and nothing at all above 4 RIR
 ```
 
 The four null cases are load-bearing: no RIR, warmup, not-ticked, and **anything above
-`MAX_COUNTED_RIR` (4)** all return null and stay out of sums. **Do not "fix" this to
-zero.** A set over 4 RIR counts for nothing anywhere — no score, not a working set, no
-volume, no e1RM. That rule replaced the warm-up checkbox in September 2026 at Vladimir's
-request: an easy set says so through its rating instead of through a tick box. The
-`is_warmup` column stays and is still honoured for rows that have it, but nothing sets it
-any more. `countedSetSQL` is the predicate every aggregate in `lib/db.ts` filters on, and
-`isCountedSet` is its TypeScript twin — they drift the same way the two halves of the
-effective-reps rule can. An unrated set is unknown, and every
-screen showing a total also shows the scored/working count so a low number cannot be
-misread. RIR runs 0–5 where 5 means "5 or more", which is the value that drops a set out entirely.
+`MAX_COUNTED_RIR` (4)**. All return null and stay out of every sum. **Do not "fix" this to
+zero.**
+
+A set over 4 RIR counts for nothing anywhere — no score, not a working set, no volume, no
+e1RM. That rule replaced the warm-up checkbox in September 2026 at Vladimir's request: an
+easy set says so through its rating instead of through a tick box. The `is_warmup` column
+stays and is still honoured for rows that have it, but nothing writes it any more.
+
+There are therefore **two** rules kept in two languages, and `npm run check` asserts both:
+
+| TypeScript | SQL | Decides |
+|---|---|---|
+| `effectiveReps()` | `effectiveRepsSQL` | what one set scores |
+| `isCountedSet()` | `countedSetSQL` | whether it counts at all |
+
+An unrated set is unknown, not easy, and every screen showing a total also shows the
+scored/working count so a low number cannot be misread. RIR runs 0–5 where 5 means "5 or
+more", which is the value that drops a set out entirely.
 
 Never store it in a column. It is derived on read.
 
@@ -102,6 +110,17 @@ redirects into the open session if there is one, because there is only ever one.
 Hard sets per muscle and Recent workouts are native `<details>` drawers, closed by
 default, each with the headline on its summary row so the page reads without opening them.
 
+## Testing without touching real training data
+
+One database serves local and production, so a Playwright run that starts a workout lands
+in Vladimir's history — and he has been mid-session while this repo was being worked on.
+Create a second database in the same Neon project, point a scratch env file at it, run
+`db:push`, and drop it afterwards. Check for an open session before touching anything.
+
+Kill test servers by port (`lsof -ti:3311 | xargs kill -9`), not by `pkill -f "next start"`:
+a stale server left listening serves a deleted build and every asset 400s, which looks
+exactly like an app bug and is not one.
+
 ## Setup
 
 ```
@@ -117,11 +136,13 @@ and production, and Vercel never runs it.
 ## Things that will bite
 
 - `sql.query(text, params)` is used for the stats aggregates because `effectiveRepsSQL`
-  is a *fragment* — the neon driver has no fragment type, so a tagged template would send
-  it as a string value. Only module constants are ever interpolated that way.
+  and `countedSetSQL` are *fragments* — the neon driver has no fragment type, so a tagged
+  template would send them as string values. Both use bare column names, which resolve to
+  `set_logs` because it is the only joined table with them. Only module constants are ever
+  interpolated that way.
 - `updateSet` takes a partial patch. `rir`/`rpe` cannot use COALESCE for "absent", because
   NULL is a real value for them; they use an explicit `"rir" in patch` flag. Collapsing
-  that would wipe a rating every time the weight box saved.
+  that would wipe a rating on any partial save.
 - The rest timer derives remaining time from a stored end timestamp, never by
   decrementing. iOS Safari throttles `setInterval` on a locked phone. There are no
   haptics on iOS Safari either — `navigator.vibrate` is a no-op there and the Web Audio
