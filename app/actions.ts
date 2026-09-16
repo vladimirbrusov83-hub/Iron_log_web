@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as db from "@/lib/db";
 import { MAX_RIR } from "@/lib/effective-reps";
-import type { ProgramInput } from "@/lib/db";
 import type { Settings, WeightUnit } from "@/lib/types";
 
 /* Every action below is reachable by anything that can reach the app, so each
@@ -112,27 +111,64 @@ export async function removeSet(sessionId: string, setId: string) {
 
 /* --------------------------------------------------------------- programs */
 
-export async function saveProgramAction(draft: ProgramInput) {
-  const name = draft.name.trim() || "Untitled program";
-  const days = draft.days
-    .map((d) => ({
-      name: d.name.trim() || "Day",
-      exercises: d.exercises
-        .filter((e) => e.name.trim() !== "")
-        .map((e) => ({
-          exerciseId: e.exerciseId || null,
-          name: e.name.trim(),
-          muscleGroup: e.muscleGroup || "Other",
-          plannedSets: Math.round(clampNumber(e.plannedSets, 1, 20, 3)),
-          plannedReps: Math.round(clampNumber(e.plannedReps, 1, 100, 10)),
-        })),
-    }))
-    .filter((d) => d.exercises.length > 0);
+/* The program editor works a day at a time, so each of these touches one thing
+   and leaves the rest of the program alone. */
 
-  const id = await db.saveProgram({ ...draft, name, days });
+export async function createProgramAction(name: string, description: string) {
+  const id = await db.createProgram(name.trim() || "Untitled program", description.trim());
   revalidatePath("/programs");
   revalidatePath("/");
   redirect(`/programs/${id}`);
+}
+
+export async function saveProgramMeta(id: string, name: string, description: string) {
+  await db.updateProgramMeta(id, name.trim() || "Untitled program", description.trim());
+  revalidatePath("/programs");
+  revalidatePath(`/programs/${id}`);
+  revalidatePath("/");
+}
+
+export async function addDay(programId: string, name: string) {
+  const dayId = await db.addProgramDay(programId, name.trim() || "Day");
+  revalidatePath(`/programs/${programId}`);
+  revalidatePath("/");
+  redirect(`/programs/${programId}/days/${dayId}`);
+}
+
+export async function removeDay(programId: string, dayId: string) {
+  await db.deleteProgramDay(dayId);
+  revalidatePath(`/programs/${programId}`);
+  revalidatePath("/");
+  redirect(`/programs/${programId}`);
+}
+
+export async function reorderDays(programId: string, dayIds: string[]) {
+  await db.reorderProgramDays(programId, dayIds);
+  revalidatePath(`/programs/${programId}`);
+  revalidatePath("/");
+}
+
+export async function saveDay(
+  programId: string,
+  dayId: string,
+  name: string,
+  exercises: db.PlannedInput[],
+) {
+  const clean = exercises
+    .filter((e) => e.name.trim() !== "")
+    .map((e) => ({
+      exerciseId: e.exerciseId || null,
+      name: e.name.trim(),
+      muscleGroup: e.muscleGroup || "Other",
+      plannedSets: Math.round(clampNumber(e.plannedSets, 1, 20, 3)),
+      plannedReps: Math.round(clampNumber(e.plannedReps, 1, 100, 10)),
+    }));
+
+  await db.saveProgramDay(dayId, name.trim() || "Day", clean);
+  revalidatePath(`/programs/${programId}`);
+  revalidatePath(`/programs/${programId}/days/${dayId}`);
+  revalidatePath("/");
+  revalidatePath("/start");
 }
 
 export async function removeProgram(id: string) {

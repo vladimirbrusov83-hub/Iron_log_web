@@ -312,6 +312,74 @@ export async function saveProgram(draft: ProgramInput): Promise<string> {
   return programId;
 }
 
+/* One day at a time — the editor is per-day now, so these touch a single day
+   and leave the rest of the program alone. Unlike `saveProgram`, `program_days`
+   rows keep their ids, so sessions started from a day stay attached to it. */
+
+export async function createProgram(name: string, description: string): Promise<string> {
+  const rows = (await sql`
+    INSERT INTO programs (name, description) VALUES (${name}, ${description})
+    RETURNING id`) as { id: string }[];
+  return rows[0].id;
+}
+
+export async function updateProgramMeta(
+  id: string, name: string, description: string,
+): Promise<void> {
+  await sql`UPDATE programs SET name = ${name}, description = ${description} WHERE id = ${id}`;
+}
+
+export async function addProgramDay(programId: string, name: string): Promise<string> {
+  const rows = (await sql`
+    INSERT INTO program_days (program_id, name, position)
+    SELECT ${programId}, ${name}, coalesce(max(position), -1) + 1
+      FROM program_days WHERE program_id = ${programId}
+    RETURNING id`) as { id: string }[];
+  return rows[0].id;
+}
+
+export async function deleteProgramDay(dayId: string): Promise<void> {
+  await sql`DELETE FROM program_days WHERE id = ${dayId}`;
+}
+
+export async function reorderProgramDays(programId: string, dayIds: string[]): Promise<void> {
+  if (dayIds.length === 0) return;
+  await sql`
+    UPDATE program_days AS d
+       SET position = o.position
+      FROM unnest(${dayIds}::uuid[]) WITH ORDINALITY AS o(id, position)
+     WHERE d.id = o.id AND d.program_id = ${programId}`;
+}
+
+export type PlannedInput = {
+  exerciseId: string | null; name: string; muscleGroup: string;
+  plannedSets: number; plannedReps: number;
+};
+
+/**
+ * Replaces one day's name and planned exercises.
+ *
+ * The planned rows are deleted and reinserted rather than matched up, which is
+ * safe: nothing references them. A session copies what it needs at the moment it
+ * starts and keeps its own rows afterwards.
+ */
+export async function saveProgramDay(
+  dayId: string, name: string, exercises: PlannedInput[],
+): Promise<void> {
+  const statements = [
+    sql`UPDATE program_days SET name = ${name} WHERE id = ${dayId}`,
+    sql`DELETE FROM planned_exercises WHERE day_id = ${dayId}`,
+  ];
+  for (const [i, ex] of exercises.entries()) {
+    statements.push(sql`
+      INSERT INTO planned_exercises
+        (day_id, exercise_id, name, muscle_group, position, planned_sets, planned_reps)
+      VALUES (${dayId}, ${ex.exerciseId}::uuid, ${ex.name}, ${ex.muscleGroup},
+              ${i}, ${ex.plannedSets}, ${ex.plannedReps})`);
+  }
+  await sql.transaction(statements);
+}
+
 export async function deleteProgram(id: string): Promise<void> {
   await sql`DELETE FROM programs WHERE id = ${id}`;
 }

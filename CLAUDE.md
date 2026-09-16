@@ -105,6 +105,27 @@ with **no z-index**. It used to be `z-10`, which made a stacking context and pin
 `z-50` picker underneath the `z-40` nav — the Add button was unclickable. The gym screen
 never showed it because it hides the nav. Do not put a z-index back on that wrapper.
 
+## The program editor is per-day
+
+`/programs/[id]` is the program: name, the days in order, and what the week adds up to.
+`/programs/[id]/days/[dayId]` is one day, and it is the only place lifts are added or
+ordered. **Save day** is explicit and the button doubles as the dirty flag — `No changes`,
+`Save day`, `Saved`.
+
+- `saveProgramDay` replaces one day's name and planned rows and leaves the rest of the
+  program alone. This is better than the old whole-program `saveProgram`, which deleted and
+  reinserted **every** day and so detached every past session from its `day_id`.
+  `saveProgram` survives only because `duplicateProgram` uses it.
+- Reordering is drag, not arrows: `useDragReorder` in `components/drag-list.tsx`, built on
+  pointer events because HTML5 drag-and-drop does not exist on touch. The handle captures
+  the pointer and sets `touch-action: none`; the list reorders live and `onSettle` fires
+  once at the end, which is where the save goes.
+- A row is name + muscle-group chip; sets × reps live behind the `3 × 10` summary line.
+  Vladimir asked for that specifically — the day list is scanned for which lifts and in
+  what order, not for rep schemes.
+- The picker moved to `components/exercise-picker.tsx` so the day editor and anything else
+  can use it.
+
 ## The exercise base
 
 `/exercises`, reached from **More**, which is a hub of places (Exercise library, Programs)
