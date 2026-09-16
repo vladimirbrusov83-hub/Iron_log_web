@@ -107,10 +107,12 @@ export function DayEditor({
                   dragging === i ? "border-accent bg-panel-2" : "border-line"
                 }`}
               >
-                <div className="flex items-center gap-1 pr-1">
-                  <span {...handleProps(i)}><DragHandle label={`Reorder ${row.name}`} /></span>
+                <div className="flex items-stretch pr-1">
+                  <span {...handleProps(i)} className="flex self-stretch">
+                    <DragHandle label={`Reorder ${row.name}`} />
+                  </span>
 
-                  <div className="min-w-0 flex-1 py-1.5">
+                  <div className="min-w-0 flex-1 select-none py-1.5 pl-3">
                     <div className="flex items-center gap-2">
                       <span className="min-w-0 truncate text-sm">{row.name}</span>
                       {/* The muscle group, right after the name, as a chip you
@@ -158,7 +160,7 @@ export function DayEditor({
                       setDirty(true); setSaved(false);
                     }}
                     aria-label={`Remove ${row.name}`}
-                    className="h-9 w-8 shrink-0 rounded-lg text-ink-faint active:bg-panel-2"
+                    className="w-9 shrink-0 self-center rounded-lg text-ink-faint active:bg-panel-2"
                   >
                     ×
                   </button>

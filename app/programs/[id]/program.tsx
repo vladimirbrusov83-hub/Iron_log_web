@@ -75,13 +75,18 @@ export function ProgramPage({ program }: { program: Program }) {
             {days.map((day, i) => (
               <li
                 key={day.id}
-                className={`flex items-center gap-1 rounded-2xl border bg-panel pr-2
+                className={`flex items-stretch overflow-hidden rounded-2xl border bg-panel pr-2
                             transition-colors ${
                   dragging === i ? "border-accent bg-panel-2" : "border-line"
                 }`}
               >
-                <span {...handleProps(i)}><DragHandle label={`Reorder ${day.name}`} /></span>
-                <Link href={`/programs/${program.id}/days/${day.id}`} className="min-w-0 flex-1 py-3">
+                <span {...handleProps(i)} className="flex self-stretch">
+                  <DragHandle label={`Reorder ${day.name}`} />
+                </span>
+                <Link
+                  href={`/programs/${program.id}/days/${day.id}`}
+                  className="min-w-0 flex-1 select-none py-3 pl-3"
+                >
                   <span className="display block truncate text-xl font-semibold">{day.name}</span>
                   <span className="block truncate text-[11px] text-ink-faint">
                     {day.exercises.length === 0
@@ -89,7 +94,7 @@ export function ProgramPage({ program }: { program: Program }) {
                       : `${day.exercises.length} lifts · ${day.exercises.map((e) => e.name).join(" · ")}`}
                   </span>
                 </Link>
-                <span className="shrink-0 text-accent">
+                <span className="shrink-0 self-center text-accent">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                        strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9 5l7 7-7 7" />
