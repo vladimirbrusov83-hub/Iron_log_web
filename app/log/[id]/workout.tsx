@@ -228,6 +228,40 @@ function useElapsedMinutes(startedAt: string): number {
   return minutes;
 }
 
+/**
+ * How much of the screen the on-screen keyboard is covering.
+ *
+ * A `position: fixed` element is laid out against the *layout* viewport, which
+ * iOS Safari does not shrink when the keyboard comes up — so a sheet pinned to
+ * the bottom ends up underneath it, which is exactly what happened to the set
+ * sheet. The visual viewport is the part still showing; the difference between
+ * the two is the keyboard. Zero on a desktop and on any browser without the
+ * API, where the sheet simply sits on the bottom as before.
+ */
+function useKeyboardInset(): number {
+  const [inset, setInset] = useState(0);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      // offsetTop matters: iOS scrolls the visual viewport up as well as
+      // shrinking it, and both together say where the keyboard starts.
+      const covered = window.innerHeight - (vv.height + vv.offsetTop);
+      setInset(Math.max(0, Math.round(covered)));
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
+  return inset;
+}
+
 /* ------------------------------------------------------------------ card */
 
 /**
@@ -462,13 +496,17 @@ function SetSheet({
   // question without the user closing it to go and read the card.
   const lastMatch = last?.sets.find((s) => s.setNumber === target.setNumber);
 
+  const keyboard = useKeyboardInset();
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-sm">
-      <button className="flex-1" aria-label="Close" onClick={onClose} />
-      <div
-        className="rise mx-auto w-full max-w-2xl rounded-t-3xl border-t border-line-2 bg-panel px-4 pt-4"
-        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
-      >
+    <div
+      className="fixed inset-x-0 top-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-sm"
+      style={{ bottom: keyboard }}
+    >
+      <button className="min-h-0 flex-1" aria-label="Close" onClick={onClose} />
+      <div className="rise mx-auto flex max-h-full w-full max-w-2xl flex-col rounded-t-3xl
+                      border-t border-line-2 bg-panel">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="eyebrow text-accent">
@@ -497,6 +535,11 @@ function SetSheet({
           <span className="display pb-3 text-2xl font-semibold text-ink-faint">×</span>
           <NumberField label="Reps" value={reps} onChange={setReps} />
         </div>
+        {repsNum <= 0 && (
+          <p className="mt-1.5 text-center text-[11px] text-ink-faint">
+            Enter the reps to log this set.
+          </p>
+        )}
 
         {trackRir && !isWarmup && (
           <div className="mt-4">
@@ -530,7 +573,7 @@ function SetSheet({
           </div>
         )}
 
-        <label className="mt-4 flex items-center justify-between gap-3 rounded-xl border
+        <label className="mb-4 mt-4 flex items-center justify-between gap-3 rounded-xl border
                           border-line-2 bg-panel-2 px-3 py-2.5">
           <span className="text-sm">
             Warm-up set
@@ -544,7 +587,17 @@ function SetSheet({
           />
         </label>
 
-        <div className="mt-4 flex gap-2">
+        </div>
+
+        {/* Always reachable, whatever the keyboard is covering. */}
+        <div
+          className="flex gap-2 border-t border-line px-4 pt-3"
+          style={{
+            paddingBottom: keyboard > 0
+              ? "0.75rem"
+              : "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
           {target.set && (
             <Button
               variant="danger"
@@ -565,9 +618,6 @@ function SetSheet({
             {target.set ? "Save set" : "Log set"}
           </Button>
         </div>
-        {repsNum <= 0 && (
-          <p className="mt-2 text-center text-[11px] text-ink-faint">Enter the reps to log it.</p>
-        )}
       </div>
     </div>
   );

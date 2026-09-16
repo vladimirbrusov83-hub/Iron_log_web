@@ -69,6 +69,11 @@ through a **sheet**, never inline. There are no number boxes in the card any mor
 - The sheet prefills from **this session's previous set**, never from last week. Last
   week's numbers are on the left to be read. That distinction is the no-suggestions line.
 - Saving a new working set starts the rest timer; editing an old one does not.
+- The sheet sits above the on-screen keyboard. `useKeyboardInset` reads
+  `window.visualViewport` — iOS Safari does **not** shrink the layout viewport for the
+  keyboard, so a `fixed` sheet pinned to the bottom lands underneath it. The sheet body
+  scrolls and the Log/Save buttons are pinned outside it, so they stay reachable with
+  only a few hundred pixels of screen left.
 
 ## The home screen
 
