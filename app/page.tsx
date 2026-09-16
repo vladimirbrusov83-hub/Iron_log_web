@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { startWorkout } from "./actions";
 import {
-  getActiveSession, getFinishedSessions, getHeadline, getMuscleTotals, getPrograms, getSettings,
+  getActiveSession, getFinishedSessions, getHeadline, getMuscleTotals,
+  getProgramsByRecentUse, getSettings,
 } from "@/lib/db";
 import {
-  BAND_COLOR, Button, ButtonLink, Empty, Header, Page, Panel, SectionTitle, SetsBandBar,
+  BAND_COLOR, ButtonLink, Header, Page, Panel, SetsBandBar,
 } from "@/components/ui";
+import { ProgramCarousel } from "@/components/program-carousel";
 import { effectiveRepsCoverage, totalEffectiveReps } from "@/lib/effective-reps";
 import { WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW, weeklySetBand } from "@/lib/targets";
 import { formatDuration, sessionVolume } from "@/lib/types";
@@ -15,14 +16,15 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const [active, programs, recent, week, muscles, settings] = await Promise.all([
     getActiveSession(),
-    getPrograms(),
+    getProgramsByRecentUse(),
     getFinishedSessions(3),
     getHeadline(7),
     getMuscleTotals(7),
     getSettings(),
   ]);
 
-  const pinned = programs.find((p) => p.isPinned) ?? programs[0] ?? null;
+  // Ordered most-recently-trained first, so the card opens on the one being run.
+  const hasProgram = programs.length > 0;
   const unit = settings.weightUnit;
   const today = new Date();
 
@@ -54,52 +56,8 @@ export default async function HomePage() {
       {/* ------------------------------------------------ the point of the page */}
       {!active && (
         <section className="rise rise-2 mb-4">
-          {pinned ? (
-            <div className="overflow-hidden rounded-2xl border border-line bg-panel">
-              <div className="flex items-baseline justify-between gap-2 px-4 pt-4">
-                <div className="min-w-0">
-                  <p className="eyebrow text-accent">Start a workout</p>
-                  <h2 className="display mt-0.5 truncate text-3xl font-semibold">{pinned.name}</h2>
-                </div>
-                <Link href="/programs" className="shrink-0 text-xs text-accent">Change</Link>
-              </div>
-              <ul className="mt-3 space-y-2 px-4 pb-4">
-                {pinned.days.map((day, i) => (
-                  <li key={day.id}>
-                    <form action={startWorkout.bind(null, day.id)}>
-                      <button
-                        className="group flex min-h-16 w-full items-center gap-3 rounded-xl border
-                                   border-line-2 bg-panel-2 px-3 text-left transition-colors
-                                   hover:border-accent/60 active:bg-panel-3"
-                      >
-                        <span className="display tnum w-7 shrink-0 text-2xl font-semibold text-ink-faint">
-                          {String(i + 1).padStart(2, "0")}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="display block truncate text-xl font-semibold">
-                            {day.name}
-                          </span>
-                          <span className="block truncate text-[11px] text-ink-faint">
-                            {day.exercises.length} lifts ·{" "}
-                            {day.exercises.map((e) => e.name).join(" · ")}
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-accent">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                               stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"
-                               strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
-                        </span>
-                      </button>
-                    </form>
-                  </li>
-                ))}
-              </ul>
-              <form action={startWorkout.bind(null, null)} className="border-t border-line">
-                <Button type="submit" variant="ghost" className="w-full rounded-none">
-                  Freestyle — no program
-                </Button>
-              </form>
-            </div>
+          {hasProgram ? (
+            <ProgramCarousel programs={programs} />
           ) : (
             <Panel>
               <p className="eyebrow text-accent">Start a workout</p>
@@ -107,9 +65,7 @@ export default async function HomePage() {
                 No programs yet. Start freestyle and add lifts as you go, or build a program first.
               </p>
               <div className="mt-3 flex gap-2">
-                <form action={startWorkout.bind(null, null)} className="flex-1">
-                  <Button type="submit" variant="primary" className="w-full">Freestyle</Button>
-                </form>
+                <ButtonLink href="/start" variant="primary" className="flex-1">Start</ButtonLink>
                 <ButtonLink href="/programs" className="flex-1">Programs</ButtonLink>
               </div>
             </Panel>
@@ -191,41 +147,78 @@ export default async function HomePage() {
         </div>
       </details>
 
-      <section className="rise rise-4">
-        <SectionTitle action={<Link href="/history" className="text-xs text-accent">All history</Link>}>
-          Recent
-        </SectionTitle>
-        {recent.length === 0 ? (
-          <Empty>Nothing logged yet.</Empty>
-        ) : (
-          <ul className="space-y-2">
-            {recent.map((s) => (
-              <li key={s.id}>
-                <Link
-                  href={`/history/${s.id}`}
-                  className="flex items-center gap-3 rounded-2xl border border-line bg-panel px-4 py-3
-                             transition-colors hover:border-line-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{s.dayName}</div>
-                    <p className="tnum mt-0.5 text-xs text-ink-faint">
-                      {new Date(s.startedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                      {" · "}{Math.round(sessionVolume(s)).toLocaleString()} {unit}
-                      {" · "}{formatDuration(s.durationSeconds)}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="display tnum text-2xl font-semibold text-accent">
-                      {totalEffectiveReps(s.exercises.flatMap((e) => e.sets))}
-                    </div>
-                    <div className="eyebrow" style={{ fontSize: 9 }}>eff reps</div>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <details className="rise rise-4 group mb-4 overflow-hidden rounded-2xl border border-line bg-panel">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0 flex-1">
+            <p className="eyebrow">Recent workouts</p>
+            <p className="tnum mt-0.5 truncate text-sm">
+              {recent.length === 0 ? (
+                <span className="text-ink-faint">Nothing logged yet</span>
+              ) : (
+                <>
+                  <span className="text-ink-dim">Last: {recent[0].dayName} · </span>
+                  <span className="text-ink-faint">
+                    {new Date(recent[0].startedAt).toLocaleDateString(undefined, {
+                      month: "short", day: "numeric",
+                    })}
+                  </span>
+                  <span className="text-accent">
+                    {" "}{totalEffectiveReps(recent[0].exercises.flatMap((e) => e.sets))} eff reps
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
+          <svg
+            className="shrink-0 text-ink-faint transition-transform group-open:rotate-180"
+            width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <path d="M5 9l7 7 7-7" />
+          </svg>
+        </summary>
+
+        <div className="border-t border-line px-4 py-3">
+          {recent.length === 0 ? (
+            <p className="text-sm text-ink-faint">Finished workouts show up here.</p>
+          ) : (
+            <>
+              <ul className="space-y-2">
+                {recent.map((s) => (
+                  <li key={s.id}>
+                    <Link
+                      href={`/history/${s.id}`}
+                      className="flex items-center gap-3 rounded-xl border border-line-2 bg-panel-2
+                                 px-3 py-2.5 transition-colors hover:border-ink-faint"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{s.dayName}</div>
+                        <p className="tnum mt-0.5 text-xs text-ink-faint">
+                          {new Date(s.startedAt).toLocaleDateString(undefined, {
+                            month: "short", day: "numeric",
+                          })}
+                          {" · "}{Math.round(sessionVolume(s)).toLocaleString()} {unit}
+                          {" · "}{formatDuration(s.durationSeconds)}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="display tnum text-2xl font-semibold text-accent">
+                          {totalEffectiveReps(s.exercises.flatMap((e) => e.sets))}
+                        </div>
+                        <div className="eyebrow" style={{ fontSize: 9 }}>eff reps</div>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/history" className="mt-3 inline-block text-xs text-accent">
+                All history →
+              </Link>
+            </>
+          )}
+        </div>
+      </details>
+
     </Page>
   );
 }

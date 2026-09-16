@@ -70,6 +70,24 @@ through a **sheet**, never inline. There are no number boxes in the card any mor
   week's numbers are on the left to be read. That distinction is the no-suggestions line.
 - Saving a new working set starts the rest timer; editing an old one does not.
 
+## The home screen
+
+The program card is the point of the page and sits in the middle of the glass. It is a
+**swipeable carousel** (`components/program-carousel.tsx`) over `getProgramsByRecentUse`,
+which orders by the last session started from each program — so it opens on the one being
+run, with no pinned-program logic involved. Two details that will bite if removed: the
+swipe is native `snap-x` scrolling, not a gesture handler, and the track's height is set
+from the **active slide** because flex children otherwise all stretch to the tallest
+program, padding a two-day card out to a six-day one.
+
+`Start` on the card goes to **`/start`**, the week: every day of that program in full with
+the last date it was trained, each with its own start button, and freestyle at the bottom.
+Tapping a day on the home card still starts it directly and skips that screen. `/start`
+redirects into the open session if there is one, because there is only ever one.
+
+Hard sets per muscle and Recent workouts are native `<details>` drawers, closed by
+default, each with the headline on its summary row so the page reads without opening them.
+
 ## Setup
 
 ```

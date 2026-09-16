@@ -159,6 +159,23 @@ export async function getPrograms(): Promise<Program[]> {
   return hydratePrograms(rows);
 }
 
+/**
+ * Programs with the one trained most recently first — the order the home screen
+ * swipes through, so the program you are actually running is the one already on
+ * screen. Programs never started fall in behind, pinned first.
+ */
+export async function getProgramsByRecentUse(): Promise<Program[]> {
+  const rows = (await sql`
+    SELECT p.id, p.name, p.description, p.is_pinned, p.is_preset
+      FROM programs p
+      LEFT JOIN (
+        SELECT program_id, max(started_at) AS last_used
+          FROM sessions WHERE program_id IS NOT NULL GROUP BY program_id
+      ) u ON u.program_id = p.id
+     ORDER BY u.last_used DESC NULLS LAST, p.is_pinned DESC, p.created_at`) as ProgramRow[];
+  return hydratePrograms(rows);
+}
+
 export async function getProgram(id: string): Promise<Program | null> {
   const rows = (await sql`
     SELECT id, name, description, is_pinned, is_preset
@@ -197,6 +214,18 @@ export async function getProgramDay(dayId: string): Promise<
       })),
     },
   };
+}
+
+/** When each day of a program was last trained, keyed by day id. Sessions keep
+ *  `day_id` with ON DELETE SET NULL, so a day edited away simply has no entry. */
+export async function getLastDayUse(programId: string | null): Promise<Record<string, string>> {
+  if (!programId) return {};
+  const rows = (await sql`
+    SELECT day_id, max(started_at)::text AS last_used
+      FROM sessions
+     WHERE program_id = ${programId} AND day_id IS NOT NULL AND finished_at IS NOT NULL
+     GROUP BY day_id`) as { day_id: string; last_used: string }[];
+  return Object.fromEntries(rows.map((r) => [r.day_id, r.last_used]));
 }
 
 export type ProgramInput = {
