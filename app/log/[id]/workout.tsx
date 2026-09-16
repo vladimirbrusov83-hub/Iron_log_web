@@ -462,9 +462,6 @@ function SetSheet({
   // question without the user closing it to go and read the card.
   const lastMatch = last?.sets.find((s) => s.setNumber === target.setNumber);
 
-  const step = (setter: (v: string) => void, current: number, by: number, min = 0) => () =>
-    setter(String(Math.max(min, Math.round((current + by) * 100) / 100)));
-
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-sm">
       <button className="flex-1" aria-label="Close" onClick={onClose} />
@@ -494,22 +491,11 @@ function SetSheet({
           </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <NumberField
-            label={unit}
-            value={weight}
-            onChange={setWeight}
-            onMinus={step(setWeight, weightNum, -2.5)}
-            onPlus={step(setWeight, weightNum, 2.5)}
-            decimal
-          />
-          <NumberField
-            label="Reps"
-            value={reps}
-            onChange={setReps}
-            onMinus={step(setReps, repsNum, -1)}
-            onPlus={step(setReps, repsNum, 1)}
-          />
+        {/* Weight × reps, typed. Nothing between the two boxes but the ×. */}
+        <div className="mt-4 flex items-end gap-2">
+          <NumberField label={unit} value={weight} onChange={setWeight} decimal autoFocus />
+          <span className="display pb-3 text-2xl font-semibold text-ink-faint">×</span>
+          <NumberField label="Reps" value={reps} onChange={setReps} />
         </div>
 
         {trackRir && !isWarmup && (
@@ -588,44 +574,30 @@ function SetSheet({
 }
 
 function NumberField({
-  label, value, onChange, onMinus, onPlus, decimal = false,
+  label, value, onChange, decimal = false, autoFocus = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
-  onMinus: () => void;
-  onPlus: () => void;
   decimal?: boolean;
+  autoFocus?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-line-2 bg-panel-2 p-2">
-      <p className="eyebrow text-center">{label}</p>
+    <label className="flex-1">
+      <span className="eyebrow block text-center">{label}</span>
       <input
+        autoFocus={autoFocus}
         inputMode={decimal ? "decimal" : "numeric"}
         value={value}
         placeholder="0"
         onChange={(e) => onChange(e.target.value)}
+        onFocus={(e) => e.target.select()}
         aria-label={label}
-        className="display tnum mt-1 w-full bg-transparent text-center text-4xl font-semibold
-                   text-ink outline-none placeholder:text-ink-faint"
+        className="display tnum mt-1 h-16 w-full rounded-2xl border border-line-2 bg-panel-2
+                   text-center text-4xl font-semibold text-ink outline-none
+                   placeholder:text-ink-faint focus:border-accent focus:bg-panel-3"
       />
-      <div className="mt-2 flex gap-2">
-        <button
-          onClick={onMinus}
-          aria-label={`${label} down`}
-          className="display h-11 flex-1 rounded-xl border border-line-2 bg-panel text-xl font-semibold text-ink-dim active:bg-panel-3"
-        >
-          −
-        </button>
-        <button
-          onClick={onPlus}
-          aria-label={`${label} up`}
-          className="display h-11 flex-1 rounded-xl border border-line-2 bg-panel text-xl font-semibold text-ink-dim active:bg-panel-3"
-        >
-          +
-        </button>
-      </div>
-    </div>
+    </label>
   );
 }
 
