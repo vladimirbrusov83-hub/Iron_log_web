@@ -22,8 +22,8 @@ const CASES = [
   [set(10, 0), 5, "taken to failure"],
   [set(10, 1), 4, "1 RIR"],
   [set(10, 2), 3, "2 RIR"],
-  [set(10, 4), 1, "4 RIR"],
-  [set(10, 5), 0, "5+ RIR — an easy set scores nothing"],
+  [set(10, 4), 1, "4 RIR — the last rating that counts"],
+  [set(10, 5), null, "5+ RIR — too far from failure to count at all"],
   [set(3, 0), 3, "short set, capped at the reps actually done"],
   [set(1, 0), 1, "heavy single"],
   [set(0, 0), 0, "no reps"],
@@ -31,6 +31,7 @@ const CASES = [
   [set(10, 2, { isWarmup: true }), null, "warmup"],
   [set(10, 2, { isCompleted: false }), null, "not ticked off"],
   [set(10, null, { isWarmup: true }), null, "unrated warmup"],
+  [set(10, 5, { isWarmup: true }), null, "easy warmup"],
 ];
 
 let failures = 0;

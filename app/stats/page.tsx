@@ -6,7 +6,7 @@ import {
 import {
   BAND_COLOR, BandTag, Empty, Header, Page, Panel, SectionTitle, SetsBandBar, Stat,
 } from "@/components/ui";
-import { EFFECTIVE_REP_THRESHOLD } from "@/lib/effective-reps";
+import { EFFECTIVE_REP_THRESHOLD, MAX_COUNTED_RIR } from "@/lib/effective-reps";
 import {
   FREQUENCY_TARGET, HARD_SET_MAX_RIR, SESSION_ER_HIGH, SESSION_ER_LOW, WEEKLY_SETS_FLOOR,
   WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW, weeklySetBand,
@@ -136,7 +136,8 @@ export default async function StatsPage({
             <dt className="inline text-ink">Effective reps. </dt>
             <dd className="inline">
               A set scores {EFFECTIVE_REP_THRESHOLD} − RIR, capped at the reps done. To failure
-              scores {EFFECTIVE_REP_THRESHOLD}; at 2 RIR, 3; at 5+ RIR, nothing. Warmups score nothing.
+              scores {EFFECTIVE_REP_THRESHOLD}; at 2 RIR, 3. Above {MAX_COUNTED_RIR} RIR a set
+              does not count at all — not scored, not a working set, no volume.
               {unrated > 0 && (
                 <> <span className="text-ink">{unrated} set{unrated === 1 ? "" : "s"} in this window
                 had no RIR</span> and count as zero, so the totals are a floor.</>

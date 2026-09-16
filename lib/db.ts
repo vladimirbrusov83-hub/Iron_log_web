@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import { effectiveRepsSQL } from "./effective-reps";
+import { countedSetSQL, effectiveRepsSQL } from "./effective-reps";
 import { HARD_SET_MAX_RIR } from "./targets";
 import { estimated1RM } from "./types";
 import type {
@@ -674,10 +674,10 @@ export type WeeklyTotals = {
 export async function getWeeklyTotals(weeks = 12): Promise<WeeklyTotals[]> {
   const rows = (await sql.query(
     `SELECT to_char(date_trunc('week', s.started_at), 'YYYY-MM-DD') AS week_start,
-            coalesce(sum(sl.weight * sl.reps) FILTER (WHERE NOT sl.is_warmup), 0) AS volume,
-            count(*) FILTER (WHERE NOT sl.is_warmup) AS working_sets,
+            coalesce(sum(sl.weight * sl.reps) FILTER (WHERE ${countedSetSQL}), 0) AS volume,
+            count(*) FILTER (WHERE ${countedSetSQL}) AS working_sets,
             coalesce(sum(${effectiveRepsSQL}), 0) AS effective_reps,
-            count(*) FILTER (WHERE NOT sl.is_warmup AND sl.rir IS NOT NULL) AS rated_sets
+            count(*) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL) AS rated_sets
        FROM sessions s
        JOIN exercise_logs el ON el.session_id = s.id
        JOIN set_logs sl ON sl.exercise_log_id = el.id
@@ -714,12 +714,12 @@ export type MuscleTotals = {
 export async function getMuscleTotals(days = 7): Promise<MuscleTotals[]> {
   const rows = (await sql.query(
     `SELECT el.muscle_group,
-            count(*) FILTER (WHERE NOT sl.is_warmup) AS working_sets,
-            count(*) FILTER (WHERE NOT sl.is_warmup AND sl.rir <= $2) AS hard_sets,
+            count(*) FILTER (WHERE ${countedSetSQL}) AS working_sets,
+            count(*) FILTER (WHERE ${countedSetSQL} AND sl.rir <= $2) AS hard_sets,
             coalesce(sum(${effectiveRepsSQL}), 0) AS effective_reps,
-            count(*) FILTER (WHERE NOT sl.is_warmup AND sl.rir IS NOT NULL) AS rated_sets,
-            coalesce(sum(sl.weight * sl.reps) FILTER (WHERE NOT sl.is_warmup), 0) AS volume,
-            count(DISTINCT s.id) FILTER (WHERE NOT sl.is_warmup) AS sessions
+            count(*) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL) AS rated_sets,
+            coalesce(sum(sl.weight * sl.reps) FILTER (WHERE ${countedSetSQL}), 0) AS volume,
+            count(DISTINCT s.id) FILTER (WHERE ${countedSetSQL}) AS sessions
        FROM sessions s
        JOIN exercise_logs el ON el.session_id = s.id
        JOIN set_logs sl ON sl.exercise_log_id = el.id
@@ -754,10 +754,10 @@ export type ExerciseTotals = {
 export async function getExerciseTotals(days = 30): Promise<ExerciseTotals[]> {
   const rows = (await sql.query(
     `SELECT el.name,
-            count(*) FILTER (WHERE NOT sl.is_warmup) AS working_sets,
+            count(*) FILTER (WHERE ${countedSetSQL}) AS working_sets,
             coalesce(sum(${effectiveRepsSQL}), 0) AS effective_reps,
-            count(*) FILTER (WHERE NOT sl.is_warmup AND sl.rir IS NOT NULL) AS rated_sets,
-            coalesce(max(CASE WHEN sl.is_warmup THEN NULL
+            count(*) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL) AS rated_sets,
+            coalesce(max(CASE WHEN NOT ${countedSetSQL} THEN NULL
                               WHEN sl.reps <= 1 THEN sl.weight
                               ELSE sl.weight * (1 + sl.reps / 30.0) END), 0) AS best_1rm
        FROM sessions s
@@ -792,10 +792,10 @@ export type Headline = {
 export async function getHeadline(days: number): Promise<Headline> {
   const rows = (await sql.query(
     `SELECT count(DISTINCT s.id) AS sessions,
-            coalesce(sum(sl.weight * sl.reps) FILTER (WHERE NOT sl.is_warmup), 0) AS volume,
-            count(sl.id) FILTER (WHERE NOT sl.is_warmup) AS working_sets,
+            coalesce(sum(sl.weight * sl.reps) FILTER (WHERE ${countedSetSQL}), 0) AS volume,
+            count(sl.id) FILTER (WHERE ${countedSetSQL}) AS working_sets,
             coalesce(sum(${effectiveRepsSQL}), 0) AS effective_reps,
-            count(sl.id) FILTER (WHERE NOT sl.is_warmup AND sl.rir IS NOT NULL) AS rated_sets
+            count(sl.id) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL) AS rated_sets
        FROM sessions s
        LEFT JOIN exercise_logs el ON el.session_id = s.id
        LEFT JOIN set_logs sl ON sl.exercise_log_id = el.id AND sl.is_completed

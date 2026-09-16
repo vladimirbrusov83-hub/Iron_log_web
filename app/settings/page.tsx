@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getSettings } from "@/lib/db";
 import { AUTH_COOKIE } from "@/lib/auth";
 import { Button, ButtonLink, Header, Page, Panel } from "@/components/ui";
-import { EFFECTIVE_REP_THRESHOLD, MAX_RIR } from "@/lib/effective-reps";
+import { EFFECTIVE_REP_THRESHOLD, MAX_COUNTED_RIR } from "@/lib/effective-reps";
 import { SettingsForm } from "./form";
 
 export const dynamic = "force-dynamic";
@@ -33,13 +33,15 @@ export default async function SettingsPage() {
       <Panel className="mt-5">
         <h2 className="eyebrow">Effective reps</h2>
         <p className="mt-1 text-xs leading-relaxed text-ink-dim">
-          Every working set you tick off and rate scores{" "}
+          Every set you log and rate scores{" "}
           <span className="text-ink">{EFFECTIVE_REP_THRESHOLD} − RIR</span> effective reps,
-          capped at the reps you did. RIR {MAX_RIR} means &ldquo;{MAX_RIR} or more left&rdquo;
-          and scores nothing — that is the value for a set that was genuinely easy.
-          A set with no RIR is not scored at all rather than scored as zero, so the
-          totals on <Link href="/stats" className="text-accent underline">Stats</Link>{" "}
-          always say how many sets they were able to count.
+          capped at the reps you did. Rate a set above{" "}
+          <span className="text-ink">{MAX_COUNTED_RIR} RIR</span> and it does not count at
+          all — no score, no working set, no volume. That is what a warm-up is now, which
+          is why there is no warm-up checkbox any more. A set with no RIR is not scored
+          rather than scored as zero, so the totals on{" "}
+          <Link href="/stats" className="text-accent underline">Stats</Link> always say how
+          many sets they were able to count.
         </p>
       </Panel>
 

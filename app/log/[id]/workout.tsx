@@ -9,8 +9,8 @@ import {
 import { RestTimer } from "@/components/rest-timer";
 import { BAND_COLOR, Button, inputClass } from "@/components/ui";
 import {
-  EFFECTIVE_REP_THRESHOLD, MAX_RIR, effectiveReps, effectiveRepsByMuscle,
-  effectiveRepsCoverage, totalEffectiveReps,
+  EFFECTIVE_REP_THRESHOLD, MAX_COUNTED_RIR, MAX_RIR, effectiveReps,
+  effectiveRepsByMuscle, effectiveRepsCoverage, isCountedSet, totalEffectiveReps,
 } from "@/lib/effective-reps";
 import { SESSION_ER_HIGH, SESSION_ER_LOW, sessionErBand } from "@/lib/targets";
 import { setVolume } from "@/lib/types";
@@ -197,7 +197,8 @@ export function Workout({ session, settings, library, lastTime }: Props) {
             setSheet(null);
             run(() => { void logSet(session.id, sheet.log.id, sheet.set?.id ?? sheet.fillId, values); });
             // Rest starts when a set is recorded, not when one is corrected.
-            if (isNew && !values.isWarmup) setRestKey((k) => k + 1);
+            // A set rated too easy to count is a warm-up; no rest is owed for it.
+            if (isNew && isCountedSet({ ...values, isCompleted: true })) setRestKey((k) => k + 1);
           }}
         />
       )}
@@ -287,7 +288,7 @@ function ExerciseCard({
   const [open, setOpen] = useState(false);
   const done = log.sets.filter((s) => s.isCompleted);
   const exerciseTotal = totalEffectiveReps(log.sets);
-  const working = done.filter((s) => !s.isWarmup).length;
+  const working = done.filter(isCountedSet).length;
   // A program day lays its planned sets out in advance. Fill those rows before
   // appending new ones, so the plan is used up rather than sitting empty beside
   // what actually happened.
@@ -485,7 +486,9 @@ function SetSheet({
   const [weight, setWeight] = useState(target.weight ? String(target.weight) : "");
   const [reps, setReps] = useState(target.reps ? String(target.reps) : "");
   const [rir, setRir] = useState<number | null>(target.rir);
-  const [isWarmup, setIsWarmup] = useState(target.isWarmup);
+  // Not editable any more — the checkbox is gone and a rating over
+  // MAX_COUNTED_RIR does that job. Old rows keep the flag they were saved with.
+  const isWarmup = target.isWarmup;
 
   const weightNum = Number(weight) || 0;
   const repsNum = Number(reps) || 0;
@@ -541,20 +544,25 @@ function SetSheet({
           </p>
         )}
 
-        {trackRir && !isWarmup && (
-          <div className="mt-4">
+        {trackRir && (
+          <div className="mb-4 mt-4">
             <div className="flex items-baseline justify-between">
               <p className="eyebrow">Reps in reserve</p>
               <p className="text-[11px] text-ink-faint">
-                {score === null
-                  ? "Rate it to score effective reps"
-                  : `Scores ${score} effective rep${score === 1 ? "" : "s"}`}
+                {rir !== null && rir > MAX_COUNTED_RIR
+                  ? "Too easy to count"
+                  : score === null
+                    ? "Rate it to score effective reps"
+                    : `Scores ${score} effective rep${score === 1 ? "" : "s"}`}
               </p>
             </div>
             <div className="mt-1.5 flex gap-1">
               {Array.from({ length: MAX_RIR + 1 }, (_, n) => (
                 <button
                   key={n}
+                  // Keeps focus in the number field, so the keyboard stays up and
+                  // the sheet does not drop back down and bounce on every tap.
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setRir(rir === n ? null : n)}
                   className={`display tnum h-12 flex-1 rounded-xl border text-lg font-semibold ${
                     rir === n
@@ -568,24 +576,12 @@ function SetSheet({
             </div>
             <p className="mt-1.5 text-[11px] leading-snug text-ink-faint">
               Reps you could still have done. {EFFECTIVE_REP_THRESHOLD} − RIR counts, capped at
-              the reps you did. Leave it blank and the set is logged but not scored.
+              the reps you did. Over {MAX_COUNTED_RIR} the set does not count at all — that is
+              a warm-up. Leave it blank and the set is logged but not scored.
             </p>
           </div>
         )}
 
-        <label className="mb-4 mt-4 flex items-center justify-between gap-3 rounded-xl border
-                          border-line-2 bg-panel-2 px-3 py-2.5">
-          <span className="text-sm">
-            Warm-up set
-            <span className="block text-[11px] text-ink-faint">Never scored, never counted.</span>
-          </span>
-          <input
-            type="checkbox"
-            checked={isWarmup}
-            onChange={(e) => setIsWarmup(e.target.checked)}
-            className="h-6 w-6 shrink-0 accent-[var(--accent)]"
-          />
-        </label>
 
         </div>
 

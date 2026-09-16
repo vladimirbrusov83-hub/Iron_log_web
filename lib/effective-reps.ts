@@ -20,6 +20,9 @@
  *                       quietly drag every average down.
  *   - warmup set      → not part of the working stimulus, same as `volume`.
  *   - set not ticked  → it did not happen yet.
+ *   - more than 4 RIR → too far from failure to be training. This replaced the
+ *                       manual warmup marker: an easy set says so through its
+ *                       rating instead of through a checkbox.
  *
  * Callers sum with `totalEffectiveReps`, which skips nulls. The SQL side has
  * the same rule written out in `effectiveRepsSQL` — change one, change both.
@@ -28,9 +31,26 @@
 /** Reps before failure that are treated as stimulating. */
 export const EFFECTIVE_REP_THRESHOLD = 5;
 
-/** The highest RIR the logger offers. 5 means "5 or more left in the tank" and
- *  is the only value that can score a set at zero effective reps. */
+/** The highest RIR the logger offers. 5 means "5 or more left in the tank". */
 export const MAX_RIR = 5;
+
+/**
+ * The furthest from failure a set can finish and still be counted at all.
+ *
+ * Above this it is not scored, not a working set and carries no volume — the
+ * same treatment a set marked "warmup" used to get. Vladimir asked for the
+ * checkbox to go and this rule to take its place, on the grounds that a set
+ * five or more reps from failure is moving weight rather than training, which
+ * is the line his own reference takes in Section 8.
+ */
+export const MAX_COUNTED_RIR = 4;
+
+/** Whether a set counts towards anything at all. An unrated set still counts as
+ *  a working set — unknown is not the same as easy. */
+export function isCountedSet(set: ScorableSet): boolean {
+  if (set.isWarmup || !set.isCompleted) return false;
+  return set.rir === null || set.rir <= MAX_COUNTED_RIR;
+}
 
 export type ScorableSet = {
   reps: number;
@@ -41,7 +61,7 @@ export type ScorableSet = {
 
 /** Effective reps for one set, or null when the set cannot be scored. */
 export function effectiveReps(set: ScorableSet): number | null {
-  if (set.isWarmup || !set.isCompleted) return null;
+  if (!isCountedSet(set)) return null;
   if (set.rir === null || !Number.isFinite(set.rir)) return null;
   const stimulating = EFFECTIVE_REP_THRESHOLD - set.rir;
   return Math.max(0, Math.min(set.reps, stimulating));
@@ -59,7 +79,7 @@ export function effectiveRepsCoverage(sets: ScorableSet[]): {
   scored: number;
   working: number;
 } {
-  const working = sets.filter((s) => !s.isWarmup && s.isCompleted);
+  const working = sets.filter(isCountedSet);
   return { scored: working.filter((s) => s.rir !== null).length, working: working.length };
 }
 
@@ -77,9 +97,14 @@ export function effectiveRepsCoverage(sets: ScorableSet[]): {
  * `scripts/check-effective-reps.mjs` asserts the two forms agree.
  */
 export const effectiveRepsSQL = `
-  CASE WHEN is_warmup OR NOT is_completed OR rir IS NULL THEN NULL
+  CASE WHEN is_warmup OR NOT is_completed OR rir IS NULL OR rir > ${MAX_COUNTED_RIR} THEN NULL
        ELSE greatest(0, least(reps, ${EFFECTIVE_REP_THRESHOLD} - rir))
   END`;
+
+/** `isCountedSet` as an SQL predicate, for the aggregates. Interpolated as query
+ *  text like `effectiveRepsSQL`, and built from module constants only. */
+export const countedSetSQL =
+  `(NOT is_warmup AND (rir IS NULL OR rir <= ${MAX_COUNTED_RIR}))`;
 
 /** Wording for one set's score, used on the set row and in history. */
 export function effectiveRepsLabel(set: ScorableSet): string {
@@ -107,7 +132,7 @@ export function effectiveRepsByMuscle(
       muscleGroup: ex.muscleGroup, effectiveReps: 0, workingSets: 0, scoredSets: 0,
     };
     for (const s of ex.sets) {
-      if (s.isWarmup || !s.isCompleted) continue;
+      if (!isCountedSet(s)) continue;
       slice.workingSets += 1;
       const er = effectiveReps(s);
       if (er !== null) { slice.scoredSets += 1; slice.effectiveReps += er; }

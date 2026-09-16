@@ -1,3 +1,5 @@
+import { isCountedSet } from "./effective-reps";
+
 export type WeightUnit = "kg" | "lb";
 
 export type Settings = {
@@ -100,9 +102,10 @@ export function estimated1RM(weight: number, reps: number): number {
   return weight * (1 + reps / 30);
 }
 
-/** Warmups carry no volume, matching the iOS app. */
+/** Only counted sets carry volume — warmups, un-ticked rows and anything above
+ *  MAX_COUNTED_RIR are worth nothing. See lib/effective-reps.ts. */
 export function setVolume(set: SetLog): number {
-  return set.isWarmup || !set.isCompleted ? 0 : set.weight * set.reps;
+  return isCountedSet(set) ? set.weight * set.reps : 0;
 }
 
 export function sessionVolume(session: Session): number {

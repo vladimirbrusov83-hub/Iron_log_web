@@ -27,11 +27,17 @@ logged. They never point forward.
 min(reps, 5 − rir), floored at 0
 ```
 
-The three null cases are load-bearing: no RIR, warmup, and not-ticked all return null
-and stay out of sums. **Do not "fix" this to zero.** An unrated set is unknown, and every
+The four null cases are load-bearing: no RIR, warmup, not-ticked, and **anything above
+`MAX_COUNTED_RIR` (4)** all return null and stay out of sums. **Do not "fix" this to
+zero.** A set over 4 RIR counts for nothing anywhere — no score, not a working set, no
+volume, no e1RM. That rule replaced the warm-up checkbox in September 2026 at Vladimir's
+request: an easy set says so through its rating instead of through a tick box. The
+`is_warmup` column stays and is still honoured for rows that have it, but nothing sets it
+any more. `countedSetSQL` is the predicate every aggregate in `lib/db.ts` filters on, and
+`isCountedSet` is its TypeScript twin — they drift the same way the two halves of the
+effective-reps rule can. An unrated set is unknown, and every
 screen showing a total also shows the scored/working count so a low number cannot be
-misread. RIR runs 0–5 where 5 means "5 or more" — Vladimir chose that range so a
-genuinely easy set can score zero, which is unreachable on the iOS app's 0–4.
+misread. RIR runs 0–5 where 5 means "5 or more", which is the value that drops a set out entirely.
 
 Never store it in a column. It is derived on read.
 
@@ -69,6 +75,8 @@ through a **sheet**, never inline. There are no number boxes in the card any mor
 - The sheet prefills from **this session's previous set**, never from last week. Last
   week's numbers are on the left to be read. That distinction is the no-suggestions line.
 - Saving a new working set starts the rest timer; editing an old one does not.
+- The rating chips call `preventDefault` on mousedown so focus stays in the number field.
+  Without it, every tap on a rating closed the keyboard and the sheet dropped back down.
 - The sheet sits above the on-screen keyboard. `useKeyboardInset` reads
   `window.visualViewport` — iOS Safari does **not** shrink the layout viewport for the
   keyboard, so a `fixed` sheet pinned to the bottom lands underneath it. The sheet body
