@@ -91,6 +91,19 @@ through a **sheet**, never inline. There are no number boxes in the card any mor
   scrolls and the Log/Save buttons are pinned outside it, so they stay reachable with
   only a few hundred pixels of screen left.
 
+## The program editor
+
+`+ Add lifts` opens a multi-select picker: muscle-group chips, name search, and a tick per
+row with an `Add N lifts` footer, so a day is filled in one visit. Typing a name that is
+not in the library offers to create it — `createExercise` writes it, and it comes back
+**already selected** and in the list, so it is never searched for twice. The editor holds
+`library` in state for exactly that reason; the server prop only seeds it.
+
+**Overlays must not be trapped.** The root layout wraps pages in a plain `relative` div
+with **no z-index**. It used to be `z-10`, which made a stacking context and pinned every
+`z-50` picker underneath the `z-40` nav — the Add button was unclickable. The gym screen
+never showed it because it hides the nav. Do not put a z-index back on that wrapper.
+
 ## The home screen
 
 The program card is the point of the page and sits in the middle of the glass. It is a

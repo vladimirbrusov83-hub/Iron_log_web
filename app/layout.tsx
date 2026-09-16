@@ -36,7 +36,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${barlow.variable} ${barlowCondensed.variable}`}>
       <body>
-        <div className="relative z-10">{children}</div>
+        {/* `relative` only, deliberately no z-index: a stacking context here
+            would trap every full-screen overlay inside it, and the nav below
+            (z-40) would sit on top of pickers and sheets that ask for z-50.
+            The grain layer is `fixed; z-index: 0` and still paints underneath,
+            because this wrapper comes after it in tree order. */}
+        <div className="relative">{children}</div>
         <Nav />
       </body>
     </html>
