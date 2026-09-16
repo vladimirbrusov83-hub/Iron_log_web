@@ -60,8 +60,9 @@ body {
     radial-gradient(80% 40% at 100% 100%, rgba(255, 255, 255, 0.025), transparent 60%);
   background-attachment: fixed;
   /* The bottom nav is fixed, so every page reserves its height plus the home
-     indicator inset. Without this the last row of a long list is unreachable. */
-  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+     indicator inset — and a little more, because the Today button is raised out
+     of the bar. Without this the last row of a long list is unreachable. */
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
 }
 
 body::before {
