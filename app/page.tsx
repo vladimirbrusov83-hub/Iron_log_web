@@ -4,7 +4,7 @@ import {
   getActiveSession, getFinishedSessions, getHeadline, getMuscleTotals, getPrograms, getSettings,
 } from "@/lib/db";
 import {
-  BAND_COLOR, Button, ButtonLink, Empty, Header, Page, Panel, SectionTitle, SetsBandBar, Stat,
+  BAND_COLOR, Button, ButtonLink, Empty, Header, Page, Panel, SectionTitle, SetsBandBar,
 } from "@/components/ui";
 import { effectiveRepsCoverage, totalEffectiveReps } from "@/lib/effective-reps";
 import { WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW, weeklySetBand } from "@/lib/targets";
@@ -43,95 +43,50 @@ export default async function HomePage() {
         />
       )}
 
-      <section className="rise rise-1 mb-5 grid grid-cols-2 gap-2">
-        <Stat
-          label="Effective reps · 7d"
-          value={week.effectiveReps.toLocaleString()}
-          hint={week.workingSets === 0
-            ? "no sets yet"
-            : `${week.ratedSets} of ${week.workingSets} sets rated`}
-          accent
-          big
-        />
-        <div className="grid gap-2">
-          <Stat label="Sessions · 7d" value={week.sessions} />
-          <Stat
-            label="Volume · 7d"
-            value={Math.round(week.volume).toLocaleString()}
-            hint={unit}
-          />
-        </div>
+      {/* Three numbers on one line. The week's detail lives in the drawer below
+          and on Stats; this is only the glance. */}
+      <section className="rise rise-1 mb-4 grid grid-cols-3 gap-2">
+        <Tile label={`Eff reps · 7d`} value={week.effectiveReps.toLocaleString()} accent />
+        <Tile label="Sessions" value={String(week.sessions)} />
+        <Tile label={`Volume · ${unit}`} value={Math.round(week.volume).toLocaleString()} />
       </section>
 
-      <section className="rise rise-2 mb-5">
-        <SectionTitle action={<Link href="/stats" className="text-xs text-accent">Details</Link>}>
-          Hard sets per muscle · last 7 days
-        </SectionTitle>
-        {muscles.length === 0 ? (
-          <Empty>Finish a workout and each muscle you trained shows up here.</Empty>
-        ) : (
-          <Panel>
-            <ul className="space-y-3">
-              {muscles.map((m) => {
-                const band = weeklySetBand(m.hardSets);
-                return (
-                  <li key={m.muscleGroup}>
-                    <div className="flex items-baseline justify-between gap-2 text-sm">
-                      <span className="font-medium">{m.muscleGroup}</span>
-                      <span className="tnum text-xs">
-                        <span className={`display text-base font-semibold ${BAND_COLOR[band]}`}>
-                          {m.hardSets}
-                        </span>
-                        <span className="text-ink-faint"> hard sets · </span>
-                        <span className="text-accent">{m.effectiveReps}</span>
-                        <span className="text-ink-faint"> eff reps</span>
-                      </span>
-                    </div>
-                    <div className="mt-1.5">
-                      <SetsBandBar sets={m.hardSets} band={band} />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="mt-3 text-[11px] leading-snug text-ink-faint">
-              Green band is the productive range, {WEEKLY_SETS_LOW}–{WEEKLY_SETS_HIGH} hard sets a
-              week. The tick is the floor. A hard set finished within 3 reps of failure.
-            </p>
-          </Panel>
-        )}
-      </section>
-
+      {/* ------------------------------------------------ the point of the page */}
       {!active && (
-        <section className="rise rise-3 mb-5">
-          <SectionTitle>Start a workout</SectionTitle>
+        <section className="rise rise-2 mb-4">
           {pinned ? (
-            <Panel>
-              <div className="flex items-baseline justify-between gap-2">
-                <h3 className="display truncate text-xl font-semibold">{pinned.name}</h3>
+            <div className="overflow-hidden rounded-2xl border border-line bg-panel">
+              <div className="flex items-baseline justify-between gap-2 px-4 pt-4">
+                <div className="min-w-0">
+                  <p className="eyebrow text-accent">Start a workout</p>
+                  <h2 className="display mt-0.5 truncate text-3xl font-semibold">{pinned.name}</h2>
+                </div>
                 <Link href="/programs" className="shrink-0 text-xs text-accent">Change</Link>
               </div>
-              <ul className="mt-3 space-y-2">
+              <ul className="mt-3 space-y-2 px-4 pb-4">
                 {pinned.days.map((day, i) => (
                   <li key={day.id}>
                     <form action={startWorkout.bind(null, day.id)}>
                       <button
-                        className="group flex min-h-13 w-full items-center gap-3 rounded-xl
-                                   border border-line-2 bg-panel-2 px-3 text-left
-                                   transition-colors hover:border-accent/60 active:bg-panel-3"
+                        className="group flex min-h-16 w-full items-center gap-3 rounded-xl border
+                                   border-line-2 bg-panel-2 px-3 text-left transition-colors
+                                   hover:border-accent/60 active:bg-panel-3"
                       >
-                        <span className="display tnum w-6 text-lg font-semibold text-ink-faint">
+                        <span className="display tnum w-7 shrink-0 text-2xl font-semibold text-ink-faint">
                           {String(i + 1).padStart(2, "0")}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium">{day.name}</span>
+                          <span className="display block truncate text-xl font-semibold">
+                            {day.name}
+                          </span>
                           <span className="block truncate text-[11px] text-ink-faint">
+                            {day.exercises.length} lifts ·{" "}
                             {day.exercises.map((e) => e.name).join(" · ")}
                           </span>
                         </span>
-                        <span className="text-ink-faint transition-colors group-hover:text-accent">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                               stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+                        <span className="shrink-0 text-accent">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                               stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"
                                strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
                         </span>
                       </button>
@@ -139,15 +94,16 @@ export default async function HomePage() {
                   </li>
                 ))}
               </ul>
-              <form action={startWorkout.bind(null, null)} className="mt-3">
-                <Button type="submit" variant="ghost" className="w-full">
+              <form action={startWorkout.bind(null, null)} className="border-t border-line">
+                <Button type="submit" variant="ghost" className="w-full rounded-none">
                   Freestyle — no program
                 </Button>
               </form>
-            </Panel>
+            </div>
           ) : (
             <Panel>
-              <p className="text-sm text-ink-dim">
+              <p className="eyebrow text-accent">Start a workout</p>
+              <p className="mt-2 text-sm text-ink-dim">
                 No programs yet. Start freestyle and add lifts as you go, or build a program first.
               </p>
               <div className="mt-3 flex gap-2">
@@ -160,6 +116,80 @@ export default async function HomePage() {
           )}
         </section>
       )}
+
+      {/* Folded away by default. The headline it needs to carry — which muscles
+          got worked and how hard — is on the summary row, so opening it is for
+          the bars, not for the news. Native <details>, so it costs no JS. */}
+      <details className="rise rise-3 group mb-4 overflow-hidden rounded-2xl border border-line bg-panel">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0 flex-1">
+            <p className="eyebrow">Hard sets per muscle · 7d</p>
+            <p className="tnum mt-0.5 truncate text-sm">
+              {muscles.length === 0 ? (
+                <span className="text-ink-faint">Nothing logged this week</span>
+              ) : (
+                muscles.map((m, i) => (
+                  <span key={m.muscleGroup}>
+                    {i > 0 && <span className="text-ink-faint"> · </span>}
+                    <span className="text-ink-dim">{m.muscleGroup} </span>
+                    <span className={`font-semibold ${BAND_COLOR[weeklySetBand(m.hardSets)]}`}>
+                      {m.hardSets}
+                    </span>
+                  </span>
+                ))
+              )}
+            </p>
+          </div>
+          <svg
+            className="shrink-0 text-ink-faint transition-transform group-open:rotate-180"
+            width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <path d="M5 9l7 7 7-7" />
+          </svg>
+        </summary>
+
+        <div className="border-t border-line px-4 py-3">
+          {muscles.length === 0 ? (
+            <p className="text-sm text-ink-faint">
+              Finish a workout and each muscle you trained shows up here.
+            </p>
+          ) : (
+            <>
+              <ul className="space-y-3">
+                {muscles.map((m) => {
+                  const band = weeklySetBand(m.hardSets);
+                  return (
+                    <li key={m.muscleGroup}>
+                      <div className="flex items-baseline justify-between gap-2 text-sm">
+                        <span className="font-medium">{m.muscleGroup}</span>
+                        <span className="tnum text-xs">
+                          <span className={`display text-base font-semibold ${BAND_COLOR[band]}`}>
+                            {m.hardSets}
+                          </span>
+                          <span className="text-ink-faint"> hard sets · </span>
+                          <span className="text-accent">{m.effectiveReps}</span>
+                          <span className="text-ink-faint"> eff reps</span>
+                        </span>
+                      </div>
+                      <div className="mt-1.5">
+                        <SetsBandBar sets={m.hardSets} band={band} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-3 text-[11px] leading-snug text-ink-faint">
+                Green band is the productive range, {WEEKLY_SETS_LOW}–{WEEKLY_SETS_HIGH} hard sets a
+                week. The tick is the floor. A hard set finished within 3 reps of failure.
+              </p>
+              <Link href="/stats" className="mt-2 inline-block text-xs text-accent">
+                Full breakdown on Stats →
+              </Link>
+            </>
+          )}
+        </div>
+      </details>
 
       <section className="rise rise-4">
         <SectionTitle action={<Link href="/history" className="text-xs text-accent">All history</Link>}>
@@ -197,6 +227,18 @@ export default async function HomePage() {
         )}
       </section>
     </Page>
+  );
+}
+
+/** A compact headline number. Smaller than `Stat` because three sit on one row. */
+function Tile({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="rounded-2xl border border-line bg-panel px-2.5 py-2.5">
+      <div className="eyebrow truncate" style={{ fontSize: 9 }}>{label}</div>
+      <div className={`display tnum mt-0.5 truncate text-2xl font-semibold ${accent ? "text-accent" : ""}`}>
+        {value}
+      </div>
+    </div>
   );
 }
 
