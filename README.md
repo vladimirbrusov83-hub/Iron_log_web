@@ -21,7 +21,7 @@ ORM. No third-party services beyond the database.
 - [Effective reps](#effective-reps)
 - [Reference bands](#reference-bands)
 - [Screens](#screens)
-- [The gym screen](#the-gym-screen)
+- [The gym: two screens](#the-gym-two-screens)
 - [The program editor](#the-program-editor)
 - [The exercise base](#the-exercise-base)
 - [Setup](#setup)
@@ -159,7 +159,8 @@ returns `hardSets` and `sessions` so the per-muscle rows can be measured against
 |---|---|
 | `/` | **Today.** Three weekly numbers, then the program card — swipeable between programs, opening on the one trained most recently. Tap a day to start it, or **Start** for the week. Hard sets per muscle and recent workouts sit in fold-out drawers below. |
 | `/start` | **The week.** Every day of the chosen program as a compact row: name, lift count, when it was last trained, its lifts. Freestyle at the bottom. Redirects into the open session if one exists. |
-| `/log/[id]` | **The gym screen.** See below. |
+| `/log/[id]` | **The session.** The day as a list of lifts. See below. |
+| `/log/[id]/[logId]` | **One lift.** Where sets are tracked and last session is read. See below. |
 | `/history` | Every finished session, newest first, with its top muscle groups. |
 | `/history/[id]` | One session in full — effective reps by muscle, then every set with its RIR and score. |
 | `/programs` | Program list. Pin, open or duplicate. |
@@ -177,19 +178,25 @@ mid-session.
 
 ---
 
-## The gym screen
+## The gym: two screens
 
-Each lift is **two columns**: last session's complete set list on the left, today's on the
-right. The left column is the whole of the previous session, not its top set, because the
-question in the gym is "what did I do for set three last time" and reading it off the
-screen beats the app guessing for you.
+Starting a day opens **a list of lifts**, not a page of set grids. One row each: position,
+name, muscle, how many sets are done against how many are planned, the last set you did and
+what the lift has scored. The whole row is the link. Tapping it opens **the lift**, which is
+where sets are tracked — a screen with room for last session's complete set list beside
+today's.
+
+The left column is the whole of the previous session, not its top set, because the question
+in the gym is "what did I do for set three last time" and reading it off the screen beats
+the app guessing for you.
 
 Sets are entered through a **sheet**, never inline — weight × reps as two typed fields,
 then the RIR chips, with the effective reps the set will score shown before you save it.
 Saving writes weight, reps, rating and completion in one call, so nothing lands half-saved,
-and starts the rest timer.
+and starts the rest timer. A bigger screen is not a reason to put number boxes back in the
+card.
 
-Four details that are easy to break:
+Details that are easy to break:
 
 - **The sheet prefills from this session's previous set**, never from last week. Last
   week's numbers are on the left to be read, not applied. That distinction is where the
@@ -202,10 +209,17 @@ Four details that are easy to break:
   the keyboard opens, so a fixed sheet pinned to the bottom ends up behind it.
   `useKeyboardInset` reads `window.visualViewport` and lifts the sheet by however much is
   covered; the body scrolls and the buttons are pinned outside that scroll.
+- **The rest survives the walk between the two screens.** The countdown's end timestamp
+  lives in `localStorage`, not in React state, so stepping back to the session list to
+  check the total doesn't cancel it.
+- **The session's server actions revalidate the layout, not the page.**
+  `revalidatePath("/log/<id>")` alone doesn't reach `/log/<id>/<logId>`, and a set logged
+  on the lift screen would appear to do nothing.
 
-A running effective-rep total and a per-muscle breakdown stay pinned at the top. The rest
-timer floats at the bottom, and the tab bar is hidden here — Finish is at the bottom of
-this page and a nav bar under it invites a mis-tap out of a live workout.
+A running effective-rep total and a per-muscle breakdown stay pinned at the top of the
+session list. The rest timer floats at the bottom of both screens, and the tab bar is
+hidden across `/log/` — Finish is at the bottom of the session page and a nav bar under it
+invites a mis-tap out of a live workout.
 
 ---
 
@@ -342,8 +356,11 @@ app/
 ├── page.tsx              today — stats, program carousel, drawers
 ├── start/page.tsx        the week: pick a day to start
 ├── log/[id]/
-│   ├── page.tsx          loads the session and last time's sets
-│   └── workout.tsx       the gym screen and the set sheet (client)
+│   ├── page.tsx          loads the session
+│   ├── workout.tsx       the day as a list of lifts (client)
+│   └── [logId]/
+│       ├── page.tsx      loads one lift and last time's sets
+│       └── exercise.tsx  tracking one lift, and the set sheet (client)
 ├── history/              list + one session
 ├── programs/
 │   ├── page.tsx          list, pin, duplicate
@@ -498,7 +515,7 @@ when one is focused, which in a gym means fighting the viewport between sets.
 **No z-index on the page wrapper.** The root layout wraps pages in a plain `relative` div.
 It used to be `relative z-10`, which made a stacking context and pinned every `z-50` picker
 and sheet underneath the `z-40` nav bar — the picker's Add button was physically
-unclickable. The gym screen never showed it because it hides the nav.
+unclickable. The gym screens never showed it because they hide the nav.
 
 **Drawers are native `<details>`.** The home screen's two collapsible sections cost no
 JavaScript and work before the page finishes hydrating. Each carries its headline on the

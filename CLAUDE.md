@@ -65,21 +65,43 @@ Barlow Condensed (display, all big numbers) + Barlow (body) via `next/font`. Tok
 Band colours: green in range, amber under/over, red below floor. The gym screen hides
 the bottom nav and floats the rest timer instead; it auto-starts when a set is logged.
 
-## The gym screen
+## The gym is two screens
 
-Modelled on the iOS app Vladimir showed in September 2026: each lift is **two columns** —
-last session's complete set list on the left, today's on the right — and sets are entered
-through a **sheet**, never inline. There are no number boxes in the card any more.
+Vladimir asked for the split in September 2026: "when I start a day it should be a list of
+exercises, and to track sets and see previous workouts you click on the exercise — so
+tracking sets is a new screen." Five lifts of two-column cards down one page left too
+little of either side readable.
+
+**`/log/[id]` — the session.** The sticky scoreboard (effective reps, the
+`scored/working` rated line, per-muscle chips) over **one row per lift**: position, name,
+muscle, `done/planned` sets, the last set done, its effective reps, a chevron. The whole
+row is the link — nothing on it is separately tappable. Then Add exercise, session notes,
+Finish and Discard. It no longer loads `getLastSessionSets`; that belongs to one lift.
+
+**`/log/[id]/[logId]` — one lift.** Last session's complete set list beside today's, the
+`+ Add set` button, and the ⋯ drawer with the lift's notes and Remove exercise. It is a
+real page and can be landed on directly, so it repeats the `finishedAt → /history/[id]`
+guard and `notFound()`s on a `logId` that is not in the session.
 
 - `getLastSessionSets` supplies the left column: the most recent *finished* session per
   lift, every completed set of it. It merges duplicate logs of the same name in that
-  session rather than dropping one, which `DISTINCT ON` alone would do.
+  session rather than dropping one, which `DISTINCT ON` alone would do. The exercise
+  screen passes it one name.
+- Sets are still entered through a **sheet**, never inline. A full screen invites putting
+  weight/reps boxes back into the card; that was decided against and the reasons below
+  (keyboard, focus, one-write saves) have not changed.
 - `logSet` is the only way a set is written. It sends weight, reps, RIR and `isCompleted`
   in **one** call, so nothing lands half-saved. `saveSet`/`appendSet`/`db.addSet` were
   deleted when the inline grid went; do not bring back a two-write path.
 - A program day still lays its planned sets out as empty rows. The sheet **fills the next
   empty row** (`fillId`) before appending, so the plan is consumed instead of sitting
   blank beside what happened. `finishSession` still sweeps any left over.
+- The session actions revalidate with `revalidatePath(path, "layout")`. Plain
+  `revalidatePath("/log/<id>")` does **not** cover `/log/<id>/<logId>`, and a set logged
+  on the exercise screen would change nothing on it — which reads as a broken app.
+- `dropExercise` from the exercise screen `router.push`es back to the session first. It is
+  deleting that page's own subject.
+- Logging a set leaves you on the lift. There is no jump to the next exercise, by choice.
 - The sheet prefills from **this session's previous set**, never from last week. Last
   week's numbers are on the left to be read. That distinction is the no-suggestions line.
 - Saving a new working set starts the rest timer; editing an old one does not.
@@ -208,6 +230,11 @@ and production, and Vercel never runs it.
   haptics on iOS Safari either — `navigator.vibrate` is a no-op there and the Web Audio
   beep carries the alert alone. It only works because the AudioContext is created inside
   the tap that starts the timer.
+- That end timestamp is mirrored into `localStorage` under `ironlog.rest`, and the gym
+  screens both mount a `RestTimer` that picks it up. React state alone lost the rest the
+  moment you walked from a lift back to the session list — which is exactly when you
+  look. It is read in an effect, never during render, so the server and the first client
+  paint agree; an already-expired rest is dropped rather than restored as "Go".
 - `saveProgram` deletes and reinserts a program's days. Safe because sessions reference
   `day_id` with ON DELETE SET NULL and keep their own `day_name` snapshot.
 - Session duration is computed from `started_at` in SQL, not from a number the browser

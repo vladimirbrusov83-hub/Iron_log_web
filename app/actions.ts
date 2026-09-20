@@ -52,22 +52,22 @@ export async function addExercise(
   const trimmed = name.trim();
   if (!trimmed) return;
   await db.addExerciseToSession(sessionId, exerciseId || null, trimmed, muscleGroup || "Other");
-  revalidatePath(`/log/${sessionId}`);
+  revalidatePath(`/log/${sessionId}`, "layout");
 }
 
 export async function dropExercise(sessionId: string, logId: string) {
   await db.removeExerciseLog(logId);
-  revalidatePath(`/log/${sessionId}`);
+  revalidatePath(`/log/${sessionId}`, "layout");
 }
 
 export async function noteExercise(sessionId: string, logId: string, notes: string) {
   await db.saveExerciseLogNotes(logId, notes.slice(0, 2000));
-  revalidatePath(`/log/${sessionId}`);
+  revalidatePath(`/log/${sessionId}`, "layout");
 }
 
 export async function noteSession(sessionId: string, notes: string) {
   await db.saveSessionNotes(sessionId, notes.slice(0, 4000));
-  revalidatePath(`/log/${sessionId}`);
+  revalidatePath(`/log/${sessionId}`, "layout");
 }
 
 /* ------------------------------------------------------------------- sets */
@@ -101,12 +101,12 @@ export async function logSet(
   if (setId) await db.updateSet(setId, { ...clean, isCompleted: true });
   else await db.insertCompletedSet(logId, clean);
 
-  revalidatePath(`/log/${sessionId}`);
+  revalidatePath(`/log/${sessionId}`, "layout");
 }
 
 export async function removeSet(sessionId: string, setId: string) {
   await db.deleteSet(setId);
-  revalidatePath(`/log/${sessionId}`);
+  revalidatePath(`/log/${sessionId}`, "layout");
 }
 
 /* --------------------------------------------------------------- programs */

@@ -2,6 +2,22 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+/** Where the running rest lives so it survives a navigation. */
+const STORE_KEY = "ironlog.rest";
+
+function readStored(): { endsAt: number; seconds: number } | null {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as { endsAt?: unknown; seconds?: unknown };
+    if (typeof v.endsAt !== "number" || typeof v.seconds !== "number") return null;
+    // An expired rest is not worth restoring — it would land on "Go" from a
+    // countdown that finished while another screen was open.
+    if (v.endsAt <= Date.now()) { localStorage.removeItem(STORE_KEY); return null; }
+    return { endsAt: v.endsAt, seconds: v.seconds };
+  } catch { return null; }
+}
+
 /**
  * Rest countdown.
  *
@@ -9,6 +25,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * decremented. A phone that locks mid-set throttles or stops `setInterval`, and
  * a counter that subtracts one per tick comes back minutes wrong; reading the
  * clock each time comes back right.
+ *
+ * That end timestamp is also mirrored into `localStorage`, because the gym is
+ * now two screens — the exercise list and one lift — and walking back to check
+ * the session total mid-rest unmounts this component. React state would drop
+ * the rest on the way; the stored clock is picked straight back up.
  *
  * The alert is a Web Audio beep plus `navigator.vibrate` where it exists — iOS
  * Safari has no haptics and ignores vibrate, so the beep has to carry it alone.
@@ -62,10 +83,27 @@ export function RestTimer({
 
   const start = useCallback((forSeconds: number) => {
     firedRef.current = false;
+    const at = Date.now() + forSeconds * 1000;
     setSeconds(forSeconds);
-    setEndsAt(Date.now() + forSeconds * 1000);
+    setEndsAt(at);
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ endsAt: at, seconds: forSeconds })); }
+    catch { /* private mode; the timer still runs for this screen */ }
     unlockAudio();
   }, [unlockAudio]);
+
+  const stop = useCallback(() => {
+    setEndsAt(null);
+    setRemaining(0);
+    firedRef.current = false;
+    try { localStorage.removeItem(STORE_KEY); } catch { /* see start */ }
+  }, []);
+
+  // Pick up a rest already running from the other gym screen. Read after mount,
+  // never during render, so the server and the first client paint agree.
+  useEffect(() => {
+    const stored = readStored();
+    if (stored) { setSeconds(stored.seconds); setEndsAt(stored.endsAt); }
+  }, []);
 
   useEffect(() => {
     if (autoStartKey !== lastKey.current) {
@@ -134,7 +172,7 @@ export function RestTimer({
           ))}
           {endsAt !== null && (
             <button
-              onClick={() => { setEndsAt(null); setRemaining(0); firedRef.current = false; }}
+              onClick={stop}
               className="min-h-9 rounded-lg border border-line px-2.5 text-xs text-ink-faint"
               aria-label="Stop timer"
             >
