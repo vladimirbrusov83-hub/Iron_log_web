@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getLastSessionSets, getSession, getSettings } from "@/lib/db";
+import { getExerciseNote, getLastSessionSets, getSession, getSettings } from "@/lib/db";
 import { ExerciseScreen } from "./exercise";
 
 export const dynamic = "force-dynamic";
@@ -25,9 +25,10 @@ export default async function ExerciseLogPage({
   if (index === -1) notFound();
   const log = session.exercises[index];
 
-  const [settings, last] = await Promise.all([
+  const [settings, last, note] = await Promise.all([
     getSettings(),
     getLastSessionSets([log.name]),
+    getExerciseNote(log.name),
   ]);
 
   return (
@@ -39,6 +40,7 @@ export default async function ExerciseLogPage({
       total={session.exercises.length}
       settings={settings}
       last={last.get(log.name.toLowerCase())}
+      note={note}
     />
   );
 }

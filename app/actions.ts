@@ -65,6 +65,25 @@ export async function noteExercise(sessionId: string, logId: string, notes: stri
   revalidatePath(`/log/${sessionId}`, "layout");
 }
 
+/**
+ * The standing note on a lift, saved from the gym screen.
+ *
+ * This is the library's `exercises.notes` — the same field the exercise base
+ * edits — so it shows every time the lift comes round, unchanged, until it is
+ * edited again. `noteExercise` above is the other note: one session's, kept
+ * with that session's history.
+ */
+export async function noteLibraryExercise(
+  sessionId: string, exerciseId: string, notes: string,
+) {
+  if (!exerciseId) return;
+  await db.saveExerciseNote(exerciseId, notes.slice(0, 2000));
+  revalidatePath(`/log/${sessionId}`, "layout");
+  // Same field, other screen: the exercise base would otherwise serve a stale
+  // note until something else invalidated it.
+  revalidatePath("/exercises");
+}
+
 export async function noteSession(sessionId: string, notes: string) {
   await db.saveSessionNotes(sessionId, notes.slice(0, 4000));
   revalidatePath(`/log/${sessionId}`, "layout");

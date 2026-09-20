@@ -3,7 +3,9 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { dropExercise, logSet, noteExercise, removeSet } from "@/app/actions";
+import {
+  dropExercise, logSet, noteExercise, noteLibraryExercise, removeSet,
+} from "@/app/actions";
 import { RestTimer } from "@/components/rest-timer";
 import { Button, inputClass } from "@/components/ui";
 import {
@@ -11,7 +13,7 @@ import {
   isCountedSet, totalEffectiveReps,
 } from "@/lib/effective-reps";
 import { setVolume } from "@/lib/types";
-import type { LastSession } from "@/lib/db";
+import type { ExerciseNote, LastSession } from "@/lib/db";
 import type { ExerciseLog, SetLog, Settings } from "@/lib/types";
 
 type Props = {
@@ -22,6 +24,8 @@ type Props = {
   total: number;
   settings: Settings;
   last?: LastSession;
+  /** The lift's standing note, or null when it is not in the library. */
+  note: ExerciseNote | null;
 };
 
 /** The set the sheet is open on: an existing row to edit, or a new one. */
@@ -45,7 +49,7 @@ type SheetTarget = {
  * put number boxes back in the card.
  */
 export function ExerciseScreen({
-  sessionId, dayName, log, index, total, settings, last,
+  sessionId, dayName, log, index, total, settings, last, note,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -160,6 +164,10 @@ export function ExerciseScreen({
             </Button>
           </div>
         )}
+
+        {/* Above the sets, because a setup cue — seat notch, bar, grip — is
+            read before the first one, not after the last. */}
+        {note && <StandingNote sessionId={sessionId} note={note} />}
 
         <section className="overflow-hidden rounded-2xl border border-line bg-panel">
           <div className="grid grid-cols-2">
@@ -304,6 +312,52 @@ export function ExerciseScreen({
 
       {pending && <span className="sr-only" role="status">Saving</span>}
     </>
+  );
+}
+
+/* --------------------------------------------------------- standing note */
+
+/**
+ * The lift's own note, not the session's.
+ *
+ * It lives on the library row (`exercises.notes`, the same field the exercise
+ * base edits), so it is here unchanged every time the lift comes round —
+ * Vladimir asked for a note he would see next time he did the exercise. The
+ * per-session note is still in the ⋯ drawer and still belongs to its session.
+ *
+ * Saved on blur, like every other note in the app. The status line says so
+ * rather than a button, because a save button next to a set sheet is one more
+ * thing to mis-tap with a bar in your hands.
+ */
+function StandingNote({ sessionId, note }: { sessionId: string; note: ExerciseNote }) {
+  const [, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+
+  return (
+    <section className="mb-3 rounded-2xl border border-line bg-panel px-3 py-2.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="eyebrow">Note on this lift</p>
+        <p className="text-[11px] text-ink-faint">
+          {saved ? "Saved" : "Shows every time"}
+        </p>
+      </div>
+      <textarea
+        // Keyed on the lift, so walking to the next one does not leave the
+        // previous lift's text sitting in an uncontrolled field.
+        key={note.id}
+        defaultValue={note.notes}
+        rows={2}
+        placeholder="Setup cues, what to watch — kept with the lift, not the day"
+        className={`${inputClass} mt-1 py-2 text-sm`}
+        onFocus={() => setSaved(false)}
+        onBlur={(e) => {
+          const value = e.target.value;
+          if (value === note.notes) return;
+          setSaved(true);
+          startTransition(() => { void noteLibraryExercise(sessionId, note.id, value); });
+        }}
+      />
+    </section>
   );
 }
 

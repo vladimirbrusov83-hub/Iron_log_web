@@ -186,6 +186,12 @@ what the lift has scored. The whole row is the link. Tapping it opens **the lift
 where sets are tracked — a screen with room for last session's complete set list beside
 today's.
 
+Above the sets sits **the lift's own note** — setup cues, what to watch. It belongs to the
+lift, not to the day, so it is there unchanged every time that exercise comes round, until
+you edit it. It is the same note the exercise base keeps, editable from either place. A
+lift logged as a one-off has no library row to keep a note on, so it gets no box; its ⋯
+drawer still has a note for that session alone, which is kept with that session's history.
+
 The left column is the whole of the previous session, not its top set, because the question
 in the gym is "what did I do for set three last time" and reading it off the screen beats
 the app guessing for you.
@@ -273,6 +279,10 @@ used — how many programs plan it, how many sessions contain it — and **Unuse
 of its own. That is what the page is for: finding the typo saved in a hurry from a picker
 and getting rid of it.
 
+Its **notes** field is the standing note the gym screen shows above the sets — the same
+text either way, so a cue written mid-session while you remember it is there on the
+library row afterwards.
+
 Deleting is a two-step confirm that says what survives. `exercise_id` is `ON DELETE SET
 NULL` everywhere and both history and programs keep their own copy of the name, so removing
 a lift only stops it appearing in the pickers.
@@ -359,8 +369,8 @@ app/
 │   ├── page.tsx          loads the session
 │   ├── workout.tsx       the day as a list of lifts (client)
 │   └── [logId]/
-│       ├── page.tsx      loads one lift and last time's sets
-│       └── exercise.tsx  tracking one lift, and the set sheet (client)
+│       ├── page.tsx      loads one lift, last time's sets and its note
+│       └── exercise.tsx  tracking one lift, its note and the set sheet (client)
 ├── history/              list + one session
 ├── programs/
 │   ├── page.tsx          list, pin, duplicate

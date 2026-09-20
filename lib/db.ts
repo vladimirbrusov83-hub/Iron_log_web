@@ -121,6 +121,34 @@ export async function updateExercise(
      WHERE id = ${id}`;
 }
 
+/**
+ * The standing note on a lift, for the gym screen.
+ *
+ * Matched on the **name**, not on `exercise_id`: that column is
+ * `ON DELETE SET NULL` and a one-off log never had one, which is the same
+ * reason `getExerciseUsage` and `getLastSessionSets` match on the name. A lift
+ * logged as a one-off today therefore picks the note up by itself once it is
+ * added to the library.
+ *
+ * Null means there is no library row — there is nowhere to keep a note, and the
+ * gym screen shows no box rather than one that quietly loses what is typed.
+ */
+export type ExerciseNote = { id: string; notes: string };
+
+export async function getExerciseNote(name: string): Promise<ExerciseNote | null> {
+  const rows = (await sql`
+    SELECT id, notes FROM exercises WHERE lower(name) = lower(${name}) LIMIT 1`
+  ) as { id: string; notes: string }[];
+  return rows[0] ?? null;
+}
+
+/** Notes only. `updateExercise` writes the name, group and compound flag too,
+ *  so calling it from the gym would push three stale values over a library
+ *  edit made in between. */
+export async function saveExerciseNote(id: string, notes: string): Promise<void> {
+  await sql`UPDATE exercises SET notes = ${notes} WHERE id = ${id}`;
+}
+
 /** Programs and history keep their own copy of the name, so deleting a lift
  *  here empties the link and leaves every past session readable. */
 export async function deleteExercise(id: string): Promise<void> {

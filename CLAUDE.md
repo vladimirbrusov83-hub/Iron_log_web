@@ -78,10 +78,36 @@ muscle, `done/planned` sets, the last set done, its effective reps, a chevron. T
 row is the link — nothing on it is separately tappable. Then Add exercise, session notes,
 Finish and Discard. It no longer loads `getLastSessionSets`; that belongs to one lift.
 
-**`/log/[id]/[logId]` — one lift.** Last session's complete set list beside today's, the
-`+ Add set` button, and the ⋯ drawer with the lift's notes and Remove exercise. It is a
-real page and can be landed on directly, so it repeats the `finishedAt → /history/[id]`
-guard and `notFound()`s on a `logId` that is not in the session.
+**`/log/[id]/[logId]` — one lift.** The standing note, then last session's complete set
+list beside today's, the `+ Add set` button, and the ⋯ drawer with this session's note and
+Remove exercise. It is a real page and can be landed on directly, so it repeats the
+`finishedAt → /history/[id]` guard and `notFound()`s on a `logId` that is not in the
+session.
+
+### Two notes, and they are not the same note
+
+Vladimir asked in September 2026 for "a small window for note, and I want to see that note
+next time when I will be doing this exercise", and chose the standing kind over a
+per-session one carried forward.
+
+| Where | Column | Lives with |
+|---|---|---|
+| The card above the sets | `exercises.notes` | **the lift** — every session, unchanged, until edited |
+| The ⋯ drawer | `exercise_logs.notes` | **that session**, and its history entry |
+
+- `getExerciseNote(name)` resolves the library row **by name**, not by `exercise_id`:
+  that column is `ON DELETE SET NULL` and a one-off log never had one. Same reason
+  `getExerciseUsage` and `getLastSessionSets` match on the name. A one-off therefore picks
+  its note up by itself once the lift is added to the library.
+- No library row means no box at all, rather than one that quietly loses what is typed.
+  The ⋯ drawer's session note still covers that lift.
+- `saveExerciseNote` writes **notes only**. `updateExercise` also sets the name, muscle
+  group and compound flag, so calling it from the gym would push three stale values over a
+  library edit made in between.
+- `noteLibraryExercise` revalidates **`/exercises` as well** — it is the same field the
+  exercise base edits, and that page would otherwise serve a stale note.
+- The textarea is keyed on the note's id, so walking to the next lift does not leave the
+  previous one's text in an uncontrolled field.
 
 - `getLastSessionSets` supplies the left column: the most recent *finished* session per
   lift, every completed set of it. It merges duplicate logs of the same name in that
