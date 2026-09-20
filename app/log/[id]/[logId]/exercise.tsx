@@ -51,6 +51,7 @@ export function ExerciseScreen({
   const [pending, startTransition] = useTransition();
   const [sheet, setSheet] = useState<SheetTarget | null>(null);
   const [menu, setMenu] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [restKey, setRestKey] = useState(0);
   const unit = settings.weightUnit;
   const run = (fn: () => void) => startTransition(fn);
@@ -142,15 +143,20 @@ export function ExerciseScreen({
             <Button
               variant="danger"
               className="w-full"
+              disabled={removing}
               onClick={() => {
-                if (confirm(`Remove ${log.name} and its sets from this workout?`)) {
-                  // This page's own subject is going away, so leave first.
-                  router.push(`/log/${sessionId}`);
-                  run(() => { void dropExercise(sessionId, log.id); });
-                }
+                if (!confirm(`Remove ${log.name} and its sets from this workout?`)) return;
+                setRemoving(true);
+                // The write finishes before the navigation, so the list that
+                // comes back has already lost the row — and `replace`, not
+                // `push`, because Back would otherwise land on this page after
+                // its own lift is gone, on a 404 with the nav bar hidden.
+                void dropExercise(sessionId, log.id)
+                  .then(() => router.replace(`/log/${sessionId}`))
+                  .catch(() => setRemoving(false));
               }}
             >
-              Remove exercise
+              {removing ? "Removing…" : "Remove exercise"}
             </Button>
           </div>
         )}
