@@ -139,6 +139,31 @@ per-session one carried forward.
   scrolls and the Log/Save buttons are pinned outside it, so they stay reachable with
   only a few hundred pixels of screen left.
 
+## Deleting from History
+
+A row on `/history` slides left to uncover **Delete**, which opens an inline confirm —
+the same two-step shape as the exercise library, not `window.confirm`. Tapping the card
+still opens the session. `app/history/swipe-row.tsx` holds the gesture; the cards
+themselves are still built on the server in `page.tsx` and passed in as `card`.
+
+Three things it will not survive losing:
+
+- **`onDragStart` is prevented.** The card is a `<Link>`, and an `<a href>` is natively
+  draggable: the browser started a link drag two pixels in, fired `pointercancel`, and
+  the swipe died on the spot. This was the whole bug, and it looks like the gesture is
+  simply not wired up.
+- **move/up listen on `window`**, attached for the length of one gesture. Element
+  handlers stop arriving once the card has translated out from under the finger, and
+  `setPointerCapture` did not make up for it.
+- **`touch-action: pan-y`, never `none`.** The list still has to scroll under a finger
+  that starts on a card. The axis is decided in the first 8px and a vertical gesture is
+  handed straight back to the browser.
+
+The click that ends a swipe is eaten in `onClickCapture`; a tap on an already-open row
+closes it. Deleting calls `removeSessionFromList`, which is `removeSession` without the
+redirect — the row just goes. Both revalidate **`/`** as well, because the home card
+orders programs by their last session and would otherwise point at a deleted one.
+
 ## The program editor is per-day
 
 `/programs/[id]` is the program: name, the days in order, and what the week adds up to.

@@ -41,9 +41,19 @@ export async function discardWorkout(sessionId: string) {
 
 export async function removeSession(sessionId: string) {
   await db.deleteSession(sessionId);
+  revalidatePath("/");
   revalidatePath("/history");
   revalidatePath("/stats");
   redirect("/history");
+}
+
+/** Same delete, from the History list itself — the row just goes, so no redirect.
+ *  `/` matters here: the home card orders programs by their last session. */
+export async function removeSessionFromList(sessionId: string) {
+  await db.deleteSession(sessionId);
+  revalidatePath("/");
+  revalidatePath("/history");
+  revalidatePath("/stats");
 }
 
 export async function addExercise(
