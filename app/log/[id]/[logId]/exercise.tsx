@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  dropExercise, logSet, markExerciseDone, noteLibraryExercise, removeSet,
+  logSet, markExerciseDone, noteLibraryExercise, removeSet,
 } from "@/app/actions";
 import { RestTimer } from "@/components/rest-timer";
 import { BAND_COLOR, Button, SessionErBar, inputClass } from "@/components/ui";
@@ -58,7 +58,6 @@ export function ExerciseScreen({
   const [pending, startTransition] = useTransition();
   const [sheet, setSheet] = useState<SheetTarget | null>(null);
   const [menu, setMenu] = useState(false);
-  const [removing, setRemoving] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [restKey, setRestKey] = useState(0);
   const unit = settings.weightUnit;
@@ -137,26 +136,8 @@ export function ExerciseScreen({
 
       <main className="mx-auto max-w-2xl px-4 pt-4" style={{ paddingBottom: "8.5rem" }}>
         {menu && (
-          <div className="mb-3 space-y-3 rounded-2xl border border-line bg-panel p-3">
+          <div className="mb-3 rounded-2xl border border-line bg-panel p-3">
             <MusclePanel byMuscle={byMuscle} current={log.muscleGroup} />
-            <Button
-              variant="danger"
-              className="w-full"
-              disabled={removing}
-              onClick={() => {
-                if (!confirm(`Remove ${log.name} and its sets from this workout?`)) return;
-                setRemoving(true);
-                // The write finishes before the navigation, so the list that
-                // comes back has already lost the row — and `replace`, not
-                // `push`, because Back would otherwise land on this page after
-                // its own lift is gone, on a 404 with the nav bar hidden.
-                void dropExercise(sessionId, log.id)
-                  .then(() => router.replace(`/log/${sessionId}`))
-                  .catch(() => setRemoving(false));
-              }}
-            >
-              {removing ? "Removing…" : "Remove exercise"}
-            </Button>
           </div>
         )}
 
@@ -261,7 +242,7 @@ export function ExerciseScreen({
         </section>
 
         {/* Done marks the lift finished and walks back to the list, where its
-            row is now green. Same shape as Remove: the write lands before the
+            row is now green. The write lands before the
             navigation, and `replace` so Back does not return to a finished lift. */}
         <div className="mt-10 flex justify-center">
           <Button

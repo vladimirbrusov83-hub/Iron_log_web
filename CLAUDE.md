@@ -81,7 +81,8 @@ Finish and Discard. It no longer loads `getLastSessionSets`; that belongs to one
 **`/log/[id]/[logId]` — one lift.** The standing note, then last session's complete set
 list beside today's, the `+ Add set` button, and the ⋯ drawer: effective reps per muscle
 for the whole workout so far (bars against the 20–40 band, this lift's muscle in bold),
-then Remove exercise. The drawer used to hold the per-session note; Vladimir had it
+and nothing else — Remove exercise was taken out of it at his request, so a lift cannot
+currently be removed from a running workout (`dropExercise` is still in actions). The drawer used to hold the per-session note; Vladimir had it
 replaced in September 2026 because it duplicated the standing note one card below. It is a real page and can be landed on directly, so it repeats the
 `finishedAt → /history/[id]` guard and `notFound()`s on a `logId` that is not in the
 session.
@@ -126,12 +127,10 @@ per-session one carried forward.
 - The session actions revalidate with `revalidatePath(path, "layout")`. Plain
   `revalidatePath("/log/<id>")` does **not** cover `/log/<id>/<logId>`, and a set logged
   on the exercise screen would change nothing on it — which reads as a broken app.
-- `dropExercise` from the exercise screen `router.push`es back to the session first. It is
-  deleting that page's own subject.
 - Logging a set leaves you on the lift. There is no jump to the next exercise, by choice.
 - **✓ Done** at the bottom of the lift sets `exercise_logs.is_done` and `router.replace`s
   back to the list, where that row turns green with a ✓ in place of its number. The
-  write lands before the navigation, same as Remove. A done lift shows "Marked done ·
+  write lands before the navigation. A done lift shows "Marked done ·
   undo" under the button. It is only a marker: it changes no counting and nothing else
   reads it.
 - The sheet prefills from **this session's previous set**, never from last week. Last
