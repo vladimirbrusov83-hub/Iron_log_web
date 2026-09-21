@@ -263,19 +263,23 @@ export function ExerciseScreen({
         {/* Done marks the lift finished and walks back to the list, where its
             row is now green. Same shape as Remove: the write lands before the
             navigation, and `replace` so Back does not return to a finished lift. */}
-        <Button
-          variant="primary"
-          className="mt-3 w-full"
-          disabled={finishing}
-          onClick={() => {
-            setFinishing(true);
-            void markExerciseDone(sessionId, log.id, true)
-              .then(() => router.replace(`/log/${sessionId}`))
-              .catch(() => setFinishing(false));
-          }}
-        >
-          {finishing ? "Saving…" : "✓ Done"}
-        </Button>
+        <div className="mt-10 flex justify-center">
+          <Button
+            variant="primary"
+            // Set well apart from + Add set and narrower than it, so a thumb
+            // reaching for another set does not land on Done instead.
+            className="w-3/5"
+            disabled={finishing}
+            onClick={() => {
+              setFinishing(true);
+              void markExerciseDone(sessionId, log.id, true)
+                .then(() => router.replace(`/log/${sessionId}`))
+                .catch(() => setFinishing(false));
+            }}
+          >
+            {finishing ? "Saving…" : "✓ Done"}
+          </Button>
+        </div>
         {log.isDone && (
           <button
             onClick={() => run(() => { void markExerciseDone(sessionId, log.id, false); })}
