@@ -4,14 +4,15 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  dropExercise, logSet, noteExercise, noteLibraryExercise, removeSet,
+  dropExercise, logSet, noteLibraryExercise, removeSet,
 } from "@/app/actions";
 import { RestTimer } from "@/components/rest-timer";
-import { Button, inputClass } from "@/components/ui";
+import { BAND_COLOR, Button, SessionErBar, inputClass } from "@/components/ui";
 import {
   EFFECTIVE_REP_THRESHOLD, MAX_COUNTED_RIR, MAX_RIR, effectiveReps,
-  isCountedSet, totalEffectiveReps,
+  isCountedSet, totalEffectiveReps, type MuscleSlice,
 } from "@/lib/effective-reps";
+import { SESSION_ER_HIGH, SESSION_ER_LOW, sessionErBand } from "@/lib/targets";
 import { setVolume } from "@/lib/types";
 import type { ExerciseNote, LastSession } from "@/lib/db";
 import type { ExerciseLog, SetLog, Settings } from "@/lib/types";
@@ -26,6 +27,8 @@ type Props = {
   last?: LastSession;
   /** The lift's standing note, or null when it is not in the library. */
   note: ExerciseNote | null;
+  /** The whole workout so far, per muscle — what the ⋯ panel shows. */
+  byMuscle: MuscleSlice[];
 };
 
 /** The set the sheet is open on: an existing row to edit, or a new one. */
@@ -49,7 +52,7 @@ type SheetTarget = {
  * put number boxes back in the card.
  */
 export function ExerciseScreen({
-  sessionId, dayName, log, index, total, settings, last, note,
+  sessionId, dayName, log, index, total, settings, last, note, byMuscle,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -120,7 +123,7 @@ export function ExerciseScreen({
               </div>
               <button
                 onClick={() => setMenu((v) => !v)}
-                aria-label="Exercise options"
+                aria-label="Effective reps by muscle"
                 aria-expanded={menu}
                 className="h-9 w-9 rounded-lg border border-line-2 bg-panel-2 text-ink-dim"
               >
@@ -133,17 +136,8 @@ export function ExerciseScreen({
 
       <main className="mx-auto max-w-2xl px-4 pt-4" style={{ paddingBottom: "8.5rem" }}>
         {menu && (
-          <div className="mb-3 space-y-2 rounded-2xl border border-line bg-panel p-3">
-            <textarea
-              defaultValue={log.notes}
-              rows={2}
-              placeholder="Notes for this lift"
-              className={`${inputClass} py-2 text-sm`}
-              onBlur={(e) => {
-                const value = e.target.value;
-                if (value !== log.notes) run(() => { void noteExercise(sessionId, log.id, value); });
-              }}
-            />
+          <div className="mb-3 space-y-3 rounded-2xl border border-line bg-panel p-3">
+            <MusclePanel byMuscle={byMuscle} current={log.muscleGroup} />
             <Button
               variant="danger"
               className="w-full"
@@ -315,6 +309,52 @@ export function ExerciseScreen({
   );
 }
 
+/* ---------------------------------------------------------- muscle panel */
+
+/**
+ * Effective reps per muscle for the whole workout so far, behind the ⋯ button.
+ * It replaced the per-session note, which sat one card above the standing
+ * note and read as the same thing twice. Bars are coloured against the paper's
+ * 20–40 per session; they describe the workout, they never suggest a load.
+ */
+function MusclePanel({ byMuscle, current }: { byMuscle: MuscleSlice[]; current: string }) {
+  return (
+    <div>
+      <p className="eyebrow mb-2">Effective reps by muscle · this workout</p>
+      {byMuscle.length === 0 ? (
+        <p className="text-xs text-ink-faint">No working sets logged yet.</p>
+      ) : (
+        <ul className="space-y-2.5">
+          {byMuscle.map((m) => {
+            const band = sessionErBand(m.effectiveReps);
+            return (
+              <li key={m.muscleGroup}>
+                <div className="flex items-baseline justify-between text-sm">
+                  <span className={m.muscleGroup === current ? "font-semibold text-ink" : "text-ink-dim"}>
+                    {m.muscleGroup}
+                  </span>
+                  <span className="tnum text-xs text-ink-faint">
+                    <span className={`display text-base font-semibold ${BAND_COLOR[band]}`}>
+                      {m.effectiveReps}
+                    </span>
+                    {" · "}{m.scoredSets} of {m.workingSets} sets rated
+                  </span>
+                </div>
+                <div className="mt-1">
+                  <SessionErBar er={m.effectiveReps} band={band} />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="mt-2.5 text-[11px] text-ink-faint">
+        Shaded: {SESSION_ER_LOW}–{SESSION_ER_HIGH} effective reps per muscle per session.
+      </p>
+    </div>
+  );
+}
+
 /* --------------------------------------------------------- standing note */
 
 /**
@@ -323,7 +363,7 @@ export function ExerciseScreen({
  * It lives on the library row (`exercises.notes`, the same field the exercise
  * base edits), so it is here unchanged every time the lift comes round —
  * Vladimir asked for a note he would see next time he did the exercise. The
- * per-session note is still in the ⋯ drawer and still belongs to its session.
+ * per-session note field was taken out of the ⋯ drawer in September 2026.
  *
  * Saved on blur, like every other note in the app. The status line says so
  * rather than a button, because a save button next to a set sheet is one more

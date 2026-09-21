@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getExerciseNote, getLastSessionSets, getSession, getSettings } from "@/lib/db";
+import { effectiveRepsByMuscle } from "@/lib/effective-reps";
 import { ExerciseScreen } from "./exercise";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ export default async function ExerciseLogPage({
       settings={settings}
       last={last.get(log.name.toLowerCase())}
       note={note}
+      byMuscle={effectiveRepsByMuscle(session.exercises)}
     />
   );
 }

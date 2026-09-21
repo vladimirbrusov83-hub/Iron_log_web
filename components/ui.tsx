@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import {
-  type Band, BAND_LABEL, WEEKLY_SETS_FLOOR, WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW,
+  type Band, BAND_LABEL, SESSION_ER_HIGH, SESSION_ER_LOW,
+  WEEKLY_SETS_FLOOR, WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW,
 } from "@/lib/targets";
 
 export function Page({ children }: { children: ReactNode }) {
@@ -159,6 +160,25 @@ export function SetsBandBar({ sets, band }: { sets: number; band: Band }) {
       <div
         className={`absolute inset-y-0 left-0 rounded-full ${BAND_BG[band]} transition-[width] duration-500`}
         style={{ width: pct(sets) }}
+      />
+    </div>
+  );
+}
+
+/** One session's effective reps for one muscle, drawn against the paper's
+ *  20–40 per session. The scale runs to 50 so "over" has room to show. */
+export function SessionErBar({ er, band }: { er: number; band: Band }) {
+  const scale = 50;
+  const pct = (n: number) => `${Math.min(100, (n / scale) * 100)}%`;
+  return (
+    <div className="relative h-2 w-full overflow-hidden rounded-full bg-panel-3">
+      <div
+        className="absolute inset-y-0 bg-good/15"
+        style={{ left: pct(SESSION_ER_LOW), width: pct(SESSION_ER_HIGH - SESSION_ER_LOW) }}
+      />
+      <div
+        className={`absolute inset-y-0 left-0 rounded-full ${BAND_BG[band]} transition-[width] duration-500`}
+        style={{ width: pct(er) }}
       />
     </div>
   );
