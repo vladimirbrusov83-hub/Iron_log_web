@@ -32,6 +32,11 @@ const CASES = [
   [set(10, 2, { isCompleted: false }), null, "not ticked off"],
   [set(10, null, { isWarmup: true }), null, "unrated warmup"],
   [set(10, 5, { isWarmup: true }), null, "easy warmup"],
+  [set(8, 1, { restPauseReps: 6 }), 10, "rest-pause — activation 4 + all 6 mini-set reps"],
+  [set(8, 0, { restPauseReps: 0 }), 5, "rest-pause switched off"],
+  [set(8, 5, { restPauseReps: 6 }), null, "rest-pause at 5+ RIR — voids the whole set"],
+  [set(8, null, { restPauseReps: 6 }), null, "rest-pause not rated"],
+  [set(8, 2, { restPauseReps: 6, isCompleted: false }), null, "rest-pause not ticked off"],
 ];
 
 let failures = 0;
@@ -57,12 +62,13 @@ if (!url) {
   );
 
   const rows = CASES.map(([s], i) =>
-    `(${i}, ${s.reps}, ${s.rir === null ? "NULL" : s.rir}, ${s.isWarmup}, ${s.isCompleted})`,
+    `(${i}, ${s.reps}, ${s.rir === null ? "NULL" : s.rir}, ${s.isWarmup}, ${s.isCompleted}, ` +
+    `${s.restPauseReps ?? 0})`,
   ).join(", ");
 
   const result = await sql.query(
     `SELECT i, ${effectiveRepsSQL} AS score
-       FROM (VALUES ${rows}) AS t(i, reps, rir, is_warmup, is_completed)
+       FROM (VALUES ${rows}) AS t(i, reps, rir, is_warmup, is_completed, rest_pause_reps)
       ORDER BY i`,
   );
 

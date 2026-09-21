@@ -237,7 +237,7 @@ function ExerciseRow({
           {lastSet && (
             <>
               {" · last "}
-              {lastSet.weight} {unit} × {lastSet.reps}
+              {lastSet.weight} {unit} × {lastSet.reps}{lastSet.restPauseReps > 0 && ` + ${lastSet.restPauseReps}`}
               {lastSet.rir !== null && ` @${lastSet.rir === MAX_RIR ? `${MAX_RIR}+` : lastSet.rir}`}
             </>
           )}

@@ -122,7 +122,9 @@ export async function logSet(
   sessionId: string,
   logId: string,
   setId: string | null,
-  values: { weight: number; reps: number; rir: number | null; isWarmup: boolean },
+  values: {
+    weight: number; reps: number; rir: number | null; isWarmup: boolean; restPauseReps: number;
+  },
 ) {
   const clean = {
     weight: clampNumber(values.weight, 0, 999, 0),
@@ -131,6 +133,9 @@ export async function logSet(
       ? null
       : Math.round(clampNumber(values.rir, 0, MAX_RIR, 0)),
     isWarmup: Boolean(values.isWarmup),
+    // Always a number, 0 for a straight set — so editing a rest-pause set back
+    // to a straight one writes the 0 instead of leaving the old mini-sets.
+    restPauseReps: Math.round(clampNumber(values.restPauseReps, 0, 500, 0)),
   };
 
   if (setId) await db.updateSet(setId, { ...clean, isCompleted: true });

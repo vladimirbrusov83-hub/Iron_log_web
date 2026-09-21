@@ -144,6 +144,12 @@ CREATE TABLE IF NOT EXISTS set_logs (
   is_warmup       boolean NOT NULL DEFAULT false
 );
 
+-- Rest-pause: the total reps of the mini-sets after the activation set. `reps`
+-- and `rir` describe the activation set; every mini-set rep scores in full.
+-- NOT NULL DEFAULT 0 on purpose — effectiveRepsSQL adds it straight on, and a
+-- NULL here would void the whole sum. Added after the table existed, hence ALTER.
+ALTER TABLE set_logs ADD COLUMN IF NOT EXISTS rest_pause_reps int NOT NULL DEFAULT 0;
+
 CREATE INDEX IF NOT EXISTS set_logs_log_idx ON set_logs (exercise_log_id, set_number);
 
 /* ---------------------------------------------------------------- records */

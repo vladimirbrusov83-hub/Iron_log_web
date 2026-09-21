@@ -467,12 +467,12 @@ async function hydrateSessions(sessionRows: SessionRow[]): Promise<Session[]> {
   const logIds = logRows.map((l) => l.id);
   const setRows = logIds.length === 0 ? [] : ((await sql`
     SELECT id, exercise_log_id, set_number, weight, reps, rir, rpe, notes,
-           is_completed, is_warmup
+           is_completed, is_warmup, rest_pause_reps
       FROM set_logs WHERE exercise_log_id = ANY(${logIds}::uuid[])
      ORDER BY exercise_log_id, set_number`) as {
     id: string; exercise_log_id: string; set_number: number; weight: number;
     reps: number; rir: number | null; rpe: number | null; notes: string;
-    is_completed: boolean; is_warmup: boolean;
+    is_completed: boolean; is_warmup: boolean; rest_pause_reps: number;
   }[]);
 
   const setsByLog = new Map<string, SetLog[]>();
@@ -481,7 +481,7 @@ async function hydrateSessions(sessionRows: SessionRow[]): Promise<Session[]> {
     list.push({
       id: s.id, setNumber: s.set_number, weight: s.weight, reps: s.reps,
       rir: s.rir, rpe: s.rpe, notes: s.notes,
-      isCompleted: s.is_completed, isWarmup: s.is_warmup,
+      isCompleted: s.is_completed, isWarmup: s.is_warmup, restPauseReps: s.rest_pause_reps,
     });
     setsByLog.set(s.exercise_log_id, list);
   }
@@ -607,7 +607,7 @@ export async function setExerciseLogDone(logId: string, done: boolean): Promise<
 
 export type SetPatch = {
   weight?: number; reps?: number; rir?: number | null; rpe?: number | null;
-  isCompleted?: boolean; isWarmup?: boolean; notes?: string;
+  isCompleted?: boolean; isWarmup?: boolean; notes?: string; restPauseReps?: number;
 };
 
 /**
@@ -631,7 +631,8 @@ export async function updateSet(setId: string, patch: SetPatch): Promise<void> {
                                ELSE rpe END,
            notes        = coalesce(${patch.notes ?? null}::text, notes),
            is_completed = coalesce(${patch.isCompleted ?? null}::boolean, is_completed),
-           is_warmup    = coalesce(${patch.isWarmup ?? null}::boolean, is_warmup)
+           is_warmup    = coalesce(${patch.isWarmup ?? null}::boolean, is_warmup),
+           rest_pause_reps = coalesce(${patch.restPauseReps ?? null}::int, rest_pause_reps)
      WHERE id = ${setId}`;
 }
 
@@ -954,6 +955,7 @@ export async function getHeadline(days: number): Promise<Headline> {
  */
 export type LastSessionSet = {
   setNumber: number; weight: number; reps: number; rir: number | null; isWarmup: boolean;
+  restPauseReps: number;
 };
 export type LastSession = { date: string; sets: LastSessionSet[] };
 
@@ -971,13 +973,13 @@ export async function getLastSessionSets(names: string[]): Promise<Map<string, L
        ORDER BY lower(el.name), s.started_at DESC
     )
     SELECT l.key, l.started_at::text AS date, sl.set_number, sl.weight, sl.reps,
-           sl.rir, sl.is_warmup
+           sl.rir, sl.is_warmup, sl.rest_pause_reps
       FROM latest l
       JOIN exercise_logs el ON el.session_id = l.session_id AND lower(el.name) = l.key
       JOIN set_logs sl ON sl.exercise_log_id = el.id AND sl.is_completed
      ORDER BY l.key, el.position, sl.set_number`) as {
     key: string; date: string; set_number: number; weight: number;
-    reps: number; rir: number | null; is_warmup: boolean;
+    reps: number; rir: number | null; is_warmup: boolean; rest_pause_reps: number;
   }[];
 
   const out = new Map<string, LastSession>();
@@ -986,6 +988,7 @@ export async function getLastSessionSets(names: string[]): Promise<Map<string, L
     entry.sets.push({
       setNumber: entry.sets.length + 1,
       weight: r.weight, reps: r.reps, rir: r.rir, isWarmup: r.is_warmup,
+      restPauseReps: r.rest_pause_reps,
     });
     out.set(r.key, entry);
   }
@@ -997,11 +1000,14 @@ export async function getLastSessionSets(names: string[]): Promise<Map<string, L
  *  row in between to patch. */
 export async function insertCompletedSet(
   logId: string,
-  values: { weight: number; reps: number; rir: number | null; isWarmup: boolean },
+  values: {
+    weight: number; reps: number; rir: number | null; isWarmup: boolean; restPauseReps: number;
+  },
 ): Promise<void> {
   await sql`
-    INSERT INTO set_logs (exercise_log_id, set_number, weight, reps, rir, is_completed, is_warmup)
+    INSERT INTO set_logs
+      (exercise_log_id, set_number, weight, reps, rir, is_completed, is_warmup, rest_pause_reps)
     SELECT ${logId}, coalesce(max(set_number), 0) + 1, ${values.weight}, ${values.reps},
-           ${values.rir}::int, true, ${values.isWarmup}
+           ${values.rir}::int, true, ${values.isWarmup}, ${values.restPauseReps}
       FROM set_logs WHERE exercise_log_id = ${logId}`;
 }

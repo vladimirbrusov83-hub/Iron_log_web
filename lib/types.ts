@@ -54,6 +54,9 @@ export type SetLog = {
   notes: string;
   isCompleted: boolean;
   isWarmup: boolean;
+  /** Rest-pause mini-set reps, 0 for a straight set. Kept out of `reps` so
+   *  e1RM and PRs still read the activation set alone. */
+  restPauseReps: number;
 };
 
 export type ExerciseLog = {

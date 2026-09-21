@@ -49,6 +49,20 @@ more", which is the value that drops a set out entirely.
 
 Never store it in a column. It is derived on read.
 
+### Rest-pause
+
+Ported from the EffectiveReps page in September 2026 at Vladimir's request. The set
+sheet has a **Rest-pause set** switch; on, the Reps box becomes **Activation** and a
+third box, **Mini-sets**, takes the total of all the mini-set reps. Stored in
+`set_logs.rest_pause_reps` (NOT NULL DEFAULT 0 — `effectiveRepsSQL` adds it straight
+on). `reps`/`rir` stay the activation set and score as usual; every mini-set rep is
+added in full. Still **one** working set, and RIR over 4 voids the whole thing.
+
+- Mini-set reps are **not** folded into `reps`: e1RM, PRs and volume read the
+  activation set only, so mini-sets cannot mint a fake PR.
+- The switch is **off** on every new set — never carried from the previous one.
+- Rows show `60 × 10 + 6 @1`.
+
 ## Reference bands (lib/targets.ts)
 
 The only "targets" in the app, taken from Vladimir's own paper *Hypertrophy Training —

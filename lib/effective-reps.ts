@@ -24,6 +24,13 @@
  *                       manual warmup marker: an easy set says so through its
  *                       rating instead of through a checkbox.
  *
+ * Rest-pause sets add every mini-set rep on top (`restPauseReps`): `reps` and
+ * `rir` still describe the activation set and score as above, and a short rest
+ * after a near-failure set leaves the muscle fully recruited, so each mini-set
+ * rep counts in full. It is still one working set, and an activation set over
+ * MAX_COUNTED_RIR voids the whole thing — the mini-sets never started from
+ * full recruitment. Ported from the EffectiveReps page (brusovcoach.org).
+ *
  * Callers sum with `totalEffectiveReps`, which skips nulls. The SQL side has
  * the same rule written out in `effectiveRepsSQL` — change one, change both.
  */
@@ -57,6 +64,8 @@ export type ScorableSet = {
   rir: number | null;
   isWarmup: boolean;
   isCompleted: boolean;
+  /** Total reps of the mini-sets after a rest-pause activation set; 0 or absent otherwise. */
+  restPauseReps?: number;
 };
 
 /** Effective reps for one set, or null when the set cannot be scored. */
@@ -64,7 +73,8 @@ export function effectiveReps(set: ScorableSet): number | null {
   if (!isCountedSet(set)) return null;
   if (set.rir === null || !Number.isFinite(set.rir)) return null;
   const stimulating = EFFECTIVE_REP_THRESHOLD - set.rir;
-  return Math.max(0, Math.min(set.reps, stimulating));
+  const miniSets = set.restPauseReps ?? 0;
+  return Math.max(0, Math.min(set.reps, stimulating)) + (miniSets > 0 ? miniSets : 0);
 }
 
 /** Sum over sets, skipping the ones that cannot be scored. */
@@ -98,7 +108,7 @@ export function effectiveRepsCoverage(sets: ScorableSet[]): {
  */
 export const effectiveRepsSQL = `
   CASE WHEN is_warmup OR NOT is_completed OR rir IS NULL OR rir > ${MAX_COUNTED_RIR} THEN NULL
-       ELSE greatest(0, least(reps, ${EFFECTIVE_REP_THRESHOLD} - rir))
+       ELSE greatest(0, least(reps, ${EFFECTIVE_REP_THRESHOLD} - rir)) + greatest(0, rest_pause_reps)
   END`;
 
 /** `isCountedSet` as an SQL predicate, for the aggregates. Interpolated as query

@@ -115,6 +115,9 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
                       <span className="font-medium">{s.weight}</span>
                       <span className="text-ink-faint"> {unit} × </span>
                       <span className="font-medium">{s.reps}</span>
+                      {s.restPauseReps > 0 && (
+                        <span className="font-medium"> + {s.restPauseReps}</span>
+                      )}
                       {s.rir !== null && (
                         <span className="text-ink-faint"> @ {s.rir === 5 ? "5+" : s.rir} RIR</span>
                       )}

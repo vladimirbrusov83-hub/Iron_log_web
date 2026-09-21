@@ -41,6 +41,7 @@ type SheetTarget = {
   reps: number;
   rir: number | null;
   isWarmup: boolean;
+  restPauseReps: number;
 };
 
 /**
@@ -88,6 +89,9 @@ export function ExerciseScreen({
       reps: previous?.reps ?? nextPlanned?.reps ?? 0,
       rir: null,
       isWarmup: false,
+      // Rest-pause is never carried over: a sticky switch would quietly log the
+      // next straight set as rest-pause. It is switched on per set.
+      restPauseReps: 0,
     });
   }
 
@@ -183,6 +187,7 @@ export function ExerciseScreen({
                         <span className="text-ink">{s.weight}</span>
                         <span className="text-ink-faint"> × </span>
                         <span className="text-ink">{s.reps}</span>
+                        {s.restPauseReps > 0 && <span className="text-ink"> + {s.restPauseReps}</span>}
                         {s.rir !== null && (
                           <span className="text-ink-faint"> @{s.rir === MAX_RIR ? `${MAX_RIR}+` : s.rir}</span>
                         )}
@@ -211,6 +216,7 @@ export function ExerciseScreen({
                             set: s, fillId: null,
                             setNumber: s.isWarmup ? i + 1 : numberAt(i),
                             weight: s.weight, reps: s.reps, rir: s.rir, isWarmup: s.isWarmup,
+                            restPauseReps: s.restPauseReps,
                           }); }}
                           className="flex w-full items-baseline gap-1.5 border-b border-line/60 py-1.5
                                      text-left text-sm last:border-0 active:bg-panel-2"
@@ -222,6 +228,7 @@ export function ExerciseScreen({
                             <span className="text-ink">{s.weight}</span>
                             <span className="text-ink-faint"> × </span>
                             <span className="text-ink">{s.reps}</span>
+                            {s.restPauseReps > 0 && <span className="text-ink"> + {s.restPauseReps}</span>}
                             {s.rir !== null && (
                               <span className="text-ink-faint"> @{s.rir === MAX_RIR ? `${MAX_RIR}+` : s.rir}</span>
                             )}
@@ -455,7 +462,9 @@ function useKeyboardInset(): number {
 
 /* ------------------------------------------------------------- set sheet */
 
-type SetValues = { weight: number; reps: number; rir: number | null; isWarmup: boolean };
+type SetValues = {
+  weight: number; reps: number; rir: number | null; isWarmup: boolean; restPauseReps: number;
+};
 
 /**
  * The one place a set is entered. Weight × reps × rating, on controls big
@@ -477,13 +486,21 @@ function SetSheet({
   const [weight, setWeight] = useState(target.weight ? String(target.weight) : "");
   const [reps, setReps] = useState(target.reps ? String(target.reps) : "");
   const [rir, setRir] = useState<number | null>(target.rir);
+  // Rest-pause: `reps` becomes the activation set and a second box takes the
+  // total of the mini-sets after it. Same rule as the EffectiveReps page.
+  const [restPause, setRestPause] = useState(target.restPauseReps > 0);
+  const [miniSets, setMiniSets] = useState(target.restPauseReps ? String(target.restPauseReps) : "");
   // Not editable any more — the checkbox is gone and a rating over
   // MAX_COUNTED_RIR does that job. Old rows keep the flag they were saved with.
   const isWarmup = target.isWarmup;
 
   const weightNum = Number(weight) || 0;
   const repsNum = Number(reps) || 0;
-  const score = effectiveReps({ reps: repsNum, rir, isWarmup, isCompleted: true });
+  const miniNum = restPause ? Math.round(Number(miniSets) || 0) : 0;
+  const canSave = repsNum > 0 && (!restPause || miniNum > 0);
+  const score = effectiveReps({
+    reps: repsNum, rir, isWarmup, isCompleted: true, restPauseReps: miniNum,
+  });
   // What this set number looked like last week, shown so the sheet answers the
   // question without the user closing it to go and read the card.
   const lastMatch = last?.sets.find((s) => s.setNumber === target.setNumber);
@@ -508,6 +525,7 @@ function SetSheet({
               {lastMatch && (
                 <p className="tnum mt-0.5 text-xs text-ink-faint">
                   Last time: {lastMatch.weight} {unit} × {lastMatch.reps}
+                  {lastMatch.restPauseReps > 0 && ` + ${lastMatch.restPauseReps}`}
                   {lastMatch.rir !== null && ` @${lastMatch.rir} RIR`}
                 </p>
               )}
@@ -521,15 +539,54 @@ function SetSheet({
             </button>
           </div>
 
-          {/* Weight × reps, typed. Nothing between the two boxes but the ×. */}
-          <div className="mt-4 flex items-end gap-2">
+          <button
+            role="switch"
+            aria-checked={restPause}
+            // Same as the rating chips: keeps focus in the number field so the
+            // keyboard stays up and the sheet does not bounce.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setRestPause((v) => !v)}
+            className={`mt-4 flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5
+                        text-left ${restPause ? "border-accent/60 bg-accent-soft" : "border-line-2 bg-panel-2"}`}
+          >
+            <span className="text-sm font-semibold text-ink">
+              Rest-pause set
+              <span className="block text-[11px] font-normal text-ink-faint">
+                Activation set, then short mini-sets
+              </span>
+            </span>
+            <span
+              aria-hidden
+              className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${
+                restPause ? "bg-accent" : "bg-line-2"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                  restPause ? "translate-x-[18px]" : "translate-x-0.5"
+                }`}
+              />
+            </span>
+          </button>
+
+          {/* Weight × reps, typed. Nothing between the two boxes but the ×.
+              Rest-pause adds a third: + the mini-set reps. */}
+          <div className="mt-3 flex items-end gap-2">
             <NumberField label={unit} value={weight} onChange={setWeight} decimal autoFocus />
             <span className="display pb-3 text-2xl font-semibold text-ink-faint">×</span>
-            <NumberField label="Reps" value={reps} onChange={setReps} />
+            <NumberField label={restPause ? "Activation" : "Reps"} value={reps} onChange={setReps} />
+            {restPause && (
+              <>
+                <span className="display pb-3 text-2xl font-semibold text-ink-faint">+</span>
+                <NumberField label="Mini-sets" value={miniSets} onChange={setMiniSets} />
+              </>
+            )}
           </div>
-          {repsNum <= 0 && (
+          {!canSave && (
             <p className="mt-1.5 text-center text-[11px] text-ink-faint">
-              Enter the reps to log this set.
+              {repsNum <= 0
+                ? `Enter the ${restPause ? "activation " : ""}reps to log this set.`
+                : "Enter the mini-set reps — all of them, added up."}
             </p>
           )}
 
@@ -564,9 +621,13 @@ function SetSheet({
                 ))}
               </div>
               <p className="mt-1.5 text-[11px] leading-snug text-ink-faint">
-                Reps you could still have done. {EFFECTIVE_REP_THRESHOLD} − RIR counts, capped at
-                the reps you did. Over {MAX_COUNTED_RIR} the set does not count at all — that is
-                a warm-up. Leave it blank and the set is logged but not scored.
+                {restPause
+                  ? <>Rate the activation set. It scores {EFFECTIVE_REP_THRESHOLD} − RIR as usual,
+                      and every mini-set rep counts on top. Over {MAX_COUNTED_RIR} the whole set
+                      does not count.</>
+                  : <>Reps you could still have done. {EFFECTIVE_REP_THRESHOLD} − RIR counts, capped at
+                      the reps you did. Over {MAX_COUNTED_RIR} the set does not count at all — that is
+                      a warm-up. Leave it blank and the set is logged but not scored.</>}
               </p>
             </div>
           )}
@@ -593,8 +654,10 @@ function SetSheet({
           <Button
             variant="primary"
             className="flex-1"
-            disabled={repsNum <= 0}
-            onClick={() => onSave({ weight: weightNum, reps: repsNum, rir, isWarmup })}
+            disabled={!canSave}
+            onClick={() => onSave({
+              weight: weightNum, reps: repsNum, rir, isWarmup, restPauseReps: miniNum,
+            })}
           >
             {target.set ? "Save set" : "Log set"}
           </Button>
