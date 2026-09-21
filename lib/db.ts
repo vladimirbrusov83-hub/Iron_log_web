@@ -456,12 +456,12 @@ async function hydrateSessions(sessionRows: SessionRow[]): Promise<Session[]> {
 
   const logRows = (await sql`
     SELECT id, session_id, exercise_id, name, muscle_group, position, notes,
-           planned_sets, planned_reps
+           planned_sets, planned_reps, is_done
       FROM exercise_logs WHERE session_id = ANY(${ids}::uuid[])
      ORDER BY session_id, position`) as {
     id: string; session_id: string; exercise_id: string | null; name: string;
     muscle_group: string; position: number; notes: string;
-    planned_sets: number; planned_reps: number;
+    planned_sets: number; planned_reps: number; is_done: boolean;
   }[];
 
   const logIds = logRows.map((l) => l.id);
@@ -492,7 +492,7 @@ async function hydrateSessions(sessionRows: SessionRow[]): Promise<Session[]> {
     list.push({
       id: l.id, exerciseId: l.exercise_id, name: l.name, muscleGroup: l.muscle_group,
       position: l.position, notes: l.notes, plannedSets: l.planned_sets,
-      plannedReps: l.planned_reps, sets: setsByLog.get(l.id) ?? [],
+      plannedReps: l.planned_reps, isDone: l.is_done, sets: setsByLog.get(l.id) ?? [],
     });
     logsBySession.set(l.session_id, list);
   }
@@ -599,6 +599,10 @@ export async function removeExerciseLog(logId: string): Promise<void> {
 
 export async function saveExerciseLogNotes(logId: string, notes: string): Promise<void> {
   await sql`UPDATE exercise_logs SET notes = ${notes} WHERE id = ${logId}`;
+}
+
+export async function setExerciseLogDone(logId: string, done: boolean): Promise<void> {
+  await sql`UPDATE exercise_logs SET is_done = ${done} WHERE id = ${logId}`;
 }
 
 export type SetPatch = {

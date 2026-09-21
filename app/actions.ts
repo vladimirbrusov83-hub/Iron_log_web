@@ -70,6 +70,12 @@ export async function dropExercise(sessionId: string, logId: string) {
   revalidatePath(`/log/${sessionId}`, "layout");
 }
 
+/** The Done button on a lift: marks it finished (or not) for this session. */
+export async function markExerciseDone(sessionId: string, logId: string, done: boolean) {
+  await db.setExerciseLogDone(logId, done);
+  revalidatePath(`/log/${sessionId}`, "layout");
+}
+
 export async function noteExercise(sessionId: string, logId: string, notes: string) {
   await db.saveExerciseLogNotes(logId, notes.slice(0, 2000));
   revalidatePath(`/log/${sessionId}`, "layout");

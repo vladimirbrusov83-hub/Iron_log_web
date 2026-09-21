@@ -129,6 +129,11 @@ per-session one carried forward.
 - `dropExercise` from the exercise screen `router.push`es back to the session first. It is
   deleting that page's own subject.
 - Logging a set leaves you on the lift. There is no jump to the next exercise, by choice.
+- **✓ Done** at the bottom of the lift sets `exercise_logs.is_done` and `router.replace`s
+  back to the list, where that row turns green with a ✓ in place of its number. The
+  write lands before the navigation, same as Remove. A done lift shows "Marked done ·
+  undo" under the button. It is only a marker: it changes no counting and nothing else
+  reads it.
 - The sheet prefills from **this session's previous set**, never from last week. Last
   week's numbers are on the left to be read. That distinction is the no-suggestions line.
 - Saving a new working set starts the rest timer; editing an old one does not.

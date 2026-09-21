@@ -65,6 +65,8 @@ export type ExerciseLog = {
   notes: string;
   plannedSets: number;
   plannedReps: number;
+  /** Marked finished for today with the Done button. */
+  isDone: boolean;
   sets: SetLog[];
 };
 

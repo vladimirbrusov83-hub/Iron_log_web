@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  dropExercise, logSet, noteLibraryExercise, removeSet,
+  dropExercise, logSet, markExerciseDone, noteLibraryExercise, removeSet,
 } from "@/app/actions";
 import { RestTimer } from "@/components/rest-timer";
 import { BAND_COLOR, Button, SessionErBar, inputClass } from "@/components/ui";
@@ -59,6 +59,7 @@ export function ExerciseScreen({
   const [sheet, setSheet] = useState<SheetTarget | null>(null);
   const [menu, setMenu] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const [restKey, setRestKey] = useState(0);
   const unit = settings.weightUnit;
   const run = (fn: () => void) => startTransition(fn);
@@ -259,13 +260,30 @@ export function ExerciseScreen({
           </div>
         </section>
 
-        <Link
-          href={`/log/${sessionId}`}
-          className="mt-3 block rounded-xl border border-line bg-panel px-4 py-3 text-center
-                     text-sm text-ink-dim active:bg-panel-2"
+        {/* Done marks the lift finished and walks back to the list, where its
+            row is now green. Same shape as Remove: the write lands before the
+            navigation, and `replace` so Back does not return to a finished lift. */}
+        <Button
+          variant="primary"
+          className="mt-3 w-full"
+          disabled={finishing}
+          onClick={() => {
+            setFinishing(true);
+            void markExerciseDone(sessionId, log.id, true)
+              .then(() => router.replace(`/log/${sessionId}`))
+              .catch(() => setFinishing(false));
+          }}
         >
-          Back to the workout
-        </Link>
+          {finishing ? "Saving…" : "✓ Done"}
+        </Button>
+        {log.isDone && (
+          <button
+            onClick={() => run(() => { void markExerciseDone(sessionId, log.id, false); })}
+            className="mt-2 w-full py-2 text-center text-xs text-ink-faint underline"
+          >
+            Marked done · undo
+          </button>
+        )}
       </main>
 
       {/* The timer floats over the page so it is readable between sets without

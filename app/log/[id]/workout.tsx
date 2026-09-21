@@ -215,11 +215,16 @@ function ExerciseRow({
   return (
     <Link
       href={`/log/${sessionId}/${log.id}`}
-      className="flex items-center gap-3 rounded-2xl border border-line bg-panel px-3 py-3
-                 active:bg-panel-2"
+      className={`flex items-center gap-3 rounded-2xl border px-3 py-3 ${
+        log.isDone
+          ? "border-good/60 bg-good/10 active:bg-good/20"
+          : "border-line bg-panel active:bg-panel-2"
+      }`}
     >
-      <span className="display tnum w-5 shrink-0 text-sm font-semibold text-ink-faint">
-        {String(index + 1).padStart(2, "0")}
+      <span className={`display tnum w-5 shrink-0 text-sm font-semibold ${
+        log.isDone ? "text-good" : "text-ink-faint"
+      }`}>
+        {log.isDone ? "✓" : String(index + 1).padStart(2, "0")}
       </span>
 
       <span className="min-w-0 flex-1">

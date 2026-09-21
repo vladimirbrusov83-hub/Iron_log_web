@@ -111,8 +111,13 @@ CREATE TABLE IF NOT EXISTS exercise_logs (
   position      int  NOT NULL DEFAULT 0,
   notes         text NOT NULL DEFAULT '',
   planned_sets  int  NOT NULL DEFAULT 0,
-  planned_reps  int  NOT NULL DEFAULT 0
+  planned_reps  int  NOT NULL DEFAULT 0,
+  is_done       boolean NOT NULL DEFAULT false
 );
+
+-- "Done" on the exercise screen: the lift is finished for today and its row
+-- on the session list turns green. Added after the table existed, hence ALTER.
+ALTER TABLE exercise_logs ADD COLUMN IF NOT EXISTS is_done boolean NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS exercise_logs_session_idx ON exercise_logs (session_id, position);
 CREATE INDEX IF NOT EXISTS exercise_logs_name_idx ON exercise_logs (lower(name));
