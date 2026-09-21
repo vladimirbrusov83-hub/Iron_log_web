@@ -196,7 +196,9 @@ export function ExerciseScreen({
             </div>
 
             {/* -------------------------------------------------- today */}
-            <div className="px-3 py-3">
+            {/* Tapping anywhere in this column that is not a set opens the
+                new-set sheet, same as + Add set; a set row opens that set. */}
+            <div className="cursor-pointer px-3 py-3" onClick={openNew}>
               <p className="eyebrow mb-1.5 text-accent">Today</p>
               {done.length > 0 ? (
                 <ul className="tnum space-y-0.5">
@@ -205,11 +207,11 @@ export function ExerciseScreen({
                     return (
                       <li key={s.id}>
                         <button
-                          onClick={() => setSheet({
+                          onClick={(e) => { e.stopPropagation(); setSheet({
                             set: s, fillId: null,
                             setNumber: s.isWarmup ? i + 1 : numberAt(i),
                             weight: s.weight, reps: s.reps, rir: s.rir, isWarmup: s.isWarmup,
-                          })}
+                          }); }}
                           className="flex w-full items-baseline gap-1.5 border-b border-line/60 py-1.5
                                      text-left text-sm last:border-0 active:bg-panel-2"
                         >
