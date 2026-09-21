@@ -102,8 +102,21 @@ export function ExerciseScreen({
         <div className="mx-auto max-w-2xl px-4 py-3">
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <Link href={`/log/${sessionId}`} className="eyebrow text-accent">
-                ‹ {dayName}
+              {/* A real button-sized target: the plain eyebrow link it replaced
+                  was too small to hit reliably between sets. */}
+              <Link
+                href={`/log/${sessionId}`}
+                className="-ml-1 mb-1 inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-xl
+                           border border-line-2 bg-panel-2 pl-2.5 pr-3.5 active:bg-panel-3"
+              >
+                <span className="text-xl leading-none text-accent" aria-hidden>‹</span>
+                <span
+                  className="eyebrow truncate"
+                  // Inline, because .eyebrow is unlayered CSS and beats utility classes.
+                  style={{ fontSize: 14, color: "var(--accent)" }}
+                >
+                  {dayName}
+                </span>
               </Link>
               <h1 className="display mt-0.5 truncate text-3xl font-semibold">{log.name}</h1>
               <p className="tnum mt-0.5 text-xs text-ink-faint">
