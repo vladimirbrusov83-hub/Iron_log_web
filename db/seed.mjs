@@ -10,7 +10,7 @@ export const EXERCISES = [
   ["Dumbbell Row", "Back", false], ["Face Pull", "Back", false],
   ["Squat", "Quads", true], ["Front Squat", "Quads", true], ["Leg Press", "Quads", false],
   ["Romanian Deadlift", "Hamstrings", false], ["Leg Curl", "Hamstrings", false],
-  ["Leg Extension", "Quads", false], ["Bulgarian Split Squat", "Quads", false],
+  ["Leg Extension", "Quads", false], ["Bulgarian Split Squat", "Glutes", false],
   ["Hip Thrust", "Glutes", false], ["Calf Raise", "Calves", false],
   ["Overhead Press", "Front delts", true], ["Dumbbell Shoulder Press", "Front delts", false],
   ["Lateral Raise", "Side delts", false], ["Front Raise", "Front delts", false],
