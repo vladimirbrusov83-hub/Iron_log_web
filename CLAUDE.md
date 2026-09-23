@@ -73,6 +73,12 @@ share. The group is a text snapshot in three tables (`exercises`, `planned_exerc
 seed: `db-push` inserts with ON CONFLICT DO NOTHING and never rewrites a stored group.
 A value missing from the list shows as the first option in the edit selects.
 
+Changing a lift's group in the exercise library (`updateExercise`) carries it to
+`planned_exercises` and `exercise_logs` as well, matched by `exercise_id` or the old name,
+so history re-counts under the new muscle. A group changed on one row in the day editor
+stays on that row. Lists sort by `MUSCLE_GROUPS` order (`byMuscleThenName`), not
+alphabetically, so the three delts and the four leg muscles sit together.
+
 ## Reference bands (lib/targets.ts)
 
 The only "targets" in the app, taken from Vladimir's own paper *Hypertrophy Training —

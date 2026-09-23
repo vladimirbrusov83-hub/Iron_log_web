@@ -5,7 +5,7 @@ import { removeDay, saveDay, startWorkout } from "@/app/actions";
 import { Button, Header, Page, inputClass } from "@/components/ui";
 import { DragHandle, useDragReorder } from "@/components/drag-list";
 import { ExercisePicker } from "@/components/exercise-picker";
-import { MUSCLE_GROUPS } from "@/lib/types";
+import { MUSCLE_GROUPS, byMuscleThenName } from "@/lib/types";
 import type { Exercise, Program, ProgramDay } from "@/lib/types";
 
 type Draft = {
@@ -229,8 +229,7 @@ export function DayEditor({
           library={library}
           onClose={() => setPicking(false)}
           onCreated={(exercise) => setLibrary((current) =>
-            [...current, exercise].sort((a, b) =>
-              a.muscleGroup.localeCompare(b.muscleGroup) || a.name.localeCompare(b.name)))}
+            [...current, exercise].sort(byMuscleThenName))}
           onAdd={(exercises) => {
             setRows((current) => [...current, ...exercises.map((e) => ({
               key: key(),

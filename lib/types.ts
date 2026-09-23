@@ -102,6 +102,18 @@ export const MUSCLE_GROUPS = [
   "Quads", "Hamstrings", "Glutes", "Calves", "Core", "Other",
 ] as const;
 
+/** Library order: by MUSCLE_GROUPS (so the three delts sit together, then the
+ *  four leg muscles), then by name. A group not in the list goes last. */
+export function byMuscleThenName(
+  a: { muscleGroup: string; name: string }, b: { muscleGroup: string; name: string },
+): number {
+  const rank = (g: string) => {
+    const i = (MUSCLE_GROUPS as readonly string[]).indexOf(g);
+    return i === -1 ? MUSCLE_GROUPS.length : i;
+  };
+  return rank(a.muscleGroup) - rank(b.muscleGroup) || a.name.localeCompare(b.name);
+}
+
 /** Epley. A single is its own one-rep max, not weight x 1.033. */
 export function estimated1RM(weight: number, reps: number): number {
   if (reps <= 1) return weight;

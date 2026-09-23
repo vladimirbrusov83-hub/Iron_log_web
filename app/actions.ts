@@ -246,7 +246,8 @@ export async function editExercise(
   id: string, name: string, muscleGroup: string, isCompound: boolean, notes: string,
 ) {
   await db.updateExercise(id, name, muscleGroup, isCompound, notes.slice(0, 2000));
-  revalidatePath("/exercises");
+  // A muscle change reaches program days and history too, so refresh them all.
+  revalidatePath("/", "layout");
 }
 
 export async function removeExercise(id: string) {

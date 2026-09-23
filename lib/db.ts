@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { countedSetSQL, effectiveRepsSQL } from "./effective-reps";
 import { HARD_SET_MAX_RIR } from "./targets";
-import { estimated1RM } from "./types";
+import { byMuscleThenName, estimated1RM } from "./types";
 import type {
   BodyweightEntry, Exercise, ExerciseLog, PersonalRecord, Program, ProgramDay,
   Session, SetLog, Settings, WeightUnit,
@@ -68,7 +68,7 @@ export async function getExercises(): Promise<Exercise[]> {
   return rows.map((r) => ({
     id: r.id, name: r.name, muscleGroup: r.muscle_group,
     isCompound: r.is_compound, notes: r.notes, isPreset: r.is_preset,
-  }));
+  })).sort(byMuscleThenName);
 }
 
 /**
@@ -114,11 +114,22 @@ export async function addExercise(
 export async function updateExercise(
   id: string, name: string, muscleGroup: string, isCompound: boolean, notes: string,
 ): Promise<void> {
-  await sql`
+  // The muscle group is a snapshot in program days and past workouts too, so a
+  // change here is carried to both — otherwise the lift would keep counting
+  // toward its old muscle everywhere but the library. Matched by id or by the
+  // name it had before this edit (one-off logs have no id), and run before the
+  // rename so that old name can still be read.
+  await sql.transaction([
+    sql`UPDATE planned_exercises SET muscle_group = ${muscleGroup}
+         WHERE (exercise_id = ${id} OR lower(name) = (SELECT lower(name) FROM exercises WHERE id = ${id})) AND muscle_group <> ${muscleGroup}`,
+    sql`UPDATE exercise_logs SET muscle_group = ${muscleGroup}
+         WHERE (exercise_id = ${id} OR lower(name) = (SELECT lower(name) FROM exercises WHERE id = ${id})) AND muscle_group <> ${muscleGroup}`,
+    sql`
     UPDATE exercises
        SET name = ${name.trim()}, muscle_group = ${muscleGroup},
            is_compound = ${isCompound}, notes = ${notes}
-     WHERE id = ${id}`;
+     WHERE id = ${id}`,
+  ]);
 }
 
 /**

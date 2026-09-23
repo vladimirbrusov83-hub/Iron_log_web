@@ -9,7 +9,7 @@ import {
   MAX_RIR, effectiveRepsByMuscle, effectiveRepsCoverage, isCountedSet, totalEffectiveReps,
 } from "@/lib/effective-reps";
 import { SESSION_ER_HIGH, SESSION_ER_LOW, sessionErBand } from "@/lib/targets";
-import { setVolume } from "@/lib/types";
+import { MUSCLE_GROUPS, setVolume } from "@/lib/types";
 import type { Exercise, ExerciseLog, Session, Settings } from "@/lib/types";
 
 type Props = {
@@ -270,7 +270,7 @@ function ExercisePicker({
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState<string | null>(null);
   const q = query.trim().toLowerCase();
-  const groups = [...new Set(library.map((e) => e.muscleGroup))];
+  const groups = MUSCLE_GROUPS.filter((m) => library.some((e) => e.muscleGroup === m));
   const matches = library.filter((e) =>
     (q === "" || e.name.toLowerCase().includes(q)) && (group === null || e.muscleGroup === group));
   const exact = library.some((e) => e.name.toLowerCase() === q);
