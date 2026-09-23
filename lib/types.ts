@@ -98,7 +98,8 @@ export type PersonalRecord = {
 export type BodyweightEntry = { id: string; date: string; weight: number };
 
 export const MUSCLE_GROUPS = [
-  "Chest", "Back", "Legs", "Shoulders", "Biceps", "Triceps", "Core", "Other",
+  "Chest", "Back", "Front delts", "Side delts", "Rear delts", "Biceps", "Triceps",
+  "Quads", "Hamstrings", "Glutes", "Calves", "Core", "Other",
 ] as const;
 
 /** Epley. A single is its own one-rep max, not weight x 1.033. */

@@ -63,6 +63,16 @@ added in full. Still **one** working set, and RIR over 4 voids the whole thing.
 - The switch is **off** on every new set — never carried from the previous one.
 - Rows show `60 × 10 + 6 @1`.
 
+## Muscle groups
+
+`MUSCLE_GROUPS` in `lib/types.ts`. Legs and Shoulders were split in September 2026 at
+Vladimir's request: Quads / Hamstrings / Glutes / Calves and Front / Side / Rear delts.
+Still **one muscle per lift** — a squat credits Quads only, with no secondary-muscle
+share. The group is a text snapshot in three tables (`exercises`, `planned_exercises`,
+`exercise_logs`), so renaming a group means updating all three, not just the list and the
+seed: `db-push` inserts with ON CONFLICT DO NOTHING and never rewrites a stored group.
+A value missing from the list shows as the first option in the edit selects.
+
 ## Reference bands (lib/targets.ts)
 
 The only "targets" in the app, taken from Vladimir's own paper *Hypertrophy Training —
