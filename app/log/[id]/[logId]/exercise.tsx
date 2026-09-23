@@ -29,6 +29,9 @@ type Props = {
   note: ExerciseNote | null;
   /** The whole workout so far, per muscle — what the ⋯ panel shows. */
   byMuscle: MuscleSlice[];
+  /** Another lift in this workout has logged sets for the same muscle. The
+   *  header then shows the muscle's total, and this lift's own moves under Today. */
+  muscleShared: boolean;
 };
 
 /** The set the sheet is open on: an existing row to edit, or a new one. */
@@ -53,7 +56,7 @@ type SheetTarget = {
  * put number boxes back in the card.
  */
 export function ExerciseScreen({
-  sessionId, dayName, log, index, total, settings, last, note, byMuscle,
+  sessionId, dayName, log, index, total, settings, last, note, byMuscle, muscleShared,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -67,6 +70,8 @@ export function ExerciseScreen({
   const done = log.sets.filter((s) => s.isCompleted);
   const exerciseTotal = totalEffectiveReps(log.sets);
   const working = done.filter(isCountedSet).length;
+  const muscleTotal = byMuscle.find((m) => m.muscleGroup === log.muscleGroup)?.effectiveReps ?? 0;
+  const headerTotal = muscleShared ? muscleTotal : exerciseTotal;
   const volume = log.sets.reduce((sum, s) => sum + setVolume(s), 0);
   // A program day lays its planned sets out in advance. Fill those rows before
   // appending new ones, so the plan is used up rather than sitting empty beside
@@ -132,11 +137,13 @@ export function ExerciseScreen({
             <div className="flex shrink-0 items-center gap-2">
               <div className="text-right">
                 <div className={`display tnum text-4xl font-semibold leading-none ${
-                  exerciseTotal ? "text-accent" : "text-ink-faint"
+                  headerTotal ? "text-accent" : "text-ink-faint"
                 }`}>
-                  {exerciseTotal}
+                  {headerTotal}
                 </div>
-                <div className="eyebrow" style={{ fontSize: 9 }}>eff reps</div>
+                <div className="eyebrow" style={{ fontSize: 9 }}>
+                  {muscleShared ? `${log.muscleGroup} total` : "eff reps"}
+                </div>
               </div>
               <button
                 onClick={() => setMenu((v) => !v)}
@@ -206,6 +213,7 @@ export function ExerciseScreen({
             <div className="cursor-pointer px-3 py-3" onClick={openNew}>
               <p className="eyebrow mb-1.5 text-accent">Today</p>
               {done.length > 0 ? (
+                <>
                 <ul className="tnum space-y-0.5">
                   {done.map((s, i) => {
                     const score = effectiveReps(s);
@@ -244,6 +252,19 @@ export function ExerciseScreen({
                     );
                   })}
                 </ul>
+                {/* The header carries the muscle's total once another lift has
+                    added to it, so this lift's own sum sits here instead. */}
+                {muscleShared && (
+                  <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-1.5">
+                    <span className="eyebrow" style={{ fontSize: 9 }}>This lift</span>
+                    <span className={`display tnum text-base font-semibold ${
+                      exerciseTotal ? "text-accent" : "text-ink-faint"
+                    }`}>
+                      {exerciseTotal}
+                    </span>
+                  </div>
+                )}
+                </>
               ) : (
                 <p className="py-2 text-xs text-ink-faint">
                   {planned > 0 ? `${planned} sets planned.` : "Nothing yet."}

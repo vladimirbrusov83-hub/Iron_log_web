@@ -43,6 +43,8 @@ export default async function ExerciseLogPage({
       last={last.get(log.name.toLowerCase())}
       note={note}
       byMuscle={effectiveRepsByMuscle(session.exercises)}
+      muscleShared={session.exercises.some((e) =>
+        e.id !== log.id && e.muscleGroup === log.muscleGroup && e.sets.some((s) => s.isCompleted))}
     />
   );
 }
