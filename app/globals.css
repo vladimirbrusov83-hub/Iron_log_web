@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
-/* Dark by default and dark only. The iOS app was a black, industrial thing and
-   this is the same app; a light theme here would be a different product. The
-   colour-scheme declaration is what keeps form controls and scrollbars dark too. */
+/* Dark by default; light is a per-device choice under More → Settings, set as
+   data-theme on <html> from a cookie. The colour-scheme declaration is what
+   keeps form controls and scrollbars matching the theme. */
 :root {
   color-scheme: dark;
   --ink: #f2efe9;
@@ -22,6 +22,27 @@
   --bad: #f87171;
   --font-display: var(--font-barlow-condensed), "Barlow Condensed", "Arial Narrow", sans-serif;
   --font-body: var(--font-barlow), "Barlow", system-ui, sans-serif;
+}
+
+/* Light: warm off-white paper, the same orange a shade deeper so it holds up on
+   white. Every colour in the app goes through these tokens. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ink: #1a1815;
+  --ink-dim: #57524a;
+  --ink-faint: #857f75;
+  --bg: #f4f2ee;
+  --panel: #ffffff;
+  --panel-2: #f0ede8;
+  --panel-3: #e5e1da;
+  --line: #e2ddd5;
+  --line-2: #cfc8bd;
+  --accent: #e2560c;
+  --accent-dim: #f6c9ad;
+  --accent-soft: rgba(226, 86, 12, 0.10);
+  --good: #15803d;
+  --warn: #b45309;
+  --bad: #dc2626;
 }
 
 @theme inline {

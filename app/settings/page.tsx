@@ -3,9 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getExercises, getPrograms, getSettings } from "@/lib/db";
 import { AUTH_COOKIE } from "@/lib/auth";
-import { Button, Header, Page, Panel, SectionTitle } from "@/components/ui";
+import { Button, Header, Page, Panel } from "@/components/ui";
 import { EFFECTIVE_REP_THRESHOLD, MAX_COUNTED_RIR } from "@/lib/effective-reps";
-import { SettingsForm } from "./form";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +24,7 @@ export default async function MorePage() {
     <Page>
       <Header title="More" />
 
-      {/* The two things kept here are places, not preferences, so they get rows
-          of their own rather than a pair of buttons under the sliders. */}
+      {/* Places, one row each. The preferences are behind the Settings row. */}
       <nav className="rise mb-5 space-y-2">
         <MenuRow
           href="/exercises"
@@ -38,10 +36,12 @@ export default async function MorePage() {
           title="Programs"
           detail={`${programs.length} program${programs.length === 1 ? "" : "s"}`}
         />
+        <MenuRow
+          href="/settings/preferences"
+          title="Settings"
+          detail={`${settings.weightUnit} · rest ${settings.defaultRestSeconds / 60}m · theme`}
+        />
       </nav>
-
-      <SectionTitle>Preferences</SectionTitle>
-      <SettingsForm settings={settings} />
 
       <Panel className="mt-5">
         <h2 className="eyebrow">Effective reps</h2>

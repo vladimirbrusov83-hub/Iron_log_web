@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/nav";
+import { THEME_COLOR, THEME_COOKIE, parseTheme } from "@/lib/theme";
 
 const barlow = Barlow({
   subsets: ["latin"],
@@ -22,8 +24,15 @@ export const metadata: Metadata = {
   description: "Strength training log with effective-rep tracking.",
 };
 
-export const viewport: Viewport = {
-  themeColor: "#0b0b0c",
+async function currentTheme() {
+  return parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+}
+
+export async function generateViewport(): Promise<Viewport> {
+  return { ...viewport, themeColor: THEME_COLOR[await currentTheme()] };
+}
+
+const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   // The gym screen is a grid of small number inputs. Pinch-zoom stays available;
@@ -32,9 +41,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const theme = await currentTheme();
   return (
-    <html lang="en" className={`${barlow.variable} ${barlowCondensed.variable}`}>
+    <html lang="en" data-theme={theme} className={`${barlow.variable} ${barlowCondensed.variable}`}>
       <body>
         {/* `relative` only, deliberately no z-index: a stacking context here
             would trap every full-screen overlay inside it, and the nav below
