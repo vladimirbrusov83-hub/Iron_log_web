@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   getBodyweight, getExerciseTotals, getHeadline, getMuscleTotals,
-  getPersonalRecords, getSettings, getWeeklyTotals,
+  getPersonalRecords, getSettings, getTrainingTime, getWeeklyTotals,
 } from "@/lib/db";
 import {
   BAND_COLOR, BandTag, Empty, Header, Page, Panel, SectionTitle, SetsBandBar, Stat,
@@ -22,6 +22,15 @@ const WINDOWS = [
   { days: 365, label: "1 year" },
 ];
 
+/** The training-time table shows every window at once, whatever tab is open. */
+const TIME_WINDOWS: { days: number | null; label: string }[] = [
+  { days: 7, label: "7 days" },
+  { days: 30, label: "30 days" },
+  { days: 90, label: "90 days" },
+  { days: 365, label: "1 year" },
+  { days: null, label: "All time" },
+];
+
 export default async function StatsPage({
   searchParams,
 }: { searchParams: Promise<{ days?: string }> }) {
@@ -29,7 +38,7 @@ export default async function StatsPage({
   const days = WINDOWS.some((w) => String(w.days) === raw) ? Number(raw) : 7;
   const weeks = Math.max(1, days / 7);
 
-  const [headline, weekly, muscles, exercises, records, bodyweight, settings] =
+  const [headline, weekly, muscles, exercises, records, bodyweight, settings, time] =
     await Promise.all([
       getHeadline(days),
       getWeeklyTotals(12),
@@ -38,6 +47,7 @@ export default async function StatsPage({
       getPersonalRecords(),
       getBodyweight(),
       getSettings(),
+      getTrainingTime(TIME_WINDOWS.map((w) => w.days)),
     ]);
 
   const unit = settings.weightUnit;
@@ -76,6 +86,34 @@ export default async function StatsPage({
           <Stat label="Sessions" value={headline.sessions} />
           <Stat label="Working sets" value={headline.workingSets} />
         </div>
+      </section>
+
+      <section className="rise rise-2 mb-5">
+        <SectionTitle>Days &amp; time trained</SectionTitle>
+        <Panel>
+          <table className="tnum w-full text-sm">
+            <thead>
+              <tr className="text-[9px] uppercase tracking-wider text-ink-faint">
+                <th className="pb-1.5 text-left font-normal"></th>
+                <th className="pb-1.5 text-right font-normal">Days</th>
+                <th className="pb-1.5 text-right font-normal">Time</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line/60">
+              {TIME_WINDOWS.map((w, i) => (
+                <tr key={w.label}>
+                  <td className="py-2 text-ink-dim">{w.label}</td>
+                  <td className="display py-2 text-right text-lg font-semibold">
+                    {time[i]?.daysTrained ?? 0}
+                  </td>
+                  <td className="display py-2 text-right text-lg font-semibold text-accent">
+                    {fmtDuration(time[i]?.seconds ?? 0)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
       </section>
 
       <section className="rise rise-2 mb-5">
@@ -253,6 +291,14 @@ export default async function StatsPage({
       <BodyweightPanel entries={bodyweight} unit={unit} />
     </Page>
   );
+}
+
+/** 7260 → "2h 1m", 900 → "15m". */
+function fmtDuration(seconds: number): string {
+  const minutes = Math.round(seconds / 60);
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 function fmt(n: number): string {
