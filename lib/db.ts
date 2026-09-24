@@ -170,7 +170,7 @@ export async function deleteExercise(id: string): Promise<void> {
 
 type ProgramRow = {
   id: string; name: string; description: string;
-  is_pinned: boolean; is_preset: boolean;
+  is_pinned: boolean; is_preset: boolean; is_hidden?: boolean;
 };
 
 /** Loads whole programs — days and planned exercises included — in three
@@ -216,15 +216,15 @@ async function hydratePrograms(programRows: ProgramRow[]): Promise<Program[]> {
 
   return programRows.map((p) => ({
     id: p.id, name: p.name, description: p.description,
-    isPinned: p.is_pinned, isPreset: p.is_preset,
+    isPinned: p.is_pinned, isPreset: p.is_preset, isHidden: p.is_hidden ?? false,
     days: daysByProgram.get(p.id) ?? [],
   }));
 }
 
 export async function getPrograms(): Promise<Program[]> {
   const rows = (await sql`
-    SELECT id, name, description, is_pinned, is_preset FROM programs
-     ORDER BY is_pinned DESC, created_at`) as ProgramRow[];
+    SELECT id, name, description, is_pinned, is_preset, is_hidden FROM programs
+     ORDER BY position NULLS LAST, created_at`) as ProgramRow[];
   return hydratePrograms(rows);
 }
 
@@ -450,6 +450,24 @@ export async function saveProgramDay(
               ${i}, ${ex.plannedSets}, ${ex.plannedReps})`);
   }
   await sql.transaction(statements);
+}
+
+/** Presets are never deleted from the Programs list — they are hidden instead. */
+export async function deleteOwnProgram(id: string): Promise<void> {
+  await sql`DELETE FROM programs WHERE id = ${id} AND NOT is_preset`;
+}
+
+export async function setProgramHidden(id: string, hidden: boolean): Promise<void> {
+  await sql`UPDATE programs SET is_hidden = ${hidden} WHERE id = ${id}`;
+}
+
+export async function reorderPrograms(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await sql`
+    UPDATE programs AS p
+       SET position = o.position
+      FROM unnest(${ids}::uuid[]) WITH ORDINALITY AS o(id, position)
+     WHERE p.id = o.id`;
 }
 
 export async function deleteProgram(id: string): Promise<void> {

@@ -234,6 +234,23 @@ export async function removeProgram(id: string) {
   redirect("/programs");
 }
 
+/** `removeProgram` without the redirect, for the Programs list. Presets refused. */
+export async function removeProgramFromList(id: string) {
+  await db.deleteOwnProgram(id);
+  revalidatePath("/programs");
+  revalidatePath("/");
+}
+
+export async function hideProgram(id: string, hidden: boolean) {
+  await db.setProgramHidden(id, hidden);
+  revalidatePath("/programs");
+}
+
+export async function reorderProgramList(ids: string[]) {
+  await db.reorderPrograms(ids);
+  revalidatePath("/programs");
+}
+
 export async function togglePin(id: string, pinned: boolean) {
   if (pinned) await db.unpinProgram(id);
   else await db.pinProgram(id);

@@ -177,6 +177,7 @@ export function ProgramPage({ program }: { program: Program }) {
         </Panel>
       )}
 
+      {!program.isPreset && (
       <Button
         variant="danger"
         className="mt-5 w-full"
@@ -189,6 +190,7 @@ export function ProgramPage({ program }: { program: Program }) {
       >
         Delete program
       </Button>
+      )}
     </Page>
   );
 }

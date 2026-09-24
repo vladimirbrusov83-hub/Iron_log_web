@@ -214,6 +214,15 @@ changes`, `Save day`, `Saved`.
   Vladimir asked for that specifically — the day list is scanned for which lifts and in
   what order, not for rep schemes.
 
+### The Programs list
+
+`app/programs/list.tsx`. Cards drag by a handle (`programs.position`, NULL until first
+dragged, NULLs last by `created_at` so new programs land at the bottom — pinned no longer
+sorts first) and carry Edit · Duplicate · Delete. The three presets are never deleted:
+they get **Hide** (`programs.is_hidden`), which folds the card to one line with Show, they
+do not swipe, and the program editor has no Delete button for them. `deleteOwnProgram`
+refuses presets in SQL too. Own programs also swipe left to Delete; both deletes confirm.
+
 ### Swipe to copy or delete
 
 `components/swipe-delete.tsx`. In the day editor a lift swipes left to **Delete** with

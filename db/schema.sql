@@ -53,6 +53,13 @@ CREATE TABLE IF NOT EXISTS programs (
 CREATE UNIQUE INDEX IF NOT EXISTS programs_preset_name_key
   ON programs (lower(name)) WHERE is_preset;
 
+-- The Programs page: a preset can be hidden (folded to one line) since presets
+-- cannot be deleted, and the list is ordered by hand. position is NULL until
+-- the list is first dragged, and NULLs sort last by created_at, so a new
+-- program lands at the bottom without every insert having to number itself.
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS is_hidden boolean NOT NULL DEFAULT false;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS position int;
+
 CREATE TABLE IF NOT EXISTS program_days (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   program_id uuid NOT NULL REFERENCES programs (id) ON DELETE CASCADE,

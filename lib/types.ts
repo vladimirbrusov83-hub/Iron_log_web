@@ -45,6 +45,8 @@ export type Program = {
   description: string;
   isPinned: boolean;
   isPreset: boolean;
+  /** Presets only: folded to one line on the Programs page. */
+  isHidden: boolean;
   days: ProgramDay[];
 };
 
