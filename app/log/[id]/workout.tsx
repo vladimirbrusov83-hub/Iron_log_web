@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { addExercise, discardWorkout, finishWorkout, noteSession } from "@/app/actions";
 import { RestTimer } from "@/components/rest-timer";
+import { WorkoutClock } from "@/components/workout-clock";
 import { BAND_COLOR, BackLink, Button, inputClass } from "@/components/ui";
 import {
   MAX_RIR, effectiveRepsByMuscle, effectiveRepsCoverage, isCountedSet, totalEffectiveReps,
@@ -37,7 +38,6 @@ export function Workout({ session, settings, library }: Props) {
   const coverage = effectiveRepsCoverage(allSets);
   const byMuscle = effectiveRepsByMuscle(session.exercises);
   const volume = allSets.reduce((sum, s) => sum + setVolume(s), 0);
-  const elapsed = useElapsedMinutes(session.startedAt);
   const run = (fn: () => void) => startTransition(fn);
 
   return (
@@ -51,12 +51,15 @@ export function Workout({ session, settings, library }: Props) {
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
         <div className="mx-auto max-w-2xl px-4 py-3">
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <BackLink href="/" label={session.programName || "Freestyle"} className="min-w-0" />
+            <WorkoutClock startedAt={session.startedAt} />
+          </div>
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <BackLink href="/" label={session.programName || "Freestyle"} className="mb-1" />
               <h1 className="display mt-0.5 truncate text-3xl font-semibold">{session.dayName}</h1>
               <p className="tnum mt-0.5 text-xs text-ink-faint">
-                {elapsed} min · {Math.round(volume).toLocaleString()} {unit}
+                {Math.round(volume).toLocaleString()} {unit}
                 {" · "}{coverage.scored}/{coverage.working} rated
               </p>
             </div>
@@ -172,18 +175,6 @@ export function Workout({ session, settings, library }: Props) {
       )}
     </>
   );
-}
-
-/** Minutes since the session started, refreshed twice a minute. */
-function useElapsedMinutes(startedAt: string): number {
-  const compute = () => Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 60000));
-  const [minutes, setMinutes] = useState(compute);
-  useEffect(() => {
-    const id = setInterval(() => setMinutes(compute()), 30000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startedAt]);
-  return minutes;
 }
 
 /* ------------------------------------------------------------------- row */

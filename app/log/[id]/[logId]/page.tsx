@@ -36,6 +36,7 @@ export default async function ExerciseLogPage({
     <ExerciseScreen
       sessionId={session.id}
       dayName={session.dayName}
+      startedAt={session.startedAt}
       log={log}
       index={index}
       total={session.exercises.length}

@@ -6,6 +6,7 @@ import {
   logSet, markExerciseDone, noteLibraryExercise, removeSet,
 } from "@/app/actions";
 import { RestTimer } from "@/components/rest-timer";
+import { WorkoutClock } from "@/components/workout-clock";
 import { BAND_COLOR, BackLink, Button, SessionErBar, inputClass } from "@/components/ui";
 import {
   EFFECTIVE_REP_THRESHOLD, MAX_COUNTED_RIR, MAX_RIR, effectiveReps,
@@ -19,6 +20,7 @@ import type { ExerciseLog, SetLog, Settings } from "@/lib/types";
 type Props = {
   sessionId: string;
   dayName: string;
+  startedAt: string;
   log: ExerciseLog;
   index: number;
   total: number;
@@ -55,7 +57,7 @@ type SheetTarget = {
  * put number boxes back in the card.
  */
 export function ExerciseScreen({
-  sessionId, dayName, log, index, total, settings, last, note, byMuscle, muscleShared,
+  sessionId, dayName, startedAt, log, index, total, settings, last, note, byMuscle, muscleShared,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -108,9 +110,12 @@ export function ExerciseScreen({
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
         <div className="mx-auto max-w-2xl px-4 py-3">
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <BackLink href={`/log/${sessionId}`} label={dayName} className="min-w-0" />
+            <WorkoutClock startedAt={startedAt} />
+          </div>
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <BackLink href={`/log/${sessionId}`} label={dayName} className="mb-1" />
               <h1 className="display mt-0.5 truncate text-3xl font-semibold">{log.name}</h1>
               <p className="tnum mt-0.5 text-xs text-ink-faint">
                 {log.muscleGroup} · lift {index + 1} of {total}
