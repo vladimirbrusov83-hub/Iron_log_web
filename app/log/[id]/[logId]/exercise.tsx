@@ -72,7 +72,7 @@ export function ExerciseScreen({
   const exerciseTotal = totalEffectiveReps(log.sets);
   const working = done.filter(isCountedSet).length;
   const muscleTotal = byMuscle.find((m) => m.muscleGroup === log.muscleGroup)?.effectiveReps ?? 0;
-  const headerTotal = muscleShared ? muscleTotal : exerciseTotal;
+  const headerTotal = muscleTotal;
   const volume = log.sets.reduce((sum, s) => sum + setVolume(s), 0);
   // A program day lays its planned sets out in advance. Fill those rows before
   // appending new ones, so the plan is used up rather than sitting empty beside
@@ -130,9 +130,12 @@ export function ExerciseScreen({
                 }`}>
                   {headerTotal}
                 </div>
-                <div className="eyebrow" style={{ fontSize: 9 }}>
-                  {muscleShared ? `${log.muscleGroup} total` : "eff reps"}
+                {/* Always the muscle's total for this workout, named — on the first
+                    lift for a muscle it equals this lift's own. */}
+                <div className="eyebrow mt-0.5" style={{ fontSize: 11, color: "var(--ink)" }}>
+                  {log.muscleGroup}
                 </div>
+                <div className="eyebrow" style={{ fontSize: 9 }}>eff reps</div>
               </div>
               <button
                 onClick={() => setMenu((v) => !v)}
