@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { removeDay, saveDay, startWorkout } from "@/app/actions";
 import { Button, Header, Page, inputClass } from "@/components/ui";
 import { DragHandle, useDragReorder } from "@/components/drag-list";
 import { ExercisePicker } from "@/components/exercise-picker";
+import { SwipeDelete } from "@/components/swipe-delete";
 import { MUSCLE_GROUPS, byMuscleThenName } from "@/lib/types";
 import type { Exercise, Program, ProgramDay } from "@/lib/types";
 
@@ -43,6 +45,8 @@ export function DayEditor({
     plannedReps: e.plannedReps,
   })));
   const [openRow, setOpenRow] = useState<string | null>(null);
+  const [swiped, setSwiped] = useState<string | null>(null);
+  const router = useRouter();
   const [picking, setPicking] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -69,6 +73,7 @@ export function DayEditor({
       })));
       setDirty(false);
       setSaved(true);
+      router.push(`/programs/${program.id}`);
     });
   }
 
@@ -101,14 +106,21 @@ export function DayEditor({
           {rows.map((row, i) => {
             const open = openRow === row.key;
             return (
-              <li
-                key={row.key}
-                className={`rounded-xl border bg-panel transition-colors ${
-                  dragging === i ? "border-accent bg-panel-2" : "border-line"
+              <li key={row.key}>
+               <SwipeDelete
+                label={row.name}
+                open={swiped === row.key}
+                onOpen={(o) => setSwiped(o ? row.key : null)}
+                onDelete={() => {
+                  setRows((current) => current.filter((r) => r.key !== row.key));
+                  setSwiped(null); setDirty(true); setSaved(false);
+                }}
+                className={`rounded-xl border transition-colors ${
+                  dragging === i ? "border-accent bg-panel-2" : "border-line bg-panel"
                 }`}
-              >
+               >
                 <div className="flex items-stretch pr-1">
-                  <span {...handleProps(i)} className="flex self-stretch">
+                  <span {...handleProps(i)} data-no-swipe className="flex self-stretch">
                     <DragHandle label={`Reorder ${row.name}`} />
                   </span>
 
@@ -117,7 +129,7 @@ export function DayEditor({
                       <span className="min-w-0 truncate text-sm">{row.name}</span>
                       {/* The muscle group, right after the name, as a chip you
                           tap. A native select so it is one tap on a phone. */}
-                      <span className="relative shrink-0">
+                      <span data-no-swipe className="relative shrink-0">
                         <select
                           value={row.muscleGroup}
                           onChange={(e) => edit(row.key, (r) => ({ ...r, muscleGroup: e.target.value }))}
@@ -154,20 +166,10 @@ export function DayEditor({
                     </button>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setRows((current) => current.filter((r) => r.key !== row.key));
-                      setDirty(true); setSaved(false);
-                    }}
-                    aria-label={`Remove ${row.name}`}
-                    className="w-9 shrink-0 self-center rounded-lg text-ink-faint active:bg-panel-2"
-                  >
-                    ×
-                  </button>
                 </div>
 
                 {open && (
-                  <div className="flex items-center gap-2 border-t border-line px-2 py-2">
+                  <div data-no-swipe className="flex items-center gap-2 border-t border-line px-2 py-2">
                     <Field
                       label="Sets"
                       value={row.plannedSets}
@@ -181,6 +183,7 @@ export function DayEditor({
                     />
                   </div>
                 )}
+               </SwipeDelete>
               </li>
             );
           })}
