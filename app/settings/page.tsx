@@ -46,25 +46,29 @@ export default async function MorePage() {
       <Panel className="mt-5">
         <h2 className="eyebrow">Effective reps</h2>
         <p className="mt-1 text-xs leading-relaxed text-ink-dim">
-          Every set you log and rate scores{" "}
-          <span className="text-ink">{EFFECTIVE_REP_THRESHOLD} − RIR</span> effective reps,
-          capped at the reps you did. Rate a set above{" "}
-          <span className="text-ink">{MAX_COUNTED_RIR} RIR</span> and it does not count at
-          all — no score, no working set, no volume. That is what a warm-up is now, which
-          is why there is no warm-up checkbox any more. A set with no RIR is not scored
-          rather than scored as zero, so the totals on{" "}
-          <Link href="/stats" className="text-accent underline">Stats</Link> always say how
-          many sets they were able to count.
+          The last few reps before failure are the ones that drive growth, and effective
+          reps count only those. Each rated set scores{" "}
+          <span className="text-ink">{EFFECTIVE_REP_THRESHOLD} − RIR</span>, up to the reps
+          you did: 10 reps at 1 RIR scores 4, at 0 RIR it scores 5. Rest-pause mini-sets add
+          every rep. A set rated above{" "}
+          <span className="text-ink">{MAX_COUNTED_RIR} RIR</span> is a warm-up and stays out
+          of every total. Sets without a rating are left out too, and each total on{" "}
+          <Link href="/stats" className="text-accent underline">Stats</Link> shows how many
+          sets it covers.
         </p>
       </Panel>
 
       <Panel className="mt-3">
         <h2 className="eyebrow">About</h2>
         <p className="mt-1 text-xs leading-relaxed text-ink-dim">
-          IronLog records what you did and counts it. Nothing here suggests a load or
-          tells you to deload. The reference bands on Today and Stats (5-set floor, 10–16
-          hard sets a week, 20–40 effective reps per muscle per session, 2× a week) come
-          from <em>Hypertrophy Training — Principles That Work</em>, 2026 edition.
+          IronLog shows how your training is really going, so you can decide what to
+          change. Log each set with its RIR, and Today and Stats show whether every muscle
+          gets enough hard sets, whether those sets are close enough to failure, and how
+          your strength is trending. Use that to adjust volume, intensity and frequency.
+          The reference bands (5 hard sets a week as the floor, 10–16 as the productive
+          range, 20–40 effective reps per muscle per session, each muscle twice a week)
+          come from <em>Hypertrophy Training — Principles That Work</em>, 2026 edition. A
+          hard set is a working set at 3 RIR or less.
         </p>
       </Panel>
 
