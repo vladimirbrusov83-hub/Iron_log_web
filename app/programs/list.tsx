@@ -15,6 +15,8 @@ import type { Program } from "@/lib/types";
  * Edit · Duplicate · Delete. The three presets cannot be deleted — they get
  * **Hide** instead, which folds the card to one line, and they do not swipe.
  * Your own programs also swipe left to Delete. Either delete asks first.
+ * The ★ pinned program cannot be deleted at all — no swipe, and its Delete
+ * button only says to unpin it first.
  */
 export function ProgramList({ programs }: { programs: Program[] }) {
   const [list, setList] = useState(programs);
@@ -30,6 +32,10 @@ export function ProgramList({ programs }: { programs: Program[] }) {
   );
 
   function remove(p: Program) {
+    if (p.isPinned) {
+      alert(`"${p.name}" is pinned. Unpin it (★) first to delete it.`);
+      return;
+    }
     if (!confirm(`Delete "${p.name}"? Sessions already logged from it are kept.`)) return;
     setSwiped(null);
     setList((current) => current.filter((x) => x.id !== p.id));
@@ -113,7 +119,12 @@ export function ProgramList({ programs }: { programs: Program[] }) {
                 {p.isPreset ? (
                   <Button className="flex-1 px-2" onClick={() => setHidden(p, true)}>Hide</Button>
                 ) : (
-                  <Button variant="danger" className="flex-1 px-2" onClick={() => remove(p)}>
+                  <Button
+                    variant="danger"
+                    className={`flex-1 px-2 ${p.isPinned ? "opacity-40" : ""}`}
+                    aria-label={p.isPinned ? `Delete ${p.name} (unpin first)` : undefined}
+                    onClick={() => remove(p)}
+                  >
                     Delete
                   </Button>
                 )}
@@ -124,7 +135,7 @@ export function ProgramList({ programs }: { programs: Program[] }) {
 
         return (
           <li key={p.id}>
-            {p.isPreset ? (
+            {p.isPreset || p.isPinned ? (
               <div className={`rounded-2xl border transition-colors ${border}`}>{card}</div>
             ) : (
               <SwipeDelete

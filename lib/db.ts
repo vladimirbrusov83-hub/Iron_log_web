@@ -452,9 +452,10 @@ export async function saveProgramDay(
   await sql.transaction(statements);
 }
 
-/** Presets are never deleted from the Programs list — they are hidden instead. */
+/** Presets are never deleted from the Programs list — they are hidden instead —
+ *  and neither is the pinned program. */
 export async function deleteOwnProgram(id: string): Promise<void> {
-  await sql`DELETE FROM programs WHERE id = ${id} AND NOT is_preset`;
+  await sql`DELETE FROM programs WHERE id = ${id} AND NOT is_preset AND NOT is_pinned`;
 }
 
 export async function setProgramHidden(id: string, hidden: boolean): Promise<void> {
@@ -470,8 +471,9 @@ export async function reorderPrograms(ids: string[]): Promise<void> {
      WHERE p.id = o.id`;
 }
 
+/** The pinned program cannot be deleted: unpin it first. */
 export async function deleteProgram(id: string): Promise<void> {
-  await sql`DELETE FROM programs WHERE id = ${id}`;
+  await sql`DELETE FROM programs WHERE id = ${id} AND NOT is_pinned`;
 }
 
 /** One pinned program at a time — it is the one the home screen offers. */

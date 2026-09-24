@@ -181,14 +181,14 @@ export function ProgramPage({ program }: { program: Program }) {
       <Button
         variant="danger"
         className="mt-5 w-full"
-        disabled={pending}
+        disabled={pending || program.isPinned}
         onClick={() => {
           if (confirm(`Delete "${program.name}"? Sessions already logged from it are kept.`)) {
             startTransition(() => { void removeProgram(program.id); });
           }
         }}
       >
-        Delete program
+        {program.isPinned ? "Pinned — unpin to delete" : "Delete program"}
       </Button>
       )}
     </Page>

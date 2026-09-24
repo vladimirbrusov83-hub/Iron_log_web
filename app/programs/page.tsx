@@ -22,8 +22,8 @@ export default async function ProgramsPage() {
 
       <p className="mt-4 text-xs text-ink-faint">
         Drag by the handle to reorder. Swipe your own programs left to delete them;
-        presets can only be hidden. The pinned program is the one the home screen
-        offers to start.
+        presets can only be hidden, and the ★ pinned program cannot be deleted. It is
+        always the first card on the home screen.
       </p>
     </Page>
   );

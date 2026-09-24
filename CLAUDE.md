@@ -222,6 +222,8 @@ sorts first) and carry Edit · Duplicate · Delete. The three presets are never 
 they get **Hide** (`programs.is_hidden`), which folds the card to one line with Show, they
 do not swipe, and the program editor has no Delete button for them. `deleteOwnProgram`
 refuses presets in SQL too. Own programs also swipe left to Delete; both deletes confirm.
+The ★ pinned program cannot be deleted anywhere (no swipe, Delete says unpin first, the
+editor button is disabled, and both delete queries carry `AND NOT is_pinned`).
 
 ### Swipe to copy or delete
 
