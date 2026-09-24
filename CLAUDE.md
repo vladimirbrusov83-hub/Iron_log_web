@@ -282,8 +282,8 @@ instead. The unique index only catches the case difference.
 
 The program card is the point of the page and sits in the middle of the glass. It is a
 **swipeable carousel** (`components/program-carousel.tsx`) over `getProgramsByRecentUse`,
-which orders by the last session started from each program — so it opens on the one being
-run, with no pinned-program logic involved. Two details that will bite if removed: the
+which puts the ★ pinned program first and then orders by the last session started from
+each program — so it opens on the pinned one, or else the one being run. Two details that will bite if removed: the
 swipe is native `snap-x` scrolling, not a gesture handler, and the card is a **fixed
 height** (`h-80`) whatever the program, so nothing below it moves on a swipe. A program
 with more days than fit scrolls its day list inside the card.

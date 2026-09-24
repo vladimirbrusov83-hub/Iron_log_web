@@ -229,9 +229,9 @@ export async function getPrograms(): Promise<Program[]> {
 }
 
 /**
- * Programs with the one trained most recently first — the order the home screen
- * swipes through, so the program you are actually running is the one already on
- * screen. Programs never started fall in behind, pinned first.
+ * The order the home screen swipes through: the ★ pinned program is always
+ * first, then the one trained most recently, so the program you are running is
+ * the one already on screen. Programs never started fall in behind.
  */
 export async function getProgramsByRecentUse(): Promise<Program[]> {
   const rows = (await sql`
@@ -241,7 +241,7 @@ export async function getProgramsByRecentUse(): Promise<Program[]> {
         SELECT program_id, max(started_at) AS last_used
           FROM sessions WHERE program_id IS NOT NULL GROUP BY program_id
       ) u ON u.program_id = p.id
-     ORDER BY u.last_used DESC NULLS LAST, p.is_pinned DESC, p.created_at`) as ProgramRow[];
+     ORDER BY p.is_pinned DESC, u.last_used DESC NULLS LAST, p.created_at`) as ProgramRow[];
   return hydratePrograms(rows);
 }
 
