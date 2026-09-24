@@ -63,7 +63,7 @@ export default async function StatsPage({
           <Link
             key={w.days}
             href={`/stats?days=${w.days}`}
-            className={`display min-h-10 rounded-lg text-center text-base font-semibold leading-10 ${
+            className={`display flex min-h-10 items-center justify-center rounded-lg text-base font-semibold ${
               w.days === days ? "bg-accent text-black" : "text-ink-dim"
             }`}
           >
