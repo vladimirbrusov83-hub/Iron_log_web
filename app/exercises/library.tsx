@@ -49,6 +49,13 @@ export function Library({
         }
       />
 
+      {/* Search and the muscle chips stay pinned to the top while the list
+          scrolls under them. */}
+      <div
+        className="sticky top-0 z-20 -mx-4 mb-4 border-b border-line bg-bg/90 px-4 pb-2 pt-2
+                   backdrop-blur-md"
+        style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top, 0px))" }}
+      >
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -56,7 +63,7 @@ export function Library({
         className={inputClass}
       />
 
-      <div className="mt-2 mb-4 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]
+      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]
                       [&::-webkit-scrollbar]:hidden">
         {[null, ...groups].map((g) => (
           <button
@@ -81,6 +88,7 @@ export function Library({
             Unused {unusedCount}
           </button>
         )}
+      </div>
       </div>
 
       {matches.length === 0 ? (
