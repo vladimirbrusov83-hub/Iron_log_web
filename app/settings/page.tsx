@@ -46,8 +46,10 @@ export default async function MorePage() {
       <Panel className="mt-5">
         <h2 className="eyebrow">Effective reps</h2>
         <p className="mt-1 text-xs leading-relaxed text-ink-dim">
-          The last few reps before failure are the ones that drive growth, and effective
-          reps count only those. Each rated set scores{" "}
+          <span className="text-ink">RIR</span> (reps in reserve) is how many more reps you
+          could have done with good form when you stopped the set: 0 means nothing left, 5
+          means five or more. The last few reps before failure are the ones that drive
+          growth, and effective reps count only those. Each rated set scores{" "}
           <span className="text-ink">{EFFECTIVE_REP_THRESHOLD} − RIR</span>, up to the reps
           you did: 10 reps at 1 RIR scores 4, at 0 RIR it scores 5. Rest-pause mini-sets add
           every rep. A set rated above{" "}
