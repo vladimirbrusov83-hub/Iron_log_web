@@ -9,6 +9,32 @@ export function Page({ children }: { children: ReactNode }) {
   return <main className="mx-auto max-w-2xl px-4 pt-5">{children}</main>;
 }
 
+/**
+ * The back button every screen uses: a 44px pill, not a bare text link — the
+ * small one was too easy to miss with a thumb. Started on the gym's exercise
+ * screen and made the one size everywhere at Vladimir's request.
+ */
+export function BackLink({ href, label, className = "" }: {
+  href: string; label: string; className?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`-ml-1 inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-xl
+                  border border-line-2 bg-panel-2 pl-2.5 pr-3.5 active:bg-panel-3 ${className}`}
+    >
+      <span className="text-xl leading-none text-accent" aria-hidden>‹</span>
+      <span
+        className="eyebrow truncate"
+        // Inline, because .eyebrow is unlayered CSS and beats utility classes.
+        style={{ fontSize: 14, color: "var(--accent)" }}
+      >
+        {label}
+      </span>
+    </Link>
+  );
+}
+
 export function Header({
   title, eyebrow, subtitle, action, back,
 }: {
@@ -18,13 +44,7 @@ export function Header({
   return (
     <header className="rise mb-5">
       {back && (
-        <Link href={back.href} className="mb-2 inline-flex items-center gap-1 text-sm text-accent">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 5l-7 7 7 7" />
-          </svg>
-          {back.label}
-        </Link>
+        <BackLink href={back.href} label={back.label} className="mb-2" />
       )}
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
