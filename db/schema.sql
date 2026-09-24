@@ -62,6 +62,11 @@ CREATE TABLE IF NOT EXISTS program_days (
 
 CREATE INDEX IF NOT EXISTS program_days_program_idx ON program_days (program_id, position);
 
+-- Which day this one was copied from, so the program editor can cap copies at
+-- MAX_DAY_COPIES per original. A copy of a copy points at the original.
+ALTER TABLE program_days
+  ADD COLUMN IF NOT EXISTS copied_from uuid REFERENCES program_days (id) ON DELETE SET NULL;
+
 -- exercise_id is SET NULL rather than CASCADE: deleting a lift from the library
 -- should not silently delete it out of every program that planned it. The row
 -- keeps its own name so the day still reads correctly afterwards.

@@ -214,6 +214,16 @@ changes`, `Save day`, `Saved`.
   Vladimir asked for that specifically — the day list is scanned for which lifts and in
   what order, not for rep schemes.
 
+### Swipe to copy or delete
+
+`components/swipe-delete.tsx`. In the day editor a lift swipes left to **Delete** with
+no confirm (it is only the draft until Save day), and **Save day** returns to the program.
+On the program page a day swipes left to **Copy** or **Delete** (delete asks first).
+A copy lands right after its source with the same name and lifts;
+`program_days.copied_from` points at the original (a copy of a copy points at the
+original too), and `MAX_DAY_COPIES` (3) caps copies per original in `copyProgramDay` and in the UI.
+The drag handle and fields carry `data-no-swipe` so a press there never swipes.
+
 ### Adding lifts
 
 `+ Add lifts` opens `components/exercise-picker.tsx`: muscle-group chips, name search, a

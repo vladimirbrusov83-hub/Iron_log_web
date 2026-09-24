@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
-const REVEAL = 80;      // how far the row slides to park the Delete button open
+const BUTTON = 80;      // width of one revealed button
 const OPEN_AT = 40;     // drag past this and it snaps open instead of back
 const SLOP = 8;         // px before a gesture is judged horizontal or vertical
 
@@ -13,19 +13,28 @@ const SLOP = 8;         // px before a gesture is judged horizontal or vertical
  * Removing a lift from a day is only a change to the draft until **Save day**,
  * so one tap on the button is enough.
  *
+ * With `onCopy` a Copy button sits beside Delete (the program's day list);
+ * `copyNote` replaces its caption, e.g. to say the copy limit is reached.
+ *
  * Anything marked `data-no-swipe` (the drag handle, the fields) keeps its own
  * pointer handling: a press that starts there never becomes a swipe.
  */
 export function SwipeDelete({
-  label, open, onOpen, onDelete, className = "", children,
+  label, open, onOpen, onDelete, onCopy, copyDisabled = false, copyNote,
+  rounded = "rounded-xl", className = "", children,
 }: {
   label: string;
   open: boolean;
   onOpen: (open: boolean) => void;
   onDelete: () => void;
+  onCopy?: () => void;
+  copyDisabled?: boolean;
+  copyNote?: string;
+  rounded?: string;
   className?: string;
   children: ReactNode;
 }) {
+  const REVEAL = onCopy ? BUTTON * 2 : BUTTON;
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const moved = useRef(false);
@@ -83,8 +92,26 @@ export function SwipeDelete({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl">
+    <div className={`relative overflow-hidden ${rounded}`}>
       <div className="absolute inset-y-0 right-0 flex items-stretch">
+        {onCopy && (
+          <button
+            type="button"
+            onClick={onCopy}
+            disabled={copyDisabled}
+            aria-label={`Copy ${label}`}
+            tabIndex={open ? 0 : -1}
+            className="flex w-[80px] flex-col items-center justify-center gap-1
+                       bg-accent/15 text-accent active:bg-accent/25 disabled:opacity-40"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <rect x="9" y="9" width="12" height="12" rx="2" />
+              <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+            </svg>
+            <span className="eyebrow" style={{ fontSize: 9 }}>{copyNote ?? "Copy"}</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={onDelete}
@@ -103,6 +130,9 @@ export function SwipeDelete({
 
       <div
         onPointerDown={down}
+        // A <Link> inside is natively draggable and would kill the swipe with
+        // pointercancel two pixels in — same trap as the history rows.
+        onDragStart={(e) => e.preventDefault()}
         onClickCapture={(e) => {
           // A swipe ends in a click on whatever was under the finger. Eat it,
           // and when the row is open a plain tap closes it instead.

@@ -182,6 +182,22 @@ export async function removeDay(programId: string, dayId: string) {
   redirect(`/programs/${programId}`);
 }
 
+/** Copy a day from the program list. No redirect: the copy appears in place. */
+export async function copyDay(programId: string, dayId: string) {
+  await db.copyProgramDay(dayId);
+  revalidatePath(`/programs/${programId}`);
+  revalidatePath("/");
+  revalidatePath("/start");
+}
+
+/** `removeDay` without the redirect, for the swipe on the program list. */
+export async function removeDayFromList(programId: string, dayId: string) {
+  await db.deleteProgramDay(dayId);
+  revalidatePath(`/programs/${programId}`);
+  revalidatePath("/");
+  revalidatePath("/start");
+}
+
 export async function reorderDays(programId: string, dayIds: string[]) {
   await db.reorderProgramDays(programId, dayIds);
   revalidatePath(`/programs/${programId}`);

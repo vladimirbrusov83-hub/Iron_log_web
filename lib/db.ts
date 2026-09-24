@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { countedSetSQL, effectiveRepsSQL } from "./effective-reps";
 import { HARD_SET_MAX_RIR } from "./targets";
-import { byMuscleThenName, estimated1RM } from "./types";
+import { MAX_DAY_COPIES, byMuscleThenName, estimated1RM } from "./types";
 import type {
   BodyweightEntry, Exercise, ExerciseLog, PersonalRecord, Program, ProgramDay,
   Session, SetLog, Settings, WeightUnit,
@@ -180,9 +180,9 @@ async function hydratePrograms(programRows: ProgramRow[]): Promise<Program[]> {
   const ids = programRows.map((p) => p.id);
 
   const dayRows = (await sql`
-    SELECT id, program_id, name, position FROM program_days
+    SELECT id, program_id, name, position, copied_from FROM program_days
      WHERE program_id = ANY(${ids}::uuid[]) ORDER BY program_id, position`) as {
-    id: string; program_id: string; name: string; position: number;
+    id: string; program_id: string; name: string; position: number; copied_from: string | null;
   }[];
 
   const dayIds = dayRows.map((d) => d.id);
@@ -207,7 +207,10 @@ async function hydratePrograms(programRows: ProgramRow[]): Promise<Program[]> {
   const daysByProgram = new Map<string, ProgramDay[]>();
   for (const d of dayRows) {
     const list = daysByProgram.get(d.program_id) ?? [];
-    list.push({ id: d.id, name: d.name, position: d.position, exercises: exByDay.get(d.id) ?? [] });
+    list.push({
+      id: d.id, name: d.name, position: d.position, copiedFrom: d.copied_from,
+      exercises: exByDay.get(d.id) ?? [],
+    });
     daysByProgram.set(d.program_id, list);
   }
 
@@ -379,6 +382,36 @@ export async function addProgramDay(programId: string, name: string): Promise<st
 
 export async function deleteProgramDay(dayId: string): Promise<void> {
   await sql`DELETE FROM program_days WHERE id = ${dayId}`;
+}
+
+/**
+ * Copies a day, lifts and all, into the slot right after it. A copy of a copy
+ * counts against the original, and the original may have MAX_DAY_COPIES at
+ * most — returns null once that is reached.
+ */
+export async function copyProgramDay(dayId: string): Promise<string | null> {
+  const rows = (await sql`
+    SELECT d.program_id, d.name, d.position, coalesce(d.copied_from, d.id) AS root,
+           (SELECT count(*)::int FROM program_days c
+             WHERE c.copied_from = coalesce(d.copied_from, d.id)) AS copies
+      FROM program_days d WHERE d.id = ${dayId}`) as {
+    program_id: string; name: string; position: number; root: string; copies: number;
+  }[];
+  const src = rows[0];
+  if (!src || src.copies >= MAX_DAY_COPIES) return null;
+
+  const newId = crypto.randomUUID();
+  await sql.transaction([
+    sql`UPDATE program_days SET position = position + 1
+         WHERE program_id = ${src.program_id} AND position > ${src.position}`,
+    sql`INSERT INTO program_days (id, program_id, name, position, copied_from)
+        VALUES (${newId}, ${src.program_id}, ${src.name}, ${src.position + 1}, ${src.root})`,
+    sql`INSERT INTO planned_exercises
+          (day_id, exercise_id, name, muscle_group, position, planned_sets, planned_reps)
+        SELECT ${newId}, exercise_id, name, muscle_group, position, planned_sets, planned_reps
+          FROM planned_exercises WHERE day_id = ${dayId}`,
+  ]);
+  return newId;
 }
 
 export async function reorderProgramDays(programId: string, dayIds: string[]): Promise<void> {

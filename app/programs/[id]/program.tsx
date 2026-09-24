@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
-import { addDay, removeProgram, reorderDays, saveProgramMeta } from "@/app/actions";
+import { useEffect, useState, useTransition } from "react";
+import {
+  addDay, copyDay, removeDayFromList, removeProgram, reorderDays, saveProgramMeta,
+} from "@/app/actions";
 import { Button, Header, Page, Panel, SectionTitle, inputClass } from "@/components/ui";
 import { DragHandle, useDragReorder } from "@/components/drag-list";
+import { SwipeDelete } from "@/components/swipe-delete";
 import { WEEKLY_SETS_FLOOR, WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW } from "@/lib/targets";
+import { MAX_DAY_COPIES } from "@/lib/types";
 import type { Program } from "@/lib/types";
 
 /**
@@ -16,7 +20,17 @@ export function ProgramPage({ program }: { program: Program }) {
   const [name, setName] = useState(program.name);
   const [description, setDescription] = useState(program.description);
   const [days, setDays] = useState(program.days);
+  const [swiped, setSwiped] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // A copied day comes back from the server, so the list follows the props.
+  useEffect(() => { setDays(program.days); }, [program.days]);
+
+  // Copies are counted against the original day, copies of copies included.
+  const copiesOf = (dayId: string) => {
+    const root = days.find((d) => d.id === dayId)?.copiedFrom ?? dayId;
+    return { root, count: days.filter((d) => d.copiedFrom === root).length };
+  };
 
   const { listRef, dragging, handleProps } = useDragReorder(
     days,
@@ -73,14 +87,30 @@ export function ProgramPage({ program }: { program: Program }) {
         ) : (
           <ul ref={listRef} className="space-y-2">
             {days.map((day, i) => (
-              <li
-                key={day.id}
-                className={`flex items-stretch overflow-hidden rounded-2xl border bg-panel pr-2
-                            transition-colors ${
-                  dragging === i ? "border-accent bg-panel-2" : "border-line"
+              <li key={day.id}>
+               <SwipeDelete
+                label={day.name}
+                open={swiped === day.id}
+                onOpen={(o) => setSwiped(o ? day.id : null)}
+                rounded="rounded-2xl"
+                onDelete={() => {
+                  if (!confirm(`Remove "${day.name}" from ${program.name}? Sessions already logged from it are kept.`)) return;
+                  setSwiped(null);
+                  setDays((current) => current.filter((d) => d.id !== day.id));
+                  startTransition(() => { void removeDayFromList(program.id, day.id); });
+                }}
+                onCopy={() => {
+                  setSwiped(null);
+                  startTransition(() => { void copyDay(program.id, day.id); });
+                }}
+                copyDisabled={pending || copiesOf(day.id).count >= MAX_DAY_COPIES}
+                copyNote={copiesOf(day.id).count >= MAX_DAY_COPIES
+                  ? `${MAX_DAY_COPIES}/${MAX_DAY_COPIES} copies` : undefined}
+                className={`flex items-stretch rounded-2xl border pr-2 transition-colors ${
+                  dragging === i ? "border-accent bg-panel-2" : "border-line bg-panel"
                 }`}
-              >
-                <span {...handleProps(i)} className="flex self-stretch">
+               >
+                <span {...handleProps(i)} data-no-swipe className="flex self-stretch">
                   <DragHandle label={`Reorder ${day.name}`} />
                 </span>
                 <Link
@@ -100,9 +130,16 @@ export function ProgramPage({ program }: { program: Program }) {
                     <path d="M9 5l7 7-7 7" />
                   </svg>
                 </span>
+               </SwipeDelete>
               </li>
             ))}
           </ul>
+        )}
+
+        {days.length > 0 && (
+          <p className="mt-2 text-[11px] text-ink-faint">
+            Swipe a day left to copy or delete it. Up to {MAX_DAY_COPIES} copies per day.
+          </p>
         )}
 
         <form action={addDay.bind(null, program.id, `Day ${days.length + 1}`)} className="mt-2">

@@ -32,7 +32,12 @@ export type ProgramDay = {
   name: string;
   position: number;
   exercises: PlannedExercise[];
+  /** The original this day was copied from; null or absent for an original. */
+  copiedFrom?: string | null;
 };
+
+/** How many copies one program day may have. */
+export const MAX_DAY_COPIES = 3;
 
 export type Program = {
   id: string;
