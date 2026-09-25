@@ -6,7 +6,12 @@ import {
 } from "@/lib/targets";
 
 export function Page({ children }: { children: ReactNode }) {
-  return <main className="mx-auto max-w-2xl px-4 pt-5">{children}</main>;
+  return (
+    <main className="mx-auto max-w-2xl px-4"
+          style={{ paddingTop: "calc(1.25rem + env(safe-area-inset-top, 0px))" }}>
+      {children}
+    </main>
+  );
 }
 
 /**

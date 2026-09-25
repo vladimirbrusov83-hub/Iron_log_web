@@ -347,12 +347,29 @@ and production, and Vercel never runs it.
 - Session duration is computed from `started_at` in SQL, not from a number the browser
   sends, so a phone that slept mid-session still gets it right.
 
+## Installable app (PWA)
+
+Added September 2026 at Vladimir's request. `app/manifest.ts`, icons from
+`scripts/make-icons.mjs` (orange barbell; PNGs committed, rerun only to redraw),
+`public/sw.js`, registered by `components/sw-register.tsx` in production only.
+
+- The service worker **caches nothing**. Every screen is live training data; it only
+  answers a failed page load with a built-in "No connection" screen. Do not add page or
+  API caching without asking — a stale workout would look like lost sets.
+- The manifest, icons and `sw.js` are excluded in the middleware matcher: the browser
+  fetches them without the passcode cookie.
+- iPhone runs it full screen with `black-translucent`, so the page sits under the status
+  bar. `Page` pads by `safe-area-inset-top`, the gym headers already did, sticky bars use
+  `top: env(safe-area-inset-top)`, and `.status-bar-shade` covers the strip. A new
+  screen that skips `Page` has to handle the inset itself. In a browser tab it is all 0.
+- An installed iPhone app keeps its own cookies: the passcode is typed once more inside it.
+
 ## Ported from iOS, unchanged in spirit
 
 Workout logging, programs with drag-free reorder (↑↓ buttons), history, PRs by Epley
 e1RM, per-muscle and per-lift stats, bodyweight, rest timer, the 45-exercise library,
-kg/lb. Dropped along with the coach: push notifications (web push needs a service worker
-and Vladimir did not ask for one) and `.ironlog` export/import.
+kg/lb. Dropped along with the coach: push notifications (there is a service worker now,
+but Vladimir did not ask for push) and `.ironlog` export/import.
 
 The iOS app is still at `~/Documents/IronLog/IronLog/` with uncommitted work in it.
 Vladimir asked for it to be left alone — do not commit or push that repo.

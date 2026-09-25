@@ -96,6 +96,19 @@ body::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* Installed to the home screen, the page runs up under the iPhone status bar
+   (black-translucent). This strip keeps the clock readable over scrolled
+   content; in a browser tab the inset is 0 and it has no height. Sits above
+   sticky headers (z-30) and the nav, under sheets and pickers (z-50). */
+.status-bar-shade {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bg);
+  z-index: 45;
+  pointer-events: none;
+}
+
 /* Display type: condensed, tight, all the big numbers. */
 .display {
   font-family: var(--font-display);

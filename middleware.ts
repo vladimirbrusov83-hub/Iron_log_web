@@ -12,7 +12,10 @@ export async function middleware(req: NextRequest) {
 }
 
 /* Everything is behind the gate — unlike ClientProgram, no page here is public.
-   The matcher excludes Next's own asset routes and the favicon only. */
+   The matcher excludes Next's own asset routes and what installing the app needs
+   before any cookie exists: the manifest, the icons and the service worker. */
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.svg).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.svg|apple-icon.png|icons/|sw.js).*)",
+  ],
 };

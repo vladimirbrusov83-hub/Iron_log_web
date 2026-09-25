@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/nav";
+import { ServiceWorkerRegister } from "@/components/sw-register";
 import { THEME_COLOR, THEME_COOKIE, parseTheme } from "@/lib/theme";
 
 const barlow = Barlow({
@@ -22,6 +23,9 @@ const barlowCondensed = Barlow_Condensed({
 export const metadata: Metadata = {
   title: "IronLog",
   description: "Strength training log with effective-rep tracking.",
+  // Home-screen app on iPhone: full screen, no Safari bars. The status bar is
+  // translucent, so the page runs up under it — see `.status-bar-shade`.
+  appleWebApp: { capable: true, title: "IronLog", statusBarStyle: "black-translucent" },
 };
 
 async function currentTheme() {
@@ -53,6 +57,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             because this wrapper comes after it in tree order. */}
         <div className="relative">{children}</div>
         <Nav />
+        {/* Covers the strip under the clock and battery when installed to the
+            home screen; zero height in a normal browser tab. */}
+        <div aria-hidden className="status-bar-shade" />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

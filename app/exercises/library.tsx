@@ -54,7 +54,7 @@ export function Library({
       <div
         className="sticky top-0 z-20 -mx-4 mb-4 border-b border-line bg-bg/90 px-4 pb-2 pt-2
                    backdrop-blur-md"
-        style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top, 0px))" }}
+        style={{ top: "env(safe-area-inset-top, 0px)" }}
       >
       <input
         value={query}
