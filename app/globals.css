@@ -154,6 +154,10 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
   .rise { animation: none; }
 }
 
+/* Home: the program card from localStorage stands in until the live block
+   streams in ahead of it, then goes — no script has to decide when. */
+[data-home-live] ~ [data-home-cached] { display: none; }
+
 /* A set that has just been ticked flashes once. */
 @keyframes tick {
   0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.45); }

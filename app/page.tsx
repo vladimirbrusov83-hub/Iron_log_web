@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   getActiveSession, getFinishedSessions, getHeadline, getMuscleTotals,
   getProgramsByRecentUse, getSettings,
@@ -7,13 +8,38 @@ import {
   BAND_COLOR, ButtonLink, Header, Page, Panel, SetsBandBar,
 } from "@/components/ui";
 import { ProgramCarousel } from "@/components/program-carousel";
+import { CachedHome, RememberHome, TilesSkeleton } from "@/components/cached-home";
 import { effectiveRepsCoverage, totalEffectiveReps } from "@/lib/effective-reps";
 import { WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW, weeklySetBand } from "@/lib/targets";
 import { formatDuration, sessionVolume } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+/* The page itself touches no database, so its HTML goes out at once — before a
+   cold Neon has answered. Everything that needs data is `HomeLive`, streamed in
+   behind a Suspense boundary. Until it lands, `CachedHome` paints the program
+   card from the copy the last visit left in localStorage; the moment the live
+   block arrives, a sibling CSS rule hides the copy (see `[data-home-live]` in
+   globals.css). The copy is programs only — never logged sets. */
+export default function HomePage() {
+  const today = new Date();
+  return (
+    <Page>
+      <Header
+        eyebrow={today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+        title="IronLog"
+      />
+      <div>
+        <Suspense fallback={<TilesSkeleton />}>
+          <HomeLive />
+        </Suspense>
+        <CachedHome />
+      </div>
+    </Page>
+  );
+}
+
+async function HomeLive() {
   const [active, programs, recent, week, muscles, settings] = await Promise.all([
     getActiveSession(),
     getProgramsByRecentUse(),
@@ -26,14 +52,10 @@ export default async function HomePage() {
   // Ordered most-recently-trained first, so the card opens on the one being run.
   const hasProgram = programs.length > 0;
   const unit = settings.weightUnit;
-  const today = new Date();
 
   return (
-    <Page>
-      <Header
-        eyebrow={today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
-        title="IronLog"
-      />
+    <div data-home-live>
+      <RememberHome programs={programs} active={!!active} />
 
       {active && (
         <ActiveCard
@@ -55,7 +77,7 @@ export default async function HomePage() {
 
       {/* ------------------------------------------------ the point of the page */}
       {!active && (
-        <section className="rise rise-2 mb-4">
+        <section className="mb-4">
           {hasProgram ? (
             <ProgramCarousel programs={programs} />
           ) : (
@@ -218,8 +240,7 @@ export default async function HomePage() {
           )}
         </div>
       </details>
-
-    </Page>
+    </div>
   );
 }
 

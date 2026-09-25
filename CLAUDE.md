@@ -296,6 +296,22 @@ is a list you scan to pick from, and the whole row is the start button.
 Tapping a day on the home card still starts it directly and skips that screen. `/start`
 redirects into the open session if there is one, because there is only ever one.
 
+**The page does not wait for Neon.** `HomePage` itself queries nothing, so its HTML
+streams out at once; everything data-bound is `HomeLive` behind a `<Suspense>`. Until it
+lands, `CachedHome` (`components/cached-home.tsx`) paints the program card from
+`localStorage` (`ironlog.home.v1`, written by `RememberHome` inside the live block), and
+`[data-home-live] ~ [data-home-cached] { display: none }` hides the copy the instant the
+live block streams in ahead of it. Three things that matter:
+
+- `CachedHome` is a **sibling** of the boundary, not its fallback. React leaves a pending
+  boundary's fallback as inert server HTML, so a fallback's effects never run and it
+  could not read storage.
+- Only **programs** are stored — the plan, never logged sets. If a workout was open last
+  visit the copy shows a blank card instead, rather than a "Continue" to a stale id.
+- The copy is tappable. `startSession` still returns the open session if there is one,
+  and a day deleted since the copy was taken starts freestyle instead of failing on the
+  `day_id` foreign key.
+
 Hard sets per muscle and Recent workouts are native `<details>` drawers, closed by
 default, each with the headline on its summary row so the page reads without opening them.
 
@@ -353,9 +369,12 @@ Added September 2026 at Vladimir's request. `app/manifest.ts`, icons from
 `scripts/make-icons.mjs` (orange barbell; PNGs committed, rerun only to redraw),
 `public/sw.js`, registered by `components/sw-register.tsx` in production only.
 
-- The service worker **caches nothing**. Every screen is live training data; it only
-  answers a failed page load with a built-in "No connection" screen. Do not add page or
-  API caching without asking — a stale workout would look like lost sets.
+- The service worker caches **the app shell only**: `/_next/static/*` (content-hashed JS,
+  CSS, fonts) and the icons, cache-first, in `ironlog-shell-v1`, trimmed to 300 entries.
+  Added September 2026 at Vladimir's request so the app opens instantly. It still caches
+  **no pages and no data** — navigations always go to the network, and a failed one gets
+  the built-in "No connection" screen. Do not add page or API caching without asking — a
+  stale workout would look like lost sets. Bump the cache name if the asset rule changes.
 - The manifest, icons and `sw.js` are excluded in the middleware matcher: the browser
   fetches them without the passcode cookie.
 - iPhone runs it full screen with `black-translucent`, so the page sits under the status

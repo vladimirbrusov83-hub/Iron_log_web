@@ -610,6 +610,8 @@ export async function startSession(dayId: string | null): Promise<string> {
     SELECT id FROM sessions WHERE finished_at IS NULL`) as { id: string }[];
   if (open.length > 0) return open[0].id;
 
+  // A day tapped on the home card's cached copy may since have been deleted;
+  // it then starts freestyle rather than failing on the day_id foreign key.
   const source = dayId ? await getProgramDay(dayId) : null;
   const sessionId = crypto.randomUUID();
 
@@ -617,7 +619,7 @@ export async function startSession(dayId: string | null): Promise<string> {
     INSERT INTO sessions (id, day_name, program_name, program_id, day_id)
     VALUES (${sessionId}, ${source?.day.name ?? "Workout"},
             ${source?.programName ?? ""}, ${source?.programId ?? null}::uuid,
-            ${dayId}::uuid)`;
+            ${source ? dayId : null}::uuid)`;
 
   if (source) {
     const statements = [];
