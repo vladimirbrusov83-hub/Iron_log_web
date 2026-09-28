@@ -1052,7 +1052,9 @@ export type LastSessionSet = {
   setNumber: number; weight: number; reps: number; rir: number | null; isWarmup: boolean;
   restPauseReps: number;
 };
-export type LastSession = { date: string; sets: LastSessionSet[] };
+/** `notes` is that session's own note on the lift (`exercise_logs.notes`), the
+ *  first non-empty one when the lift was logged twice that day. */
+export type LastSession = { date: string; sets: LastSessionSet[]; notes: string };
 
 export async function getLastSessionSets(names: string[]): Promise<Map<string, LastSession>> {
   if (names.length === 0) return new Map();
@@ -1068,18 +1070,20 @@ export async function getLastSessionSets(names: string[]): Promise<Map<string, L
        ORDER BY lower(el.name), s.started_at DESC
     )
     SELECT l.key, l.started_at::text AS date, sl.set_number, sl.weight, sl.reps,
-           sl.rir, sl.is_warmup, sl.rest_pause_reps
+           sl.rir, sl.is_warmup, sl.rest_pause_reps, el.notes
       FROM latest l
       JOIN exercise_logs el ON el.session_id = l.session_id AND lower(el.name) = l.key
       JOIN set_logs sl ON sl.exercise_log_id = el.id AND sl.is_completed
      ORDER BY l.key, el.position, sl.set_number`) as {
     key: string; date: string; set_number: number; weight: number;
     reps: number; rir: number | null; is_warmup: boolean; rest_pause_reps: number;
+    notes: string;
   }[];
 
   const out = new Map<string, LastSession>();
   for (const r of rows) {
-    const entry = out.get(r.key) ?? { date: r.date, sets: [] };
+    const entry = out.get(r.key) ?? { date: r.date, sets: [], notes: "" };
+    if (!entry.notes && r.notes) entry.notes = r.notes;
     entry.sets.push({
       setNumber: entry.sets.length + 1,
       weight: r.weight, reps: r.reps, rir: r.rir, isWarmup: r.is_warmup,

@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  logSet, markExerciseDone, noteLibraryExercise, removeSet,
+  logSet, markExerciseDone, noteExercise, removeSet,
 } from "@/app/actions";
 import { RestTimer } from "@/components/rest-timer";
 import { WorkoutClock } from "@/components/workout-clock";
@@ -26,7 +26,8 @@ type Props = {
   total: number;
   settings: Settings;
   last?: LastSession;
-  /** The lift's standing note, or null when it is not in the library. */
+  /** The lift's library note, or null when it is not in the library. Shown on
+   *  the left only when last session left no note of its own. */
   note: ExerciseNote | null;
   /** The whole workout so far, per muscle — what the ⋯ panel shows. */
   byMuscle: MuscleSlice[];
@@ -158,8 +159,14 @@ export function ExerciseScreen({
         )}
 
         {/* Above the sets, because a setup cue — seat notch, bar, grip — is
-            read before the first one, not after the last. */}
-        {note && <StandingNote sessionId={sessionId} note={note} />}
+            read before the first one, not after the last. Its own section, not
+            inside the Today column, whose tap opens the set sheet. */}
+        <LiftNotes
+          sessionId={sessionId}
+          log={log}
+          previous={last?.notes || note?.notes || ""}
+          lastDate={last?.date ?? null}
+        />
 
         <section className="overflow-hidden rounded-2xl border border-line bg-panel">
           <div className="grid grid-cols-2">
@@ -351,8 +358,8 @@ export function ExerciseScreen({
 
 /**
  * Effective reps per muscle for the whole workout so far, behind the ⋯ button.
- * It replaced the per-session note, which sat one card above the standing
- * note and read as the same thing twice. Bars are coloured against the paper's
+ * It replaced a per-session note field that used to sit in this drawer, which
+ * read as the same thing twice beside the note card. Bars are coloured against the paper's
  * 20–40 per session; they describe the workout, they never suggest a load.
  */
 function MusclePanel({ byMuscle, current }: { byMuscle: MuscleSlice[]; current: string }) {
@@ -393,49 +400,130 @@ function MusclePanel({ byMuscle, current }: { byMuscle: MuscleSlice[]; current: 
   );
 }
 
-/* --------------------------------------------------------- standing note */
+/* ------------------------------------------------------------- notes */
 
 /**
- * The lift's own note, not the session's.
+ * Last session's note beside today's, split the same way as the sets below.
  *
- * It lives on the library row (`exercises.notes`, the same field the exercise
- * base edits), so it is here unchanged every time the lift comes round —
- * Vladimir asked for a note he would see next time he did the exercise. The
- * per-session note field was taken out of the ⋯ drawer in September 2026.
+ * Both are `exercise_logs.notes` — one session's note on one lift. The left
+ * falls back to the library note (`exercises.notes`, still edited in the
+ * exercise base) when last session left none, so the notes written before
+ * this split kept showing. Vladimir asked for the split in September 2026:
+ * he could read the old note and had nowhere to write today's.
  *
- * Saved on blur, like every other note in the app. The status line says so
- * rather than a button, because a save button next to a set sheet is one more
- * thing to mis-tap with a bar in your hands.
+ * Each half is clamped to three lines and opens the whole note on tap — the
+ * left read-only, the right to edit. Today's is saved when the window closes,
+ * explicitly rather than on blur, because iOS often skips the blur when a
+ * fixed overlay unmounts.
  */
-function StandingNote({ sessionId, note }: { sessionId: string; note: ExerciseNote }) {
+function LiftNotes({
+  sessionId, log, previous, lastDate,
+}: {
+  sessionId: string; log: ExerciseLog; previous: string; lastDate: string | null;
+}) {
   const [, startTransition] = useTransition();
-  const [saved, setSaved] = useState(false);
+  const [today, setToday] = useState(log.notes);
+  const [open, setOpen] = useState<"last" | "today" | null>(null);
+  // Walking to the next lift reuses this component; take the new lift's note.
+  useEffect(() => { setToday(log.notes); }, [log.id, log.notes]);
+
+  const lastLabel = lastDate
+    ? new Date(lastDate).toLocaleDateString(undefined, { day: "numeric", month: "short" })
+    : "Last";
+
+  function save(value: string) {
+    setOpen(null);
+    const trimmed = value.trim();
+    setToday(trimmed);
+    if (trimmed === log.notes.trim()) return;
+    startTransition(() => { void noteExercise(sessionId, log.id, trimmed); });
+  }
 
   return (
-    <section className="mb-3 rounded-2xl border border-line bg-panel px-3 py-2.5">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="eyebrow">Note on this lift</p>
-        <p className="text-[11px] text-ink-faint">
-          {saved ? "Saved" : "Shows every time"}
-        </p>
+    <>
+      <section className="mb-3 grid grid-cols-2 overflow-hidden rounded-2xl border border-line bg-panel">
+        <button
+          onClick={() => previous && setOpen("last")}
+          disabled={!previous}
+          className="flex min-w-0 flex-col justify-start border-r border-line px-3 py-2.5 text-left active:bg-panel-2"
+        >
+          <p className="eyebrow mb-1">Note · {lastLabel}</p>
+          <p className={`line-clamp-3 whitespace-pre-wrap break-words text-sm ${
+            previous ? "text-ink-dim" : "text-ink-faint"
+          }`}>
+            {previous || "No note."}
+          </p>
+        </button>
+        <button
+          onClick={() => setOpen("today")}
+          className="flex min-w-0 flex-col justify-start px-3 py-2.5 text-left active:bg-panel-2"
+        >
+          <p className="eyebrow mb-1 text-accent">Note · Today</p>
+          <p className={`line-clamp-3 whitespace-pre-wrap break-words text-sm ${
+            today ? "text-ink" : "text-ink-faint"
+          }`}>
+            {today || "Tap to add a note"}
+          </p>
+        </button>
+      </section>
+
+      {open && (
+        <NoteWindow
+          title={open === "last" ? `Note · ${lastLabel}` : "Note · Today"}
+          text={open === "last" ? previous : today}
+          editable={open === "today"}
+          onClose={(value) => (open === "today" ? save(value) : setOpen(null))}
+        />
+      )}
+    </>
+  );
+}
+
+/** The whole of one note. Anchored to the top so the keyboard, when today's
+ *  note is being written, comes up below it rather than over it. */
+function NoteWindow({
+  title, text, editable, onClose,
+}: {
+  title: string; text: string; editable: boolean; onClose: (value: string) => void;
+}) {
+  const [value, setValue] = useState(text);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-black/70 px-4 backdrop-blur-sm"
+      style={{ paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))" }}
+      onClick={() => onClose(value)}
+    >
+      <div
+        className="mx-auto w-full max-w-2xl rounded-2xl border border-line-2 bg-panel p-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className={`eyebrow ${editable ? "text-accent" : ""}`}>{title}</p>
+          <button
+            onClick={() => onClose(value)}
+            className="display h-11 rounded-lg px-3 text-base font-semibold text-accent"
+          >
+            {editable ? "Save" : "Close"}
+          </button>
+        </div>
+        {editable ? (
+          <textarea
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            rows={6}
+            maxLength={2000}
+            placeholder="How it went, what to change next time"
+            className={`${inputClass} py-2 text-base`}
+          />
+        ) : (
+          <p className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap break-words text-base text-ink">
+            {text}
+          </p>
+        )}
       </div>
-      <textarea
-        // Keyed on the lift, so walking to the next one does not leave the
-        // previous lift's text sitting in an uncontrolled field.
-        key={note.id}
-        defaultValue={note.notes}
-        rows={2}
-        placeholder="Setup cues, what to watch — kept with the lift, not the day"
-        className={`${inputClass} mt-1 py-2 text-sm`}
-        onFocus={() => setSaved(false)}
-        onBlur={(e) => {
-          const value = e.target.value;
-          if (value === note.notes) return;
-          setSaved(true);
-          startTransition(() => { void noteLibraryExercise(sessionId, note.id, value); });
-        }}
-      />
-    </section>
+    </div>
   );
 }
 

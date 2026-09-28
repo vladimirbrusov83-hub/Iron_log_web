@@ -108,38 +108,36 @@ muscle, `done/planned` sets, the last set done, its effective reps, a chevron. T
 row is the link — nothing on it is separately tappable. Then Add exercise, session notes,
 Finish and Discard. It no longer loads `getLastSessionSets`; that belongs to one lift.
 
-**`/log/[id]/[logId]` — one lift.** The standing note, then last session's complete set
+**`/log/[id]/[logId]` — one lift.** The notes card (last note | today's note), then last session's complete set
 list beside today's, the `+ Add set` button, and the ⋯ drawer: effective reps per muscle
 for the whole workout so far (bars against the 20–40 band, this lift's muscle in bold),
 and nothing else — Remove exercise was taken out of it at his request, so a lift cannot
-currently be removed from a running workout (`dropExercise` is still in actions). The drawer used to hold the per-session note; Vladimir had it
-replaced in September 2026 because it duplicated the standing note one card below. It is a real page and can be landed on directly, so it repeats the
+currently be removed from a running workout (`dropExercise` is still in actions). The drawer used to hold the per-session note; it moved to the right half of the notes card. It is a real page and can be landed on directly, so it repeats the
 `finishedAt → /history/[id]` guard and `notFound()`s on a `logId` that is not in the
 session.
 
-### Two notes, and they are not the same note
+### Notes on a lift: last | today
 
-Vladimir asked in September 2026 for "a small window for note, and I want to see that note
-next time when I will be doing this exercise", and chose the standing kind over a
-per-session one carried forward.
+Vladimir first asked (September 2026) for a note he would see next time he did the lift,
+and got the library's standing note. On 2026-09-28 he asked for it split like the sets:
+last workout's note on the left, today's on the right, each tap-to-open for the full text.
 
-| Where | Column | Lives with |
+| Where | Column | Notes |
 |---|---|---|
-| The card above the sets | `exercises.notes` | **the lift** — every session, unchanged, until edited |
-| Nowhere in the gym any more | `exercise_logs.notes` | **that session**; old ones still show in history |
+| Right half, "Note · Today" | `exercise_logs.notes` | this session's; saved via `noteExercise` when the window closes |
+| Left half, "Note · <date>" | last finished session's `exercise_logs.notes` | from `getLastSessionSets` (`LastSession.notes`, first non-empty by position) |
+| Left half, fallback | `exercises.notes` (library) | only when last session left no note — kept so notes written before the split still show. Read-only in the gym; edited under More → Exercises |
 
-- `getExerciseNote(name)` resolves the library row **by name**, not by `exercise_id`:
-  that column is `ON DELETE SET NULL` and a one-off log never had one. Same reason
-  `getExerciseUsage` and `getLastSessionSets` match on the name. A one-off therefore picks
-  its note up by itself once the lift is added to the library.
-- No library row means no box at all, rather than one that quietly loses what is typed.
-- `saveExerciseNote` writes **notes only**. `updateExercise` also sets the name, muscle
-  group and compound flag, so calling it from the gym would push three stale values over a
-  library edit made in between.
-- `noteLibraryExercise` revalidates **`/exercises` as well** — it is the same field the
-  exercise base edits, and that page would otherwise serve a stale note.
-- The textarea is keyed on the note's id, so walking to the next lift does not leave the
-  previous one's text in an uncontrolled field.
+- The card is its own `<section>` above the sets, **not** inside the Today column, whose
+  tap opens the set sheet.
+- It shows for one-off lifts with no library row too — per-session notes need none.
+- Today's note is saved explicitly in the window's close handler, not on blur: iOS often
+  skips the blur when a fixed overlay unmounts. The window is anchored to the top so the
+  keyboard comes up below it.
+- `getExerciseNote(name)` still resolves the library row **by name**, not by
+  `exercise_id` (`ON DELETE SET NULL`, and a one-off never had one).
+- `noteLibraryExercise` is no longer called from the gym; the exercise base edits that
+  field through `editExercise`.
 
 - `getLastSessionSets` supplies the left column: the most recent *finished* session per
   lift, every completed set of it. It merges duplicate logs of the same name in that
