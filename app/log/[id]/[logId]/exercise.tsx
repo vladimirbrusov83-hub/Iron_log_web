@@ -362,7 +362,8 @@ export function ExerciseScreen({
 /* ---------------------------------------------------------- muscle panel */
 
 /**
- * Effective reps per muscle behind the ⋯ button, with two tabs: this workout so
+ * Effective reps per muscle behind the ⋯ button, with two tabs, ordered like the
+ * set columns (last on the left, today on the right): this workout so
  * far, and the workout before it (the last run of the same program day, else
  * the most recent one). Vladimir asked for the second tab in September 2026 to
  * see last time's per-muscle totals mid-workout. It replaced a per-session note
@@ -384,13 +385,13 @@ function MusclePanel({
   return (
     <div>
       <div className="mb-2.5 flex gap-1 rounded-lg bg-panel-2 p-1" role="tablist">
-        <button role="tab" aria-selected={tab === "today"} className={tabClass(tab === "today")}
-          onClick={() => setTab("today")}>
-          This workout
-        </button>
         <button role="tab" aria-selected={tab === "last"} className={tabClass(tab === "last")}
           onClick={() => setTab("last")} disabled={!previous}>
           {previous ? `Last · ${lastLabel}` : "No last workout"}
+        </button>
+        <button role="tab" aria-selected={tab === "today"} className={tabClass(tab === "today")}
+          onClick={() => setTab("today")}>
+          This workout
         </button>
       </div>
       {tab === "last" && previous && (
