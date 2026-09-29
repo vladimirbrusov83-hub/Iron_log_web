@@ -17,7 +17,7 @@ export default async function HistoryPage() {
     const date = new Date(s.startedAt);
     return {
       id: s.id,
-      label: `${s.dayName} · ${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`,
+      label: `${s.dayName} · ${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
       card: (
         <Link
           href={`/history/${s.id}`}
@@ -26,10 +26,10 @@ export default async function HistoryPage() {
         >
           <div className="shrink-0 text-center">
             <div className="display text-xl font-semibold leading-none">
-              {date.toLocaleDateString(undefined, { day: "numeric" })}
+              {date.toLocaleDateString("en-US", { day: "numeric" })}
             </div>
             <div className="eyebrow" style={{ fontSize: 9 }}>
-              {date.toLocaleDateString(undefined, { month: "short" })}
+              {date.toLocaleDateString("en-US", { month: "short" })}
             </div>
           </div>
           <div className="min-w-0 flex-1 border-l border-line pl-3">
@@ -40,7 +40,7 @@ export default async function HistoryPage() {
                 : s.programName || "Freestyle"}
             </p>
             <p className="tnum text-[11px] text-ink-faint">
-              {coverage.working} sets · {Math.round(sessionVolume(s)).toLocaleString()}{" "}
+              {coverage.working} sets · {Math.round(sessionVolume(s)).toLocaleString("en-US")}{" "}
               {settings.weightUnit} · {formatDuration(s.durationSeconds)}
             </p>
           </div>

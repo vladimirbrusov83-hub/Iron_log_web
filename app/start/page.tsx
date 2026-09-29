@@ -86,7 +86,7 @@ export default async function StartPage({
                       <span className="tnum block truncate text-[11px] text-ink-faint">
                         {day.exercises.length} lifts
                         {last
-                          ? ` · last ${new Date(last).toLocaleDateString(undefined, {
+                          ? ` · last ${new Date(last).toLocaleDateString("en-US", {
                               day: "numeric", month: "short",
                             })}`
                           : " · never trained"}

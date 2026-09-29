@@ -27,7 +27,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
         back={{ href: "/history", label: "History" }}
         eyebrow={session.programName || "Freestyle"}
         title={session.dayName}
-        subtitle={new Date(session.startedAt).toLocaleString(undefined, {
+        subtitle={new Date(session.startedAt).toLocaleString("en-US", {
           weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
         })}
       />
@@ -41,7 +41,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
           big
         />
         <div className="grid gap-2">
-          <Stat label="Volume" value={Math.round(sessionVolume(session)).toLocaleString()} hint={unit} />
+          <Stat label="Volume" value={Math.round(sessionVolume(session)).toLocaleString("en-US")} hint={unit} />
           <Stat label="Duration" value={formatDuration(session.durationSeconds)} />
         </div>
       </section>

@@ -26,7 +26,7 @@ export default function HomePage() {
   return (
     <Page>
       <Header
-        eyebrow={today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+        eyebrow={today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         title="IronLog"
       />
       <div>
@@ -70,9 +70,9 @@ async function HomeLive() {
       {/* Three numbers on one line. The week's detail lives in the drawer below
           and on Stats; this is only the glance. */}
       <section className="rise rise-1 mb-4 grid grid-cols-3 gap-2">
-        <Tile label={`Eff reps · 7d`} value={week.effectiveReps.toLocaleString()} accent />
+        <Tile label={`Eff reps · 7d`} value={week.effectiveReps.toLocaleString("en-US")} accent />
         <Tile label="Sessions" value={String(week.sessions)} />
-        <Tile label={`Volume · ${unit}`} value={Math.round(week.volume).toLocaleString()} />
+        <Tile label={`Volume · ${unit}`} value={Math.round(week.volume).toLocaleString("en-US")} />
       </section>
 
       {/* ------------------------------------------------ the point of the page */}
@@ -180,7 +180,7 @@ async function HomeLive() {
                 <>
                   <span className="text-ink-dim">Last: {recent[0].dayName} · </span>
                   <span className="text-ink-faint">
-                    {new Date(recent[0].startedAt).toLocaleDateString(undefined, {
+                    {new Date(recent[0].startedAt).toLocaleDateString("en-US", {
                       month: "short", day: "numeric",
                     })}
                   </span>
@@ -216,10 +216,10 @@ async function HomeLive() {
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{s.dayName}</div>
                         <p className="tnum mt-0.5 text-xs text-ink-faint">
-                          {new Date(s.startedAt).toLocaleDateString(undefined, {
+                          {new Date(s.startedAt).toLocaleDateString("en-US", {
                             month: "short", day: "numeric",
                           })}
-                          {" · "}{Math.round(sessionVolume(s)).toLocaleString()} {unit}
+                          {" · "}{Math.round(sessionVolume(s)).toLocaleString("en-US")} {unit}
                           {" · "}{formatDuration(s.durationSeconds)}
                         </p>
                       </div>

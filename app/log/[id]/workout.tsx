@@ -59,7 +59,7 @@ export function Workout({ session, settings, library }: Props) {
             <div className="min-w-0">
               <h1 className="display mt-0.5 truncate text-3xl font-semibold">{session.dayName}</h1>
               <p className="tnum mt-0.5 text-xs text-ink-faint">
-                {Math.round(volume).toLocaleString()} {unit}
+                {Math.round(volume).toLocaleString("en-US")} {unit}
                 {" · "}{coverage.scored}/{coverage.working} rated
               </p>
             </div>

@@ -53,7 +53,7 @@ export function BodyweightPanel({
               <li key={e.id} className="tnum text-xs">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-ink-dim">
-                    {new Date(`${e.date}T00:00:00`).toLocaleDateString(undefined, {
+                    {new Date(`${e.date}T00:00:00`).toLocaleDateString("en-US", {
                       month: "short", day: "numeric",
                     })}
                   </span>

@@ -75,7 +75,7 @@ export default async function StatsPage({
       <section className="rise rise-1 mb-5 grid grid-cols-2 gap-2">
         <Stat
           label="Effective reps"
-          value={headline.effectiveReps.toLocaleString()}
+          value={headline.effectiveReps.toLocaleString("en-US")}
           hint={headline.workingSets === 0
             ? "nothing logged"
             : `${headline.ratedSets} of ${headline.workingSets} sets rated`}
@@ -214,10 +214,10 @@ export default async function StatsPage({
                   <div
                     className="w-full rounded-t-md bg-accent/80 transition-colors group-hover:bg-accent"
                     style={{ height: `${Math.max(3, (w.effectiveReps / peakWeekly) * 80)}px` }}
-                    title={`${w.workingSets} sets · ${Math.round(w.volume).toLocaleString()} ${unit}`}
+                    title={`${w.workingSets} sets · ${Math.round(w.volume).toLocaleString("en-US")} ${unit}`}
                   />
                   <span className="text-[9px] text-ink-faint">
-                    {new Date(`${w.weekStart}T00:00:00`).toLocaleDateString(undefined, {
+                    {new Date(`${w.weekStart}T00:00:00`).toLocaleDateString("en-US", {
                       month: "numeric", day: "numeric",
                     })}
                   </span>

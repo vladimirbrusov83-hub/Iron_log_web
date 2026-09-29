@@ -126,7 +126,7 @@ export function ExerciseScreen({
               <p className="tnum mt-0.5 text-xs text-ink-faint">
                 {log.muscleGroup} · lift {index + 1} of {total}
                 {planned > 0 && ` · ${working}/${planned} planned`}
-                {volume > 0 && ` · ${Math.round(volume).toLocaleString()} ${unit}`}
+                {volume > 0 && ` · ${Math.round(volume).toLocaleString("en-US")} ${unit}`}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -179,7 +179,7 @@ export function ExerciseScreen({
             <div className="border-r border-line px-3 py-3">
               <p className="eyebrow mb-1.5">
                 {last
-                  ? `Last · ${new Date(last.date).toLocaleDateString(undefined, {
+                  ? `Last · ${new Date(last.date).toLocaleDateString("en-US", {
                       day: "numeric", month: "short",
                     })}`
                   : "Last"}
@@ -376,7 +376,7 @@ function MusclePanel({
   const [tab, setTab] = useState<"today" | "last">("today");
   const showing = tab === "last" && previous ? previous.byMuscle : byMuscle;
   const lastLabel = previous
-    ? new Date(previous.startedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })
+    ? new Date(previous.startedAt).toLocaleDateString("en-US", { day: "numeric", month: "short" })
     : null;
   const tabClass = (on: boolean) =>
     `flex-1 rounded-md px-2 py-1.5 text-xs font-semibold ${
@@ -459,7 +459,7 @@ function LiftNotes({
   useEffect(() => { setToday(log.notes); }, [log.id, log.notes]);
 
   const lastLabel = lastDate
-    ? new Date(lastDate).toLocaleDateString(undefined, { day: "numeric", month: "short" })
+    ? new Date(lastDate).toLocaleDateString("en-US", { day: "numeric", month: "short" })
     : "Last";
 
   function save(value: string) {
