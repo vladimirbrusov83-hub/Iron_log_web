@@ -111,7 +111,8 @@ Finish and Discard. It no longer loads `getLastSessionSets`; that belongs to one
 **`/log/[id]/[logId]` — one lift.** The notes card (last note | today's note), then last session's complete set
 list beside today's, the `+ Add set` button, and the ⋯ drawer: effective reps per muscle
 for the whole workout so far (bars against the 20–40 band, this lift's muscle in bold),
-and nothing else — Remove exercise was taken out of it at his request, so a lift cannot
+with a **Last** tab showing the same for the previous workout (`getPreviousSession`: last
+finished run of the same program day, else the most recent finished workout), and nothing else — Remove exercise was taken out of it at his request, so a lift cannot
 currently be removed from a running workout (`dropExercise` is still in actions). The drawer used to hold the per-session note; it moved to the right half of the notes card. It is a real page and can be landed on directly, so it repeats the
 `finishedAt → /history/[id]` guard and `notFound()`s on a `logId` that is not in the
 session.

@@ -587,6 +587,25 @@ export async function getSession(id: string): Promise<Session | null> {
   return (await hydrateSessions(rows))[0] ?? null;
 }
 
+/**
+ * The finished workout before this one, for the ⋯ panel's "Last time" tab —
+ * the last run of the same program day when there is one, otherwise simply
+ * the most recent finished workout.
+ */
+export async function getPreviousSession(session: Session): Promise<Session | null> {
+  const rows = (await sql`
+    SELECT id, started_at, finished_at, day_name, program_name, program_id,
+           day_id, duration_seconds, notes
+      FROM sessions
+     WHERE finished_at IS NOT NULL AND id <> ${session.id}
+       AND started_at < ${session.startedAt}::timestamptz
+     ORDER BY (day_id IS NOT DISTINCT FROM ${session.dayId}::uuid
+               AND ${session.dayId}::uuid IS NOT NULL) DESC,
+              started_at DESC
+     LIMIT 1`) as SessionRow[];
+  return (await hydrateSessions(rows))[0] ?? null;
+}
+
 export async function getFinishedSessions(limit = 50): Promise<Session[]> {
   const rows = (await sql`
     SELECT id, started_at, finished_at, day_name, program_name, program_id,

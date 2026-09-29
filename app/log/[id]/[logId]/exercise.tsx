@@ -17,6 +17,8 @@ import { setVolume } from "@/lib/types";
 import type { ExerciseNote, LastSession } from "@/lib/db";
 import type { ExerciseLog, SetLog, Settings } from "@/lib/types";
 
+type PreviousWorkout = { dayName: string; startedAt: string; byMuscle: MuscleSlice[] };
+
 type Props = {
   sessionId: string;
   dayName: string;
@@ -34,6 +36,9 @@ type Props = {
   /** Another lift in this workout has logged sets for the same muscle. The
    *  header then shows the muscle's total, and this lift's own moves under Today. */
   muscleShared: boolean;
+  /** The workout before this one (same program day if possible), per muscle —
+   *  the ⋯ panel's "Last time" tab. Null when there is none. */
+  previous: PreviousWorkout | null;
 };
 
 /** The set the sheet is open on: an existing row to edit, or a new one. */
@@ -58,7 +63,7 @@ type SheetTarget = {
  * put number boxes back in the card.
  */
 export function ExerciseScreen({
-  sessionId, dayName, startedAt, log, index, total, settings, last, note, byMuscle, muscleShared,
+  sessionId, dayName, startedAt, log, index, total, settings, last, note, byMuscle, muscleShared, previous,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -154,7 +159,7 @@ export function ExerciseScreen({
       <main className="mx-auto max-w-2xl px-4 pt-4" style={{ paddingBottom: "8.5rem" }}>
         {menu && (
           <div className="mb-3 rounded-2xl border border-line bg-panel p-3">
-            <MusclePanel byMuscle={byMuscle} current={log.muscleGroup} />
+            <MusclePanel byMuscle={byMuscle} previous={previous} current={log.muscleGroup} />
           </div>
         )}
 
@@ -357,20 +362,45 @@ export function ExerciseScreen({
 /* ---------------------------------------------------------- muscle panel */
 
 /**
- * Effective reps per muscle for the whole workout so far, behind the ⋯ button.
- * It replaced a per-session note field that used to sit in this drawer, which
- * read as the same thing twice beside the note card. Bars are coloured against the paper's
- * 20–40 per session; they describe the workout, they never suggest a load.
+ * Effective reps per muscle behind the ⋯ button, with two tabs: this workout so
+ * far, and the workout before it (the last run of the same program day, else
+ * the most recent one). Vladimir asked for the second tab in September 2026 to
+ * see last time's per-muscle totals mid-workout. It replaced a per-session note
+ * field that used to sit in this drawer. Bars are coloured against the paper's
+ * 20–40 per session; they describe workouts, they never suggest a load.
  */
-function MusclePanel({ byMuscle, current }: { byMuscle: MuscleSlice[]; current: string }) {
+function MusclePanel({
+  byMuscle, previous, current,
+}: { byMuscle: MuscleSlice[]; previous: PreviousWorkout | null; current: string }) {
+  const [tab, setTab] = useState<"today" | "last">("today");
+  const showing = tab === "last" && previous ? previous.byMuscle : byMuscle;
+  const lastLabel = previous
+    ? new Date(previous.startedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })
+    : null;
+  const tabClass = (on: boolean) =>
+    `flex-1 rounded-md px-2 py-1.5 text-xs font-semibold ${
+      on ? "bg-panel-3 text-ink" : "text-ink-faint"
+    }`;
   return (
     <div>
-      <p className="eyebrow mb-2">Effective reps by muscle · this workout</p>
-      {byMuscle.length === 0 ? (
-        <p className="text-xs text-ink-faint">No working sets logged yet.</p>
+      <div className="mb-2.5 flex gap-1 rounded-lg bg-panel-2 p-1" role="tablist">
+        <button role="tab" aria-selected={tab === "today"} className={tabClass(tab === "today")}
+          onClick={() => setTab("today")}>
+          This workout
+        </button>
+        <button role="tab" aria-selected={tab === "last"} className={tabClass(tab === "last")}
+          onClick={() => setTab("last")} disabled={!previous}>
+          {previous ? `Last · ${lastLabel}` : "No last workout"}
+        </button>
+      </div>
+      {tab === "last" && previous && (
+        <p className="mb-2 truncate text-xs text-ink-faint">{previous.dayName}</p>
+      )}
+      {showing.length === 0 ? (
+        <p className="text-xs text-ink-faint">No working sets logged{tab === "today" ? " yet" : ""}.</p>
       ) : (
         <ul className="space-y-2.5">
-          {byMuscle.map((m) => {
+          {showing.map((m) => {
             const band = sessionErBand(m.effectiveReps);
             return (
               <li key={m.muscleGroup}>

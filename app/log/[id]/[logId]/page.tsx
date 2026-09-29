@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
-import { getExerciseNote, getLastSessionSets, getSession, getSettings } from "@/lib/db";
+import {
+  getExerciseNote, getLastSessionSets, getPreviousSession, getSession, getSettings,
+} from "@/lib/db";
 import { effectiveRepsByMuscle } from "@/lib/effective-reps";
 import { ExerciseScreen } from "./exercise";
 
@@ -26,10 +28,11 @@ export default async function ExerciseLogPage({
   if (index === -1) notFound();
   const log = session.exercises[index];
 
-  const [settings, last, note] = await Promise.all([
+  const [settings, last, note, previous] = await Promise.all([
     getSettings(),
     getLastSessionSets([log.name]),
     getExerciseNote(log.name),
+    getPreviousSession(session),
   ]);
 
   return (
@@ -44,6 +47,11 @@ export default async function ExerciseLogPage({
       last={last.get(log.name.toLowerCase())}
       note={note}
       byMuscle={effectiveRepsByMuscle(session.exercises)}
+      previous={previous && {
+        dayName: previous.dayName,
+        startedAt: previous.startedAt,
+        byMuscle: effectiveRepsByMuscle(previous.exercises),
+      }}
       muscleShared={session.exercises.some((e) =>
         e.id !== log.id && e.muscleGroup === log.muscleGroup && e.sets.some((s) => s.isCompleted))}
     />
