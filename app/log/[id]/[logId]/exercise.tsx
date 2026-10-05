@@ -14,7 +14,7 @@ import {
 } from "@/lib/effective-reps";
 import { SESSION_ER_HIGH, SESSION_ER_LOW, sessionErBand } from "@/lib/targets";
 import { setVolume } from "@/lib/types";
-import type { ExerciseNote, LastSession } from "@/lib/db";
+import type { ExerciseNote, LastSession, LiftSessionOption } from "@/lib/db";
 import type { ExerciseLog, SetLog, Settings } from "@/lib/types";
 
 type PreviousWorkout = { dayName: string; startedAt: string; byMuscle: MuscleSlice[] };
@@ -28,6 +28,10 @@ type Props = {
   total: number;
   settings: Settings;
   last?: LastSession;
+  /** Set when the left column shows a workout picked from the lift's history
+   *  (`?from=`), null when it is simply the most recent one. */
+  lastId: string | null;
+  liftSessions: LiftSessionOption[];
   /** The lift's library note, or null when it is not in the library. Shown on
    *  the left only when last session left no note of its own. */
   note: ExerciseNote | null;
@@ -63,12 +67,14 @@ type SheetTarget = {
  * put number boxes back in the card.
  */
 export function ExerciseScreen({
-  sessionId, dayName, startedAt, log, index, total, settings, last, note, byMuscle, muscleShared, previous,
+  sessionId, dayName, startedAt, log, index, total, settings, last, lastId, liftSessions,
+  note, byMuscle, muscleShared, previous,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [sheet, setSheet] = useState<SheetTarget | null>(null);
   const [menu, setMenu] = useState(false);
+  const [choosingLast, setChoosingLast] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [restKey, setRestKey] = useState(0);
   const unit = settings.weightUnit;
@@ -177,13 +183,22 @@ export function ExerciseScreen({
           <div className="grid grid-cols-2">
             {/* ---------------------------------------------- last time */}
             <div className="border-r border-line px-3 py-3">
-              <p className="eyebrow mb-1.5">
+              {/* Tap to compare with any earlier workout of this lift, not
+                  only the most recent. Orange while a picked one is showing. */}
+              <button
+                type="button"
+                onClick={() => setChoosingLast(true)}
+                disabled={liftSessions.length === 0}
+                className={`eyebrow -mx-1 -mt-1 mb-0.5 flex min-h-9 items-center gap-1 rounded-lg px-1
+                            active:bg-panel-2 disabled:opacity-100 ${lastId ? "text-accent" : ""}`}
+              >
                 {last
-                  ? `Last · ${new Date(last.date).toLocaleDateString("en-US", {
+                  ? `${lastId ? "" : "Last · "}${new Date(last.date).toLocaleDateString("en-US", {
                       day: "numeric", month: "short",
                     })}`
                   : "Last"}
-              </p>
+                {liftSessions.length > 1 && <span aria-hidden className="text-[10px]">▾</span>}
+              </button>
               {last ? (
                 <ul className="tnum space-y-0.5">
                   {last.sets.map((s) => (
@@ -329,6 +344,23 @@ export function ExerciseScreen({
           <RestTimer defaultSeconds={settings.defaultRestSeconds} autoStartKey={restKey} />
         </div>
       </div>
+
+      {choosingLast && (
+        <LastChooser
+          options={liftSessions}
+          selected={lastId ?? liftSessions[0]?.sessionId ?? null}
+          unit={unit}
+          onClose={() => setChoosingLast(false)}
+          onPick={(id) => {
+            setChoosingLast(false);
+            // The newest one is the default, so picking it clears ?from.
+            const url = id === liftSessions[0]?.sessionId
+              ? `/log/${sessionId}/${log.id}`
+              : `/log/${sessionId}/${log.id}?from=${id}`;
+            router.replace(url, { scroll: false });
+          }}
+        />
+      )}
 
       {sheet && (
         <SetSheet
@@ -608,6 +640,76 @@ function useVisibleArea(): { top: number; height: number; keyboard: boolean } | 
   }, []);
 
   return area;
+}
+
+/* ---------------------------------------------------------- last chooser */
+
+/**
+ * Picks which earlier workout of this lift sits in the left column. Newest
+ * first, with the heaviest set of each so the right day is found at a glance.
+ * Only this screen changes — nothing is saved.
+ */
+function LastChooser({
+  options, selected, unit, onPick, onClose,
+}: {
+  options: LiftSessionOption[];
+  selected: string | null;
+  unit: string;
+  onPick: (sessionId: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-sm">
+      <button className="min-h-0 flex-1" aria-label="Close" onClick={onClose} />
+      <div className="rise mx-auto flex max-h-[75vh] w-full max-w-2xl flex-col rounded-t-3xl
+                      border-t border-line-2 bg-panel">
+        <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4">
+          <h2 className="display text-2xl font-semibold">Compare with</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="h-9 w-9 shrink-0 rounded-lg border border-line-2 text-ink-dim"
+          >
+            ✕
+          </button>
+        </div>
+        <ul
+          className="min-h-0 flex-1 overflow-y-auto px-4"
+          style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
+        >
+          {options.map((o, i) => {
+            const on = o.sessionId === selected;
+            return (
+              <li key={o.sessionId}>
+                <button
+                  onClick={() => onPick(o.sessionId)}
+                  className={`mb-1 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left ${
+                    on ? "border-accent bg-accent-soft" : "border-line bg-panel-2 active:bg-panel"
+                  }`}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="display block text-lg font-semibold leading-tight">
+                      {new Date(o.date).toLocaleDateString("en-US", {
+                        weekday: "short", day: "numeric", month: "short", year: "numeric",
+                      })}
+                      {i === 0 && <span className="ml-2 text-xs font-normal text-ink-faint">most recent</span>}
+                    </span>
+                    <span className="block truncate text-[11px] text-ink-faint">{o.dayName}</span>
+                  </span>
+                  <span className="tnum shrink-0 text-right text-sm">
+                    <span className="text-ink">{o.topWeight} {unit} × {o.topReps}</span>
+                    <span className="block text-[11px] text-ink-faint">
+                      {o.sets} set{o.sets === 1 ? "" : "s"}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------- set sheet */

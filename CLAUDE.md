@@ -176,6 +176,15 @@ last workout's note on the left, today's on the right, each tap-to-open for the 
   scrolls and the Log/Save buttons are pinned outside it, so they stay reachable with
   only a few hundred pixels of screen left.
 
+### Compare with an older workout
+
+The left column's "Last · date" label is a button. It opens **Compare with**, every finished
+workout that logged this lift (`getLiftSessions`, newest first, heaviest set shown), and a
+pick reloads the screen with `?from=<session id>` (`getLiftSetsInSession`). The label turns
+orange and drops "Last ·" while a picked one shows; picking the newest clears `?from`. It
+feeds `last` everywhere — the set sheet's "Last time:" and the notes split follow it. Not
+saved anywhere: leaving the screen goes back to the most recent.
+
 ## Deleting from History
 
 A row on `/history` slides left to uncover **Delete**, which opens an inline confirm —

@@ -1113,6 +1113,65 @@ export async function getLastSessionSets(names: string[]): Promise<Map<string, L
   return out;
 }
 
+/** One past workout that has a given lift — a row in the "compare with" list
+ *  on the gym screen. `top` is the heaviest completed set that day. */
+export type LiftSessionOption = {
+  sessionId: string; date: string; dayName: string; sets: number;
+  topWeight: number; topReps: number;
+};
+
+/** Every finished workout that logged this lift, newest first. */
+export async function getLiftSessions(name: string): Promise<LiftSessionOption[]> {
+  const rows = (await sql`
+    SELECT s.id AS session_id, s.started_at::text AS date, s.day_name,
+           count(sl.id)::int AS sets,
+           (array_agg(sl.weight ORDER BY sl.weight DESC, sl.reps DESC))[1] AS top_weight,
+           (array_agg(sl.reps ORDER BY sl.weight DESC, sl.reps DESC))[1] AS top_reps
+      FROM sessions s
+      JOIN exercise_logs el ON el.session_id = s.id
+      JOIN set_logs sl ON sl.exercise_log_id = el.id AND sl.is_completed
+     WHERE s.finished_at IS NOT NULL AND lower(el.name) = ${name.toLowerCase()}
+     GROUP BY s.id
+     ORDER BY s.started_at DESC
+     LIMIT 60`) as {
+    session_id: string; date: string; day_name: string; sets: number;
+    top_weight: number; top_reps: number;
+  }[];
+  return rows.map((r) => ({
+    sessionId: r.session_id, date: r.date, dayName: r.day_name, sets: r.sets,
+    topWeight: Number(r.top_weight), topReps: r.top_reps,
+  }));
+}
+
+/** This lift's sets in one chosen past workout, shaped like `getLastSessionSets`
+ *  so the gym screen's left column shows either without knowing which. */
+export async function getLiftSetsInSession(
+  name: string, sessionId: string,
+): Promise<LastSession | undefined> {
+  const rows = (await sql`
+    SELECT s.started_at::text AS date, sl.weight, sl.reps, sl.rir, sl.is_warmup,
+           sl.rest_pause_reps, el.notes
+      FROM sessions s
+      JOIN exercise_logs el ON el.session_id = s.id AND lower(el.name) = ${name.toLowerCase()}
+      JOIN set_logs sl ON sl.exercise_log_id = el.id AND sl.is_completed
+     WHERE s.id = ${sessionId} AND s.finished_at IS NOT NULL
+     ORDER BY el.position, sl.set_number`) as {
+    date: string; weight: number; reps: number; rir: number | null; is_warmup: boolean;
+    rest_pause_reps: number; notes: string;
+  }[];
+  if (rows.length === 0) return undefined;
+  const out: LastSession = { date: rows[0].date, sets: [], notes: "" };
+  for (const r of rows) {
+    if (!out.notes && r.notes) out.notes = r.notes;
+    out.sets.push({
+      setNumber: out.sets.length + 1,
+      weight: r.weight, reps: r.reps, rir: r.rir, isWarmup: r.is_warmup,
+      restPauseReps: r.rest_pause_reps,
+    });
+  }
+  return out;
+}
+
 /** Inserts an already-performed set. The gym screen adds sets through the set
  *  sheet, which knows the numbers before the row exists, so there is no empty
  *  row in between to patch. */

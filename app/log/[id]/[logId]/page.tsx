@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import {
-  getExerciseNote, getLastSessionSets, getPreviousSession, getSession, getSettings,
+  getExerciseNote, getLastSessionSets, getLiftSessions, getLiftSetsInSession,
+  getPreviousSession, getSession, getSettings,
 } from "@/lib/db";
 import { effectiveRepsByMuscle } from "@/lib/effective-reps";
 import { ExerciseScreen } from "./exercise";
@@ -15,11 +16,17 @@ export const dynamic = "force-dynamic";
  * finished-session guard rather than trusting the list screen to have run it.
  */
 export default async function ExerciseLogPage({
-  params,
+  params, searchParams,
 }: {
   params: Promise<{ id: string; logId: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { id, logId } = await params;
+  // `?from=<session id>` swaps the left column to a workout picked from the
+  // lift's history instead of the most recent one. Anything that is not a
+  // uuid is ignored rather than handed to Postgres.
+  const { from } = await searchParams;
+  const fromId = from && /^[0-9a-f-]{36}$/i.test(from) ? from : null;
   const session = await getSession(id);
   if (!session) notFound();
   if (session.finishedAt) redirect(`/history/${id}`);
@@ -28,12 +35,15 @@ export default async function ExerciseLogPage({
   if (index === -1) notFound();
   const log = session.exercises[index];
 
-  const [settings, last, note, previous] = await Promise.all([
+  const [settings, latest, picked, liftSessions, note, previous] = await Promise.all([
     getSettings(),
     getLastSessionSets([log.name]),
+    fromId ? getLiftSetsInSession(log.name, fromId) : Promise.resolve(undefined),
+    getLiftSessions(log.name),
     getExerciseNote(log.name),
     getPreviousSession(session),
   ]);
+  const last = picked ?? latest.get(log.name.toLowerCase());
 
   return (
     <ExerciseScreen
@@ -44,7 +54,9 @@ export default async function ExerciseLogPage({
       index={index}
       total={session.exercises.length}
       settings={settings}
-      last={last.get(log.name.toLowerCase())}
+      last={last}
+      lastId={picked ? fromId : null}
+      liftSessions={liftSessions}
       note={note}
       byMuscle={effectiveRepsByMuscle(session.exercises)}
       previous={previous && {
