@@ -559,37 +559,55 @@ function NoteWindow({
 }
 
 /**
- * How much of the screen the on-screen keyboard is covering.
+ * The part of the screen the on-screen keyboard leaves showing.
  *
  * A `position: fixed` element is laid out against the *layout* viewport, which
  * iOS Safari does not shrink when the keyboard comes up — so a sheet pinned to
- * the bottom ends up underneath it, which is exactly what happened to the set
- * sheet. The visual viewport is the part still showing; the difference between
- * the two is the keyboard. Zero on a desktop and on any browser without the
- * API, where the sheet simply sits on the bottom as before.
+ * the bottom ends up underneath it. The visual viewport is the part still
+ * showing, and the sheet is pinned to exactly that: its top and height.
+ *
+ * It used to subtract the keyboard from the bottom instead, and the sheet still
+ * sat a little under the keyboard: iOS pans the page up *after* the resize
+ * event, and the sum was taken mid-animation. Pinning to top + height and
+ * measuring again on the next frames, and on any page scroll, settles it.
+ *
+ * Null on a desktop and on any browser without the API, where the sheet simply
+ * fills the screen as before. `keyboard` is true while one is up.
  */
-function useKeyboardInset(): number {
-  const [inset, setInset] = useState(0);
+function useVisibleArea(): { top: number; height: number; keyboard: boolean } | null {
+  const [area, setArea] = useState<{ top: number; height: number; keyboard: boolean } | null>(null);
 
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
+    const measure = () => setArea({
+      top: Math.round(vv.offsetTop),
+      height: Math.round(vv.height),
+      keyboard: window.innerHeight - vv.height > 80,
+    });
+    let frames = 0;
+    let raf = 0;
+    // iOS reports the final position a few frames late, so keep reading briefly.
     const update = () => {
-      // offsetTop matters: iOS scrolls the visual viewport up as well as
-      // shrinking it, and both together say where the keyboard starts.
-      const covered = window.innerHeight - (vv.height + vv.offsetTop);
-      setInset(Math.max(0, Math.round(covered)));
+      measure();
+      cancelAnimationFrame(raf);
+      frames = 0;
+      const tick = () => { measure(); if (++frames < 20) raf = requestAnimationFrame(tick); };
+      raf = requestAnimationFrame(tick);
     };
     update();
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
+    window.addEventListener("scroll", update);
     return () => {
+      cancelAnimationFrame(raf);
       vv.removeEventListener("resize", update);
       vv.removeEventListener("scroll", update);
+      window.removeEventListener("scroll", update);
     };
   }, []);
 
-  return inset;
+  return area;
 }
 
 /* ------------------------------------------------------------- set sheet */
@@ -637,12 +655,13 @@ function SetSheet({
   // question without the user closing it to go and read the card.
   const lastMatch = last?.sets.find((s) => s.setNumber === target.setNumber);
 
-  const keyboard = useKeyboardInset();
+  const area = useVisibleArea();
+  const keyboard = area?.keyboard ?? false;
 
   return (
     <div
       className="fixed inset-x-0 top-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-sm"
-      style={{ bottom: keyboard }}
+      style={area ? { top: area.top, height: area.height } : { bottom: 0 }}
     >
       <button className="min-h-0 flex-1" aria-label="Close" onClick={onClose} />
       <div className="rise mx-auto flex max-h-full w-full max-w-2xl flex-col rounded-t-3xl
@@ -769,7 +788,7 @@ function SetSheet({
         <div
           className="flex gap-2 border-t border-line px-4 pt-3"
           style={{
-            paddingBottom: keyboard > 0
+            paddingBottom: keyboard
               ? "0.75rem"
               : "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
           }}

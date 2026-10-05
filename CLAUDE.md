@@ -167,9 +167,12 @@ last workout's note on the left, today's on the right, each tap-to-open for the 
 - Saving a new working set starts the rest timer; editing an old one does not.
 - The rating chips call `preventDefault` on mousedown so focus stays in the number field.
   Without it, every tap on a rating closed the keyboard and the sheet dropped back down.
-- The sheet sits above the on-screen keyboard. `useKeyboardInset` reads
+- The sheet sits above the on-screen keyboard. `useVisibleArea` reads
   `window.visualViewport` — iOS Safari does **not** shrink the layout viewport for the
-  keyboard, so a `fixed` sheet pinned to the bottom lands underneath it. The sheet body
+  keyboard, so a `fixed` sheet pinned to the bottom lands underneath it. The overlay is
+  pinned to the visual viewport's `offsetTop` + `height`, re-read for ~20 frames after
+  each event: subtracting the keyboard from `bottom` left it a little under the keyboard
+  (Oct 2026), because iOS pans the page after the resize event fires. The sheet body
   scrolls and the Log/Save buttons are pinned outside it, so they stay reachable with
   only a few hundred pixels of screen left.
 
