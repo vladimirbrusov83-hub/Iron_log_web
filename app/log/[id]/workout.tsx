@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { addExercise, discardWorkout, finishWorkout, noteSession } from "@/app/actions";
+import { addExercise, discardWorkout, dropExercise, finishWorkout, noteSession } from "@/app/actions";
+import { SwipeRow } from "@/app/history/swipe-row";
 import { RestTimer } from "@/components/rest-timer";
 import { WorkoutClock } from "@/components/workout-clock";
 import { BAND_COLOR, BackLink, Button, inputClass } from "@/components/ui";
@@ -31,6 +32,7 @@ type Props = {
 export function Workout({ session, settings, library }: Props) {
   const [pending, startTransition] = useTransition();
   const [picking, setPicking] = useState(false);
+  const [openRow, setOpenRow] = useState<string | null>(null);
   const unit = settings.weightUnit;
 
   const allSets = session.exercises.flatMap((e) => e.sets);
@@ -98,7 +100,17 @@ export function Workout({ session, settings, library }: Props) {
         <ul className="space-y-2">
           {session.exercises.map((log, i) => (
             <li key={log.id}>
-              <ExerciseRow sessionId={session.id} log={log} index={i} unit={unit} />
+              {/* Swipe left to delete a lift added by mistake. Only this
+                  session's entry goes — the program and library are untouched. */}
+              <SwipeRow
+                id={log.id}
+                label={log.name}
+                open={openRow === log.id}
+                onOpen={setOpenRow}
+                onDelete={() => dropExercise(session.id, log.id)}
+              >
+                <ExerciseRow sessionId={session.id} log={log} index={i} unit={unit} />
+              </SwipeRow>
             </li>
           ))}
         </ul>

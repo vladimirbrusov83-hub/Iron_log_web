@@ -33,12 +33,14 @@ const SLOP = 8;         // px before a gesture is judged horizontal or vertical
  * which says what is going. Same shape as the exercise library's delete.
  */
 export function SwipeRow({
-  id, label, open, onOpen, children,
+  id, label, open, onOpen, onDelete, children,
 }: {
   id: string;
   label: string;
   open: boolean;
   onOpen: (id: string | null) => void;
+  /** What Delete does once confirmed. Defaults to deleting a history session. */
+  onDelete?: () => Promise<void>;
   children: ReactNode;
 }) {
   const [dx, setDx] = useState(0);
@@ -167,7 +169,7 @@ export function SwipeRow({
                 startTransition(async () => {
                   // finally, so a failed delete closes the panel and leaves the
                   // row visibly still there rather than stuck on "Deleting…".
-                  try { await removeSessionFromList(id); }
+                  try { await (onDelete ? onDelete() : removeSessionFromList(id)); }
                   finally { setConfirming(false); onOpen(null); }
                 })
               }
