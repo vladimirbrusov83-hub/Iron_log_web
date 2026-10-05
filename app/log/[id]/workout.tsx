@@ -6,12 +6,13 @@ import { addExercise, discardWorkout, dropExercise, finishWorkout, noteSession }
 import { SwipeRow } from "@/app/history/swipe-row";
 import { RestTimer } from "@/components/rest-timer";
 import { WorkoutClock } from "@/components/workout-clock";
+import { ExercisePicker } from "@/components/exercise-picker";
 import { BAND_COLOR, BackLink, Button, inputClass } from "@/components/ui";
 import {
   MAX_RIR, effectiveRepsByMuscle, effectiveRepsCoverage, isCountedSet, totalEffectiveReps,
 } from "@/lib/effective-reps";
 import { SESSION_ER_HIGH, SESSION_ER_LOW, sessionErBand } from "@/lib/targets";
-import { MUSCLE_GROUPS, setVolume } from "@/lib/types";
+import { setVolume } from "@/lib/types";
 import type { Exercise, ExerciseLog, Session, Settings } from "@/lib/types";
 
 type Props = {
@@ -29,10 +30,12 @@ type Props = {
  * split in September 2026 — the old two-column cards stacked down one page
  * left no room to read either side.
  */
-export function Workout({ session, settings, library }: Props) {
+export function Workout({ session, settings, library: initialLibrary }: Props) {
   const [pending, startTransition] = useTransition();
   const [picking, setPicking] = useState(false);
   const [openRow, setOpenRow] = useState<string | null>(null);
+  // Held in state so a lift created in the picker shows up without a reload.
+  const [library, setLibrary] = useState(initialLibrary);
   const unit = settings.weightUnit;
 
   const allSets = session.exercises.flatMap((e) => e.sets);
@@ -178,10 +181,14 @@ export function Workout({ session, settings, library }: Props) {
       {picking && (
         <ExercisePicker
           library={library}
+          onCreated={(made) => setLibrary((current) => [...current, made])}
           onClose={() => setPicking(false)}
-          onPick={(exerciseId, name, muscleGroup) => {
+          onAdd={(chosen) => {
             setPicking(false);
-            run(() => { void addExercise(session.id, exerciseId, name, muscleGroup); });
+            // One at a time, so they land in the order they were ticked.
+            run(async () => {
+              for (const e of chosen) await addExercise(session.id, e.id, e.name, e.muscleGroup);
+            });
           }}
         />
       )}
@@ -256,90 +263,5 @@ function ExerciseRow({
 
       <span className="shrink-0 text-lg text-ink-faint" aria-hidden>›</span>
     </Link>
-  );
-}
-
-/* ---------------------------------------------------------------- picker */
-
-function ExercisePicker({
-  library, onPick, onClose,
-}: {
-  library: Exercise[];
-  onPick: (id: string | null, name: string, muscleGroup: string) => void;
-  onClose: () => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [group, setGroup] = useState<string | null>(null);
-  const q = query.trim().toLowerCase();
-  const groups = MUSCLE_GROUPS.filter((m) => library.some((e) => e.muscleGroup === m));
-  const matches = library.filter((e) =>
-    (q === "" || e.name.toLowerCase().includes(q)) && (group === null || e.muscleGroup === group));
-  const exact = library.some((e) => e.name.toLowerCase() === q);
-
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-bg/95 backdrop-blur-md"
-         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-4">
-        <div className="flex items-center gap-2">
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search or type a new lift"
-            className={inputClass}
-          />
-          <Button onClick={onClose}>Close</Button>
-        </div>
-
-        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
-          {[null, ...groups].map((g) => (
-            <button
-              key={g ?? "all"}
-              onClick={() => setGroup(g)}
-              className={`shrink-0 rounded-full border px-3 py-1 text-xs ${
-                group === g ? "border-accent text-accent" : "border-line-2 text-ink-dim"
-              }`}
-            >
-              {g ?? "All"}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-2 flex-1 overflow-y-auto pb-6">
-          {q !== "" && !exact && (
-            <button
-              onClick={() => onPick(null, query.trim(), group ?? "Other")}
-              className="mb-2 w-full rounded-xl border border-dashed border-accent/50 px-3 py-3
-                         text-left text-sm text-accent"
-            >
-              Log &ldquo;{query.trim()}&rdquo; as a one-off
-              <span className="block text-[11px] text-ink-faint">
-                Not added to the library — do that on the Exercises page.
-              </span>
-            </button>
-          )}
-          <ul className="space-y-1">
-            {matches.map((e) => (
-              <li key={e.id}>
-                <button
-                  onClick={() => onPick(e.id, e.name, e.muscleGroup)}
-                  className="flex w-full items-center justify-between rounded-xl border
-                             border-line bg-panel px-3 py-3 text-left active:bg-panel-2"
-                >
-                  <span className="truncate">{e.name}</span>
-                  <span className="ml-2 shrink-0 text-[11px] text-ink-faint">{e.muscleGroup}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {matches.length === 0 && q === "" && (
-            <p className="py-8 text-center text-sm text-ink-faint">
-              The library is empty. Run <code>npm run db:push</code>, or add lifts on{" "}
-              <Link href="/exercises" className="text-accent underline">Exercises</Link>.
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }
