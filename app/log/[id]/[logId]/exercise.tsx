@@ -659,6 +659,16 @@ function SetSheet({
   const keyboard = area?.keyboard ?? false;
 
   return (
+    <>
+    {/* Solid fill under the keyboard. The iOS keyboard bar is see-through, and
+        without this the screen's orange Done button showed through it. */}
+    {area?.keyboard && (
+      <div
+        aria-hidden
+        className="fixed inset-x-0 z-50 bg-panel"
+        style={{ top: area.top + area.height, height: "100lvh" }}
+      />
+    )}
     <div
       className="fixed inset-x-0 top-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-sm"
       style={area ? { top: area.top, height: area.height } : { bottom: 0 }}
@@ -815,6 +825,7 @@ function SetSheet({
         </div>
       </div>
     </div>
+    </>
   );
 }
 
