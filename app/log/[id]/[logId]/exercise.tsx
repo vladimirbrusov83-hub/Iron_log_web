@@ -184,22 +184,26 @@ export function ExerciseScreen({
             {/* ---------------------------------------------- last time */}
             <div className="border-r border-line px-3 py-3">
               {/* Tap to compare with any earlier workout of this lift, not
-                  only the most recent. Orange while a picked one is showing. */}
-              <button
-                type="button"
-                onClick={() => setChoosingLast(true)}
-                disabled={liftSessions.length === 0}
-                className={`eyebrow -mx-1 -mt-1 mb-0.5 flex min-h-9 items-center gap-1 rounded-lg px-1
-                            active:bg-panel-2 disabled:opacity-100`}
-                style={lastId ? { color: "var(--accent)" } : undefined}
-              >
-                {last
-                  ? `${lastId ? "" : "Last · "}${new Date(last.date).toLocaleDateString("en-US", {
-                      day: "numeric", month: "short",
-                    })}`
-                  : "Last"}
-                {liftSessions.length > 1 && <span aria-hidden className="text-[10px]">▾</span>}
-              </button>
+                  only the most recent. A bordered pill so it reads as a
+                  control; orange while a picked (older) one is showing. */}
+              {liftSessions.length > 0 && last ? (
+                <button
+                  type="button"
+                  onClick={() => setChoosingLast(true)}
+                  className={`eyebrow mb-1.5 inline-flex h-8 items-center gap-1.5 rounded-full border px-3
+                              active:bg-panel-2 ${lastId ? "border-accent/70 bg-accent-soft" : "border-line-2 bg-panel-2"}`}
+                  style={{ color: lastId ? "var(--accent)" : "var(--ink)" }}
+                >
+                  {lastId ? "" : "Last · "}
+                  {new Date(last.date).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+              ) : (
+                <p className="eyebrow mb-1.5">Last</p>
+              )}
               {last ? (
                 <ul className="tnum space-y-0.5">
                   {last.sets.map((s) => (
