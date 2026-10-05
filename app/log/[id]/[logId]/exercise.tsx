@@ -190,7 +190,8 @@ export function ExerciseScreen({
                 onClick={() => setChoosingLast(true)}
                 disabled={liftSessions.length === 0}
                 className={`eyebrow -mx-1 -mt-1 mb-0.5 flex min-h-9 items-center gap-1 rounded-lg px-1
-                            active:bg-panel-2 disabled:opacity-100 ${lastId ? "text-accent" : ""}`}
+                            active:bg-panel-2 disabled:opacity-100`}
+                style={lastId ? { color: "var(--accent)" } : undefined}
               >
                 {last
                   ? `${lastId ? "" : "Last · "}${new Date(last.date).toLocaleDateString("en-US", {
