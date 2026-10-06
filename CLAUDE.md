@@ -90,7 +90,7 @@ that stays the line. `getMuscleTotals` returns `hardSets` and `sessions` for the
 
 ## Stats: effective reps by week
 
-One chart, not one per muscle (Vladimir, Oct 2026, to save screen space). `app/stats/weekly-chart.tsx` takes `getWeeklyMuscleTotals(12)` — every week start in the window (empty weeks drawn as flat gaps) plus per-muscle-per-week rows — and a chip row picks All muscles or one group. "All" is the sum of the rows. The pick is remembered in `localStorage` (`ironlog.stats.muscle`). The line under it carries the `rated of sets` count. It ignores the 7d/30d/1y tabs; it is always the last 12 weeks.
+One chart, not one per muscle (Vladimir, Oct 2026, to save screen space). `app/stats/weekly-chart.tsx` takes `getWeeklyMuscleTotals(12)` — every week start in the window (drawn as connected dots; a week with nothing for the picked muscle breaks the line and shows a grey dot on the baseline) plus per-muscle-per-week rows — and a chip row picks All muscles or one group. "All" is the sum of the rows. The pick is remembered in `localStorage` (`ironlog.stats.muscle`). The line under it carries the `rated of sets` count. It ignores the 7d/30d/1y tabs; it is always the last 12 weeks.
 
 ## Design
 

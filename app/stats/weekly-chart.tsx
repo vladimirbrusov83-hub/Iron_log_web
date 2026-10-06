@@ -10,7 +10,7 @@ const STORE_KEY = "ironlog.stats.muscle";
 
 /**
  * One chart, one muscle at a time: effective reps per week over the last
- * twelve weeks, empty weeks drawn as gaps. The chip row picks the muscle;
+ * twelve weeks as connected dots, empty weeks breaking the line. The chip row picks the muscle;
  * the choice is remembered on this phone only.
  */
 export function WeeklyChart({ weeks, rows }: { weeks: string[]; rows: WeeklyMuscleRow[] }) {
@@ -47,6 +47,20 @@ export function WeeklyChart({ weeks, rows }: { weeks: string[]; rows: WeeklyMusc
     };
   });
   const peak = Math.max(1, ...bars.map((b) => b.er));
+  const points = bars.map((b, i) => ({
+    ...b,
+    x: ((i + 0.5) / bars.length) * 100,
+    y: b.sets > 0 ? 100 - (b.er / peak) * 100 : 100,
+  }));
+  // A week with nothing logged for the muscle breaks the line rather than
+  // diving to zero — it shows as a small grey dot on the baseline instead.
+  const segments: (typeof points)[] = [];
+  let run: typeof points = [];
+  for (const p of points) {
+    if (p.sets > 0) run.push(p);
+    else if (run.length) { segments.push(run); run = []; }
+  }
+  if (run.length) segments.push(run);
   const total = bars.reduce((n, b) => n + b.er, 0);
   const sets = picked.reduce((n, r) => n + r.workingSets, 0);
   const rated = picked.reduce((n, r) => n + r.ratedSets, 0);
@@ -70,25 +84,58 @@ export function WeeklyChart({ weeks, rows }: { weeks: string[]; rows: WeeklyMusc
         ))}
       </div>
 
-      <div className="flex h-32 items-end gap-1">
-        {bars.map((b) => (
-          <div key={b.week} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <span className={`display tnum text-[11px] font-semibold ${b.er > 0 ? "text-accent" : "text-ink-faint"}`}>
-              {b.sets > 0 ? b.er : ""}
-            </span>
-            <div
-              className={`w-full rounded-t-md transition-[height] duration-300 ${
-                b.sets > 0 ? "bg-accent/80" : "bg-line"
-              }`}
-              style={{ height: `${b.sets > 0 ? Math.max(3, (b.er / peak) * 88) : 2}px` }}
-              title={`${b.er} eff reps · ${b.sets} sets`}
+      {/* Line and dots share one coordinate space: x is the week's column centre,
+          y is the share of the peak. The SVG stretches to fit (the stroke does not
+          scale); dots and numbers are HTML on top so they stay round and crisp. */}
+      <div className="relative mt-5 h-28">
+        <svg
+          className="absolute inset-0 h-full w-full overflow-visible"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <line x1="0" x2="100" y1="100" y2="100" className="stroke-line" strokeWidth="1"
+            vectorEffect="non-scaling-stroke" />
+          {segments.map((seg, i) => (
+            <polyline
+              key={i}
+              points={seg.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill="none"
+              className="stroke-accent"
+              strokeWidth="2"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
             />
-            <span className="text-[9px] text-ink-faint">
-              {new Date(`${b.week}T00:00:00`).toLocaleDateString("en-US", {
-                month: "numeric", day: "numeric",
-              })}
-            </span>
+          ))}
+        </svg>
+        {points.map((p) => (
+          <div
+            key={p.week}
+            className="absolute -translate-x-1/2 translate-y-1/2"
+            style={{ left: `${p.x}%`, bottom: `${100 - p.y}%` }}
+            title={`${p.er} eff reps · ${p.sets} sets`}
+          >
+            {p.sets > 0 ? (
+              <>
+                <span className="display tnum absolute bottom-full left-1/2 mb-1 -translate-x-1/2 text-[11px] font-semibold text-accent">
+                  {p.er}
+                </span>
+                <span className="block size-2.5 rounded-full border-2 border-accent bg-panel" />
+              </>
+            ) : (
+              <span className="block size-1.5 rounded-full bg-line-2" />
+            )}
           </div>
+        ))}
+      </div>
+      <div className="mt-2 flex">
+        {points.map((p) => (
+          <span key={p.week} className="flex-1 text-center text-[9px] text-ink-faint">
+            {new Date(`${p.week}T00:00:00`).toLocaleDateString("en-US", {
+              month: "numeric", day: "numeric",
+            })}
+          </span>
         ))}
       </div>
 
