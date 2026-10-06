@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   getBodyweight, getExerciseTotals, getHeadline, getMuscleTotals,
-  getPersonalRecords, getSettings, getTrainingTime, getWeeklyTotals,
+  getPersonalRecords, getSettings, getTrainingTime, getWeeklyMuscleTotals,
 } from "@/lib/db";
 import {
   BAND_COLOR, BandTag, Empty, Header, Page, Panel, SectionTitle, SetsBandBar, Stat,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/targets";
 import { estimated1RM } from "@/lib/types";
 import { BodyweightPanel } from "./bodyweight";
+import { WeeklyChart } from "./weekly-chart";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function StatsPage({
   const [headline, weekly, muscles, exercises, records, bodyweight, settings, time] =
     await Promise.all([
       getHeadline(days),
-      getWeeklyTotals(12),
+      getWeeklyMuscleTotals(12),
       getMuscleTotals(days),
       getExerciseTotals(days),
       getPersonalRecords(),
@@ -52,7 +53,6 @@ export default async function StatsPage({
 
   const unit = settings.weightUnit;
   const unrated = headline.workingSets - headline.ratedSets;
-  const peakWeekly = Math.max(1, ...weekly.map((w) => w.effectiveReps));
 
   return (
     <Page>
@@ -201,31 +201,7 @@ export default async function StatsPage({
 
       <section className="rise rise-4 mb-5">
         <SectionTitle>Effective reps by week</SectionTitle>
-        {weekly.length === 0 ? (
-          <Empty>No finished sessions yet.</Empty>
-        ) : (
-          <Panel>
-            <div className="flex h-28 items-end gap-1">
-              {weekly.map((w) => (
-                <div key={w.weekStart} className="group flex flex-1 flex-col items-center gap-1">
-                  <span className="display tnum text-xs font-semibold text-accent">
-                    {w.effectiveReps}
-                  </span>
-                  <div
-                    className="w-full rounded-t-md bg-accent/80 transition-colors group-hover:bg-accent"
-                    style={{ height: `${Math.max(3, (w.effectiveReps / peakWeekly) * 80)}px` }}
-                    title={`${w.workingSets} sets · ${Math.round(w.volume).toLocaleString("en-US")} ${unit}`}
-                  />
-                  <span className="text-[9px] text-ink-faint">
-                    {new Date(`${w.weekStart}T00:00:00`).toLocaleDateString("en-US", {
-                      month: "numeric", day: "numeric",
-                    })}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Panel>
-        )}
+        <WeeklyChart weeks={weekly.weeks} rows={weekly.rows} />
       </section>
 
       <section className="mb-5">

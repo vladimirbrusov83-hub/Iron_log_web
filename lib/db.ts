@@ -912,6 +912,63 @@ export async function getWeeklyTotals(weeks = 12): Promise<WeeklyTotals[]> {
   }));
 }
 
+export type WeeklyMuscleRow = {
+  weekStart: string;
+  muscleGroup: string;
+  effectiveReps: number;
+  workingSets: number;
+  ratedSets: number;
+};
+
+/**
+ * The last `weeks` week starts, oldest first — empty weeks included so a gap
+ * shows as a gap — plus effective reps per muscle per week. "All muscles" is
+ * the sum of the rows; every exercise_log carries a muscle group.
+ */
+export async function getWeeklyMuscleTotals(
+  weeks = 12,
+): Promise<{ weeks: string[]; rows: WeeklyMuscleRow[] }> {
+  const [weekRows, rows] = await Promise.all([
+    sql.query(
+      `SELECT to_char(w, 'YYYY-MM-DD') AS week_start
+         FROM generate_series(date_trunc('week', now()) - ($1::int - 1) * interval '1 week',
+                              date_trunc('week', now()), interval '1 week') AS w
+        ORDER BY w`,
+      [weeks],
+    ) as unknown as Promise<{ week_start: string }[]>,
+    sql.query(
+      `SELECT to_char(date_trunc('week', s.started_at), 'YYYY-MM-DD') AS week_start,
+              el.muscle_group,
+              coalesce(sum(${effectiveRepsSQL}), 0) AS effective_reps,
+              count(*) FILTER (WHERE ${countedSetSQL}) AS working_sets,
+              count(*) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL) AS rated_sets
+         FROM sessions s
+         JOIN exercise_logs el ON el.session_id = s.id
+         JOIN set_logs sl ON sl.exercise_log_id = el.id
+        WHERE s.finished_at IS NOT NULL
+          AND s.started_at >= date_trunc('week', now()) - ($1::int - 1) * interval '1 week'
+          AND sl.is_completed
+        GROUP BY 1, 2`,
+      [weeks],
+    ) as unknown as Promise<{
+      week_start: string; muscle_group: string; effective_reps: string;
+      working_sets: string; rated_sets: string;
+    }[]>,
+  ]);
+  return {
+    weeks: weekRows.map((r) => r.week_start),
+    rows: rows
+      .map((r) => ({
+        weekStart: r.week_start,
+        muscleGroup: r.muscle_group,
+        effectiveReps: Number(r.effective_reps),
+        workingSets: Number(r.working_sets),
+        ratedSets: Number(r.rated_sets),
+      }))
+      .filter((r) => r.workingSets > 0),
+  };
+}
+
 export type MuscleTotals = {
   muscleGroup: string;
   workingSets: number;
