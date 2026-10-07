@@ -155,39 +155,6 @@ export default async function StatsPage({
         )}
       </Fold>
 
-      {/* Said once, here, rather than repeated under every number above. */}
-      <Panel className="rise rise-3 mb-5">
-        <h2 className="eyebrow">How this is counted</h2>
-        <dl className="mt-2 space-y-1.5 text-xs leading-relaxed text-ink-dim">
-          <div>
-            <dt className="inline text-ink">Effective reps. </dt>
-            <dd className="inline">
-              A set scores {EFFECTIVE_REP_THRESHOLD} − RIR, capped at the reps done. To failure
-              scores {EFFECTIVE_REP_THRESHOLD}; at 2 RIR, 3. Above {MAX_COUNTED_RIR} RIR a set
-              does not count at all — not scored, not a working set, no volume.
-              {unrated > 0 && (
-                <> <span className="text-ink">{unrated} set{unrated === 1 ? "" : "s"} in this window
-                had no RIR</span> and count as zero, so the totals are a floor.</>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className="inline text-ink">Hard set. </dt>
-            <dd className="inline">
-              A working set finished within {HARD_SET_MAX_RIR} reps of failure. Floor{" "}
-              {WEEKLY_SETS_FLOOR} a week per muscle; productive range {WEEKLY_SETS_LOW}–{WEEKLY_SETS_HIGH}.
-            </dd>
-          </div>
-          <div>
-            <dt className="inline text-ink">Per session. </dt>
-            <dd className="inline">
-              {SESSION_ER_LOW}–{SESSION_ER_HIGH} effective reps per muscle, trained{" "}
-              {FREQUENCY_TARGET}× a week. From <em>Hypertrophy Training — Principles That Work</em>.
-            </dd>
-          </div>
-        </dl>
-      </Panel>
-
       <Fold title="Effective reps by exercise" hint={`${exercises.length} lift${exercises.length === 1 ? "" : "s"}`}>
         {exercises.length === 0 ? (
           <Empty>Nothing in this window.</Empty>
@@ -247,6 +214,39 @@ export default async function StatsPage({
       </Fold>
 
       <BodyweightPanel entries={bodyweight} unit={unit} />
+
+      {/* Said once, here, rather than repeated under every number above. */}
+      <Panel className="mb-5">
+        <h2 className="eyebrow">How this is counted</h2>
+        <dl className="mt-2 space-y-1.5 text-xs leading-relaxed text-ink-dim">
+          <div>
+            <dt className="inline text-ink">Effective reps. </dt>
+            <dd className="inline">
+              A set scores {EFFECTIVE_REP_THRESHOLD} − RIR, capped at the reps done. To failure
+              scores {EFFECTIVE_REP_THRESHOLD}; at 2 RIR, 3. Above {MAX_COUNTED_RIR} RIR a set
+              does not count at all — not scored, not a working set, no volume.
+              {unrated > 0 && (
+                <> <span className="text-ink">{unrated} set{unrated === 1 ? "" : "s"} in this window
+                had no RIR</span> and count as zero, so the totals are a floor.</>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className="inline text-ink">Hard set. </dt>
+            <dd className="inline">
+              A working set finished within {HARD_SET_MAX_RIR} reps of failure. Floor{" "}
+              {WEEKLY_SETS_FLOOR} a week per muscle; productive range {WEEKLY_SETS_LOW}–{WEEKLY_SETS_HIGH}.
+            </dd>
+          </div>
+          <div>
+            <dt className="inline text-ink">Per session. </dt>
+            <dd className="inline">
+              {SESSION_ER_LOW}–{SESSION_ER_HIGH} effective reps per muscle, trained{" "}
+              {FREQUENCY_TARGET}× a week. From <em>Hypertrophy Training — Principles That Work</em>.
+            </dd>
+          </div>
+        </dl>
+      </Panel>
     </Page>
   );
 }

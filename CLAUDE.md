@@ -91,8 +91,8 @@ that stays the line. `getMuscleTotals` returns `hardSets` and `sessions` for the
 ## Stats layout
 
 Order (Vladimir, Oct 2026): window tabs, headline, **Days & time trained**, **Effective reps
-by week**, then By muscle group, How this is counted, By exercise, Personal records,
-Bodyweight. By muscle group, By exercise and Personal records are native `<details>`
+by week**, then By muscle group, By exercise, Personal records, Bodyweight, How this
+is counted (last). By muscle group, By exercise and Personal records are native `<details>`
 (`Fold` in `page.tsx`), closed by default, count on the summary row. Days & time is
 `app/stats/training-time.tsx`: a 5-across picker (7d/30d/90d/1y/All) showing one window's
 days + time; all windows come from the server, the pick is `localStorage`
