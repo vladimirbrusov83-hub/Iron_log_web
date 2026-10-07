@@ -88,6 +88,16 @@ session; 2 sessions a week. A "hard set" is a working set at RIR ≤ 3. They col
 Today, Stats, History and the program editor. They never turn into a suggested load —
 that stays the line. `getMuscleTotals` returns `hardSets` and `sessions` for them.
 
+## Stats layout
+
+Order (Vladimir, Oct 2026): window tabs, headline, **Days & time trained**, **Effective reps
+by week**, then By muscle group, How this is counted, By exercise, Personal records,
+Bodyweight. By muscle group, By exercise and Personal records are native `<details>`
+(`Fold` in `page.tsx`), closed by default, count on the summary row. Days & time is
+`app/stats/training-time.tsx`: a 5-across picker (7d/30d/90d/1y/All) showing one window's
+days + time; all windows come from the server, the pick is `localStorage`
+(`ironlog.stats.timeWindow`).
+
 ## Stats: effective reps by week
 
 One chart, not one per muscle (Vladimir, Oct 2026, to save screen space). `app/stats/weekly-chart.tsx` takes `getWeeklyMuscleTotals(12)` — every week start in the window (drawn as connected dots; a week with nothing for the picked muscle breaks the line and shows a grey dot on the baseline) plus per-muscle-per-week rows — and a chip row picks All muscles or one group. "All" is the sum of the rows. The pick is remembered in `localStorage` (`ironlog.stats.muscle`). The line under it carries the `rated of sets` count. It ignores the 7d/30d/1y tabs; it is always the last 12 weeks.

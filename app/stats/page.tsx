@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   getBodyweight, getExerciseTotals, getHeadline, getMuscleTotals,
   getPersonalRecords, getSettings, getTrainingTime, getWeeklyMuscleTotals,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/targets";
 import { estimated1RM } from "@/lib/types";
 import { BodyweightPanel } from "./bodyweight";
+import { TrainingTime } from "./training-time";
 import { WeeklyChart } from "./weekly-chart";
 
 export const dynamic = "force-dynamic";
@@ -90,34 +92,21 @@ export default async function StatsPage({
 
       <section className="rise rise-2 mb-5">
         <SectionTitle>Days &amp; time trained</SectionTitle>
-        <Panel>
-          <table className="tnum w-full text-sm">
-            <thead>
-              <tr className="text-[9px] uppercase tracking-wider text-ink-faint">
-                <th className="pb-1.5 text-left font-normal"></th>
-                <th className="pb-1.5 text-right font-normal">Days</th>
-                <th className="pb-1.5 text-right font-normal">Time</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line/60">
-              {TIME_WINDOWS.map((w, i) => (
-                <tr key={w.label}>
-                  <td className="py-2 text-ink-dim">{w.label}</td>
-                  <td className="display py-2 text-right text-lg font-semibold">
-                    {time[i]?.daysTrained ?? 0}
-                  </td>
-                  <td className="display py-2 text-right text-lg font-semibold text-accent">
-                    {fmtDuration(time[i]?.seconds ?? 0)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
+        <TrainingTime
+          windows={TIME_WINDOWS.map((w, i) => ({
+            label: w.label,
+            days: time[i]?.daysTrained ?? 0,
+            time: fmtDuration(time[i]?.seconds ?? 0),
+          }))}
+        />
       </section>
 
       <section className="rise rise-2 mb-5">
-        <SectionTitle>By muscle group · per week</SectionTitle>
+        <SectionTitle>Effective reps by week</SectionTitle>
+        <WeeklyChart weeks={weekly.weeks} rows={weekly.rows} />
+      </section>
+
+      <Fold title="By muscle group · per week" hint={`${muscles.length} muscle${muscles.length === 1 ? "" : "s"}`}>
         {muscles.length === 0 ? (
           <Empty>Nothing in this window.</Empty>
         ) : (
@@ -164,7 +153,7 @@ export default async function StatsPage({
             </ul>
           </Panel>
         )}
-      </section>
+      </Fold>
 
       {/* Said once, here, rather than repeated under every number above. */}
       <Panel className="rise rise-3 mb-5">
@@ -199,13 +188,7 @@ export default async function StatsPage({
         </dl>
       </Panel>
 
-      <section className="rise rise-4 mb-5">
-        <SectionTitle>Effective reps by week</SectionTitle>
-        <WeeklyChart weeks={weekly.weeks} rows={weekly.rows} />
-      </section>
-
-      <section className="mb-5">
-        <SectionTitle>By exercise</SectionTitle>
+      <Fold title="Effective reps by exercise" hint={`${exercises.length} lift${exercises.length === 1 ? "" : "s"}`}>
         {exercises.length === 0 ? (
           <Empty>Nothing in this window.</Empty>
         ) : (
@@ -241,10 +224,9 @@ export default async function StatsPage({
             )}
           </Panel>
         )}
-      </section>
+      </Fold>
 
-      <section className="mb-5">
-        <SectionTitle>Personal records</SectionTitle>
+      <Fold title="Personal records" hint={`${records.length} lift${records.length === 1 ? "" : "s"}`}>
         {records.length === 0 ? (
           <Empty>Records appear when you finish a session that beats one.</Empty>
         ) : (
@@ -262,7 +244,7 @@ export default async function StatsPage({
             </ul>
           </Panel>
         )}
-      </section>
+      </Fold>
 
       <BodyweightPanel entries={bodyweight} unit={unit} />
     </Page>
@@ -287,5 +269,25 @@ function Cell({ label, value, tone }: { label: string; value: string; tone: stri
       <div className={`display text-lg font-semibold ${tone}`}>{value}</div>
       <div className="text-[9px] uppercase tracking-wider text-ink-faint">{label}</div>
     </div>
+  );
+}
+
+/** A section folded away by default, its count on the summary row. Native <details>, no JS. */
+function Fold({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
+  return (
+    <details className="group mb-5">
+      <summary className="mb-2 flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-2xl border border-line bg-panel px-4 [&::-webkit-details-marker]:hidden">
+        <h2 className="eyebrow flex-1">{title}</h2>
+        <span className="text-xs text-ink-faint">{hint}</span>
+        <svg
+          className="shrink-0 text-ink-faint transition-transform group-open:rotate-180"
+          width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </summary>
+      {children}
+    </details>
   );
 }
