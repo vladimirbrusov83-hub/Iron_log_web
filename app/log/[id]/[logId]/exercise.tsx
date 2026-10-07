@@ -137,8 +137,9 @@ export function ExerciseScreen({
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <div className="text-right">
+                {/* Coloured against 20–40 per muscle per session, like the ⋯ panel. */}
                 <div className={`display tnum text-4xl font-semibold leading-none ${
-                  headerTotal ? "text-accent" : "text-ink-faint"
+                  BAND_COLOR[sessionErBand(headerTotal)]
                 }`}>
                   {headerTotal}
                 </div>
