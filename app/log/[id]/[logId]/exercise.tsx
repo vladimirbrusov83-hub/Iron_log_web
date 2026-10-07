@@ -206,16 +206,20 @@ export function ExerciseScreen({
                 <p className="eyebrow mb-1.5">Last</p>
               )}
               {last ? (
+                <>
                 <ul className="tnum space-y-0.5">
-                  {last.sets.map((s) => (
+                  {last.sets.map((s) => {
+                    // Last time's sets are all completed (the query only returns those).
+                    const score = effectiveReps({ ...s, isCompleted: true });
+                    return (
                     <li
                       key={s.setNumber}
-                      className="flex items-baseline gap-2 border-b border-line/60 py-1.5 text-sm last:border-0"
+                      className="flex items-baseline gap-1.5 border-b border-line/60 py-1.5 text-sm last:border-0"
                     >
                       <span className="display w-4 shrink-0 text-xs font-semibold text-ink-faint">
                         {s.isWarmup ? "W" : s.setNumber}
                       </span>
-                      <span className="text-ink-dim">
+                      <span className="min-w-0 flex-1 truncate text-ink-dim">
                         <span className="text-ink">{s.weight}</span>
                         <span className="text-ink-faint"> × </span>
                         <span className="text-ink">{s.reps}</span>
@@ -224,9 +228,23 @@ export function ExerciseScreen({
                           <span className="text-ink-faint"> @{s.rir === MAX_RIR ? `${MAX_RIR}+` : s.rir}</span>
                         )}
                       </span>
+                      {/* Dimmer than today's: it is the reference, not the live count. */}
+                      <span className={`display shrink-0 text-base font-semibold ${
+                        score ? "text-ink-dim" : "text-ink-faint"
+                      }`}>
+                        {score === null ? "–" : score}
+                      </span>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
+                <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-1.5">
+                  <span className="eyebrow" style={{ fontSize: 9 }}>Total</span>
+                  <span className="display tnum text-base font-semibold text-ink">
+                    {totalEffectiveReps(last.sets.map((s) => ({ ...s, isCompleted: true })))}
+                  </span>
+                </div>
+                </>
               ) : (
                 <p className="py-2 text-xs text-ink-faint">First time logging this one.</p>
               )}
@@ -277,18 +295,16 @@ export function ExerciseScreen({
                     );
                   })}
                 </ul>
-                {/* The header carries the muscle's total once another lift has
-                    added to it, so this lift's own sum sits here instead. */}
-                {muscleShared && (
-                  <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-1.5">
-                    <span className="eyebrow" style={{ fontSize: 9 }}>This lift</span>
-                    <span className={`display tnum text-base font-semibold ${
-                      exerciseTotal ? "text-accent" : "text-ink-faint"
-                    }`}>
-                      {exerciseTotal}
-                    </span>
-                  </div>
-                )}
+                {/* Always shown, to line up with Last's total. Named "This lift" once
+                    another lift has added to the muscle total in the header. */}
+                <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-1.5">
+                  <span className="eyebrow" style={{ fontSize: 9 }}>{muscleShared ? "This lift" : "Total"}</span>
+                  <span className={`display tnum text-base font-semibold ${
+                    exerciseTotal ? "text-accent" : "text-ink-faint"
+                  }`}>
+                    {exerciseTotal}
+                  </span>
+                </div>
                 </>
               ) : (
                 <p className="py-2 text-xs text-ink-faint">
