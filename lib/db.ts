@@ -1229,6 +1229,34 @@ export async function getLiftSetsInSession(
   return out;
 }
 
+/**
+ * Records a new set on a lift: it fills the first planned set that is still
+ * empty, or is appended when the plan is used up.
+ *
+ * The slot is chosen here, at save time, not from what the screen showed when
+ * the sheet opened. The screen only refreshes once the previous save has come
+ * back from the server, so a second set logged quickly was sent the same
+ * planned row and overwrote the first (found testing Effective Log, Oct 2026).
+ * One UPDATE picks and fills the row, so two quick saves never share one.
+ */
+export async function logNewSet(
+  logId: string,
+  values: {
+    weight: number; reps: number; rir: number | null; isWarmup: boolean; restPauseReps: number;
+  },
+): Promise<void> {
+  const filled = (await sql`
+    UPDATE set_logs
+       SET weight = ${values.weight}, reps = ${values.reps}, rir = ${values.rir}::int,
+           is_completed = true, is_warmup = ${values.isWarmup},
+           rest_pause_reps = ${values.restPauseReps}
+     WHERE id = (SELECT id FROM set_logs
+                  WHERE exercise_log_id = ${logId} AND NOT is_completed
+                  ORDER BY set_number LIMIT 1)
+    RETURNING id`) as { id: string }[];
+  if (filled.length === 0) await insertCompletedSet(logId, values);
+}
+
 /** Inserts an already-performed set. The gym screen adds sets through the set
  *  sheet, which knows the numbers before the row exists, so there is no empty
  *  row in between to patch. */

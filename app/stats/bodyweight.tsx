@@ -3,14 +3,13 @@
 import { useState, useTransition } from "react";
 import { logBodyweight, removeBodyweight } from "@/app/actions";
 import { Bar, Button, Panel, inputClass } from "@/components/ui";
-import type { BodyweightEntry } from "@/lib/types";
+import { type BodyweightEntry, localDate } from "@/lib/types";
 
 export function BodyweightPanel({
   entries, unit,
 }: { entries: BodyweightEntry[]; unit: string }) {
   const [weight, setWeight] = useState("");
   const [pending, startTransition] = useTransition();
-  const today = new Date().toISOString().slice(0, 10);
 
   const recent = entries.slice(0, 14);
   // Scaled against the range that is actually there, not against zero — a
@@ -30,7 +29,7 @@ export function BodyweightPanel({
             const value = Number(weight);
             if (!value) return;
             startTransition(() => {
-              void logBodyweight(value, today);
+              void logBodyweight(value, localDate()); // at the tap, on the phone
               setWeight("");
             });
           }}

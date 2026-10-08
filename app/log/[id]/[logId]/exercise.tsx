@@ -400,7 +400,7 @@ export function ExerciseScreen({
           onSave={(values) => {
             const isNew = !sheet.set;
             setSheet(null);
-            run(() => { void logSet(sessionId, log.id, sheet.set?.id ?? sheet.fillId, values); });
+            run(() => { void logSet(sessionId, log.id, sheet.set?.id ?? null, values); });
             // Rest starts when a set is recorded, not when one is corrected.
             // A set rated too easy to count is a warm-up; no rest is owed for it.
             if (isNew && isCountedSet({ ...values, isCompleted: true })) setRestKey((k) => k + 1);

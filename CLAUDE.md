@@ -164,9 +164,12 @@ last workout's note on the left, today's on the right, each tap-to-open for the 
 - `logSet` is the only way a set is written. It sends weight, reps, RIR and `isCompleted`
   in **one** call, so nothing lands half-saved. `saveSet`/`appendSet`/`db.addSet` were
   deleted when the inline grid went; do not bring back a two-write path.
-- A program day still lays its planned sets out as empty rows. The sheet **fills the next
-  empty row** (`fillId`) before appending, so the plan is consumed instead of sitting
-  blank beside what happened. `finishSession` still sweeps any left over.
+- A program day still lays its planned sets out as empty rows. A new set **fills the next
+  empty row** before appending, so the plan is consumed instead of sitting blank beside
+  what happened. `finishSession` still sweeps any left over. **The row is picked in the
+  database at save time (`db.logNewSet`), never from the screen's `fillId`**: until the
+  previous save comes back, the screen still shows the old rows, and a quick second set
+  was sent the same row id and overwrote the first (Oct 2026).
 - The session actions revalidate with `revalidatePath(path, "layout")`. Plain
   `revalidatePath("/log/<id>")` does **not** cover `/log/<id>/<logId>`, and a set logged
   on the exercise screen would change nothing on it — which reads as a broken app.

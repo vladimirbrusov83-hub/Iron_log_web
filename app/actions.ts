@@ -111,10 +111,9 @@ export async function noteSession(sessionId: string, notes: string) {
  * Records one performed set from the set sheet — the only way sets are entered
  * on the gym screen now.
  *
- * `setId` is an existing row when the workout came from a program day, which
- * lays out its planned sets in advance; the sheet fills the first one that has
- * not been done yet rather than leaving a blank row behind and appending beside
- * it. When there is no such row the set is inserted outright. Either way the
+ * `setId` is an already-logged set being corrected. A new set (null) fills the
+ * first planned row of a program day that has not been done yet, chosen by the
+ * database at save time (db.logNewSet), or is appended. Either way the
  * weight, reps, rating and the completed flag go up in one write, so nothing
  * can land half-saved.
  */
@@ -138,8 +137,10 @@ export async function logSet(
     restPauseReps: Math.round(clampNumber(values.restPauseReps, 0, 500, 0)),
   };
 
+  // `setId` is an existing, already-logged set being corrected. A new set picks
+  // its own planned slot in the database — see db.logNewSet.
   if (setId) await db.updateSet(setId, { ...clean, isCompleted: true });
-  else await db.insertCompletedSet(logId, clean);
+  else await db.logNewSet(logId, clean);
 
   revalidatePath(`/log/${sessionId}`, "layout");
 }

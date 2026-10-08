@@ -144,3 +144,9 @@ export function formatDuration(seconds: number): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
+
+/** Today's date on the phone's own calendar, as YYYY-MM-DD. Not
+ *  `toISOString()`, which is UTC: in the US evening that is already tomorrow. */
+export function localDate(d = new Date()): string {
+  return d.toLocaleDateString("en-CA");
+}
