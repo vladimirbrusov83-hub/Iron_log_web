@@ -58,10 +58,17 @@ export async function removeSessionFromList(sessionId: string) {
 
 export async function addExercise(
   sessionId: string, exerciseId: string | null, name: string, muscleGroup: string,
+  keepInDay = false,
 ) {
   const trimmed = name.trim();
   if (!trimmed) return;
   await db.addExerciseToSession(sessionId, exerciseId || null, trimmed, muscleGroup || "Other");
+  if (keepInDay) {
+    await db.planExerciseOnSessionDay(sessionId, exerciseId || null, trimmed, muscleGroup || "Other");
+    revalidatePath("/programs", "layout");
+    revalidatePath("/");
+    revalidatePath("/start");
+  }
   revalidatePath(`/log/${sessionId}`, "layout");
 }
 

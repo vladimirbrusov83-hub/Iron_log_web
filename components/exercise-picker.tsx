@@ -15,12 +15,16 @@ import type { Exercise } from "@/lib/types";
  * into the day without being searched for a second time.
  */
 export function ExercisePicker({
-  library, onAdd, onCreated, onClose,
+  library, onAdd, onCreated, onClose, keepLabel,
 }: {
   library: Exercise[];
-  onAdd: (exercises: Exercise[]) => void;
+  /** `keep` is the "Keep in <day>" switch; always false when it is not shown. */
+  onAdd: (exercises: Exercise[], keep: boolean) => void;
   onCreated: (exercise: Exercise) => void;
   onClose: () => void;
+  /** The program day's name, in a running workout started from one. Shows the
+   *  switch that also plans the lifts on that day from now on. */
+  keepLabel?: string;
 }) {
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState<string | null>(null);
@@ -31,6 +35,7 @@ export function ExercisePicker({
   const [newCompound, setNewCompound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [keep, setKeep] = useState(false);
 
   const q = query.trim().toLowerCase();
   const groups = MUSCLE_GROUPS.filter((m) => library.some((e) => e.muscleGroup === m));
@@ -251,11 +256,40 @@ export function ExercisePicker({
           className="border-t border-line pt-3"
           style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
         >
+          {keepLabel && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={keep}
+              onClick={() => setKeep((k) => !k)}
+              className={`mb-3 flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5
+                          text-left ${keep ? "border-accent/60 bg-accent-soft" : "border-line-2 bg-panel-2"}`}
+            >
+              <span className="min-w-0 text-sm font-semibold text-ink">
+                <span className="block truncate">Keep in {keepLabel}</span>
+                <span className="block text-[11px] font-normal text-ink-faint">
+                  Planned on this day from next time
+                </span>
+              </span>
+              <span
+                aria-hidden
+                className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${
+                  keep ? "bg-accent" : "bg-line-2"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                    keep ? "translate-x-[18px]" : "translate-x-0.5"
+                  }`}
+                />
+              </span>
+            </button>
+          )}
           <Button
             variant="primary"
             className="w-full"
             disabled={chosen.length === 0}
-            onClick={() => onAdd(chosen)}
+            onClick={() => onAdd(chosen, keepLabel ? keep : false)}
           >
             {chosen.length === 0
               ? "Pick some lifts"

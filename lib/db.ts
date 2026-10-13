@@ -678,6 +678,25 @@ export async function addExerciseToSession(
   return logId;
 }
 
+/**
+ * "Keep in this day": appends a lift added mid-workout to the program day the
+ * session was started from, so it is planned next time. Planned at the schema's
+ * 3 × 10 — the editor changes that. Skipped for a freestyle session, a day since
+ * deleted, or a day that already plans a lift of that name.
+ */
+export async function planExerciseOnSessionDay(
+  sessionId: string, exerciseId: string | null, name: string, muscleGroup: string,
+): Promise<void> {
+  await sql`
+    INSERT INTO planned_exercises (day_id, exercise_id, name, muscle_group, position)
+    SELECT s.day_id, ${exerciseId}::uuid, ${name}, ${muscleGroup},
+           (SELECT coalesce(max(position), -1) + 1 FROM planned_exercises WHERE day_id = s.day_id)
+      FROM sessions s
+     WHERE s.id = ${sessionId} AND s.day_id IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM planned_exercises pe
+                        WHERE pe.day_id = s.day_id AND lower(pe.name) = lower(${name}))`;
+}
+
 export async function removeExerciseLog(logId: string): Promise<void> {
   await sql`DELETE FROM exercise_logs WHERE id = ${logId}`;
 }

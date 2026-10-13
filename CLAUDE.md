@@ -173,6 +173,10 @@ last workout's note on the left, today's on the right, each tap-to-open for the 
 - The session actions revalidate with `revalidatePath(path, "layout")`. Plain
   `revalidatePath("/log/<id>")` does **not** cover `/log/<id>/<logId>`, and a set logged
   on the exercise screen would change nothing on it — which reads as a broken app.
+- **Add exercise** in a workout started from a program day shows a **Keep in <day>** switch
+  (off by default, Oct 2026 at Vladimir's request). On, the lift is also appended to that
+  day's planned lifts at 3 × 10 (`planExerciseOnSessionDay`), skipped if the day already
+  plans that name. Freestyle sessions do not show it.
 - Logging a set leaves you on the lift. There is no jump to the next exercise, by choice.
 - **✓ Done** at the bottom of the lift sets `exercise_logs.is_done` and `router.replace`s
   back to the list, where that row turns green with a ✓ in place of its number. The

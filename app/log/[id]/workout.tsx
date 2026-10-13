@@ -183,11 +183,12 @@ export function Workout({ session, settings, library: initialLibrary }: Props) {
           library={library}
           onCreated={(made) => setLibrary((current) => [...current, made])}
           onClose={() => setPicking(false)}
-          onAdd={(chosen) => {
+          keepLabel={session.dayId ? session.dayName : undefined}
+          onAdd={(chosen, keep) => {
             setPicking(false);
             // One at a time, so they land in the order they were ticked.
             run(async () => {
-              for (const e of chosen) await addExercise(session.id, e.id, e.name, e.muscleGroup);
+              for (const e of chosen) await addExercise(session.id, e.id, e.name, e.muscleGroup, keep);
             });
           }}
         />
