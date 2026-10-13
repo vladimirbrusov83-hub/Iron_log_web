@@ -203,10 +203,12 @@ export function ExerciseScreen({
                   </svg>
                 </button>
               ) : (
-                <p className="eyebrow mb-1.5">Last</p>
+                <p className="eyebrow mb-1.5 flex h-8 items-center">Last</p>
               )}
               {last ? (
                 <>
+                {/* Headers are h-8 and rows h-9 in both columns, so set 1 sits
+                    beside set 1 on one line. Keep them matched. */}
                 <ul className="tnum space-y-0.5">
                   {last.sets.map((s) => {
                     // Last time's sets are all completed (the query only returns those).
@@ -214,7 +216,7 @@ export function ExerciseScreen({
                     return (
                     <li
                       key={s.setNumber}
-                      className="flex items-baseline gap-1.5 border-b border-line/60 py-1.5 text-sm last:border-0"
+                      className="flex h-9 items-center gap-1.5 border-b border-line/60 text-sm last:border-0"
                     >
                       <span className="display w-4 shrink-0 text-xs font-semibold text-ink-faint">
                         {s.isWarmup ? "W" : s.setNumber}
@@ -254,14 +256,14 @@ export function ExerciseScreen({
             {/* Tapping anywhere in this column that is not a set opens the
                 new-set sheet, same as + Add set; a set row opens that set. */}
             <div className="cursor-pointer px-3 py-3" onClick={openNew}>
-              <p className="eyebrow mb-1.5 text-accent">Today</p>
+              <p className="eyebrow mb-1.5 flex h-8 items-center text-accent">Today</p>
               {done.length > 0 ? (
                 <>
                 <ul className="tnum space-y-0.5">
                   {done.map((s, i) => {
                     const score = effectiveReps(s);
                     return (
-                      <li key={s.id}>
+                      <li key={s.id} className="border-b border-line/60 last:border-0">
                         <button
                           onClick={(e) => { e.stopPropagation(); setSheet({
                             set: s, fillId: null,
@@ -269,8 +271,7 @@ export function ExerciseScreen({
                             weight: s.weight, reps: s.reps, rir: s.rir, isWarmup: s.isWarmup,
                             restPauseReps: s.restPauseReps,
                           }); }}
-                          className="flex w-full items-baseline gap-1.5 border-b border-line/60 py-1.5
-                                     text-left text-sm last:border-0 active:bg-panel-2"
+                          className="flex h-9 w-full items-center gap-1.5 text-left text-sm active:bg-panel-2"
                         >
                           <span className="display w-4 shrink-0 text-xs font-semibold text-ink-faint">
                             {s.isWarmup ? "W" : numberAt(i)}
