@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { createExercise, editExercise, removeExercise } from "@/app/actions";
 import { Button, Empty, Header, Page, Panel, inputClass } from "@/components/ui";
 import { MUSCLE_GROUPS } from "@/lib/types";
+import { SecondaryMuscles, withoutPrimary } from "@/components/secondary-muscles";
 import type { ExerciseUsage } from "@/lib/db";
 import type { Exercise } from "@/lib/types";
 
@@ -163,6 +164,11 @@ function Row({
           {usageLabel(usage)}
           {exercise.isCompound && <span className="text-ink-faint"> · compound</span>}
         </span>
+        {exercise.secondaryMuscles.length > 0 && (
+          <span className="block truncate text-[11px] text-ink-faint">
+            + ½ {exercise.secondaryMuscles.join(", ")}
+          </span>
+        )}
         {exercise.notes && (
           <span className="block truncate text-[11px] text-ink-faint">{exercise.notes}</span>
         )}
@@ -183,6 +189,7 @@ function AddDialog({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState("");
   const [muscleGroup, setMuscleGroup] = useState<string>(MUSCLE_GROUPS[0]);
   const [isCompound, setIsCompound] = useState(false);
+  const [secondary, setSecondary] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -191,7 +198,7 @@ function AddDialog({ onClose }: { onClose: () => void }) {
     if (!trimmed) return;
     setError(null);
     startTransition(async () => {
-      const result = await createExercise(trimmed, muscleGroup, isCompound);
+      const result = await createExercise(trimmed, muscleGroup, isCompound, secondary);
       if (result?.ok) onClose();
       else setError(result?.error ?? "Could not add that.");
     });
@@ -199,7 +206,8 @@ function AddDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-line-2 bg-panel p-4">
+      <div className="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-2xl border
+                      border-line-2 bg-panel p-4">
         <h3 className="display text-2xl font-semibold">New exercise</h3>
         <p className="mt-0.5 text-[11px] text-ink-faint">
           Available in every picker afterwards.
@@ -218,7 +226,10 @@ function AddDialog({ onClose }: { onClose: () => void }) {
         <div className="mt-2 flex gap-2">
           <select
             value={muscleGroup}
-            onChange={(e) => setMuscleGroup(e.target.value)}
+            onChange={(e) => {
+              setMuscleGroup(e.target.value);
+              setSecondary((s) => withoutPrimary(s, e.target.value));
+            }}
             className={inputClass}
             aria-label="Muscle group"
           >
@@ -234,6 +245,10 @@ function AddDialog({ onClose }: { onClose: () => void }) {
             />
             Compound
           </label>
+        </div>
+
+        <div className="mt-2">
+          <SecondaryMuscles primary={muscleGroup} value={secondary} onChange={setSecondary} />
         </div>
 
         {error && <p className="mt-2 text-sm text-bad">{error}</p>}
@@ -262,6 +277,7 @@ function EditForm({
   const [name, setName] = useState(exercise.name);
   const [muscleGroup, setMuscleGroup] = useState(exercise.muscleGroup);
   const [isCompound, setIsCompound] = useState(exercise.isCompound);
+  const [secondary, setSecondary] = useState<string[]>(exercise.secondaryMuscles);
   const [notes, setNotes] = useState(exercise.notes);
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -277,7 +293,10 @@ function EditForm({
       <div className="flex gap-2">
         <select
           value={muscleGroup}
-          onChange={(e) => setMuscleGroup(e.target.value)}
+          onChange={(e) => {
+            setMuscleGroup(e.target.value);
+            setSecondary((s) => withoutPrimary(s, e.target.value));
+          }}
           className={inputClass}
           aria-label="Muscle group"
         >
@@ -294,6 +313,7 @@ function EditForm({
           Compound
         </label>
       </div>
+      <SecondaryMuscles primary={muscleGroup} value={secondary} onChange={setSecondary} />
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
@@ -337,7 +357,7 @@ function EditForm({
             className="flex-1"
             disabled={pending || !name.trim()}
             onClick={() => startTransition(() => {
-              void editExercise(exercise.id, name.trim(), muscleGroup, isCompound, notes);
+              void editExercise(exercise.id, name.trim(), muscleGroup, isCompound, notes, secondary);
               onDone();
             })}
           >

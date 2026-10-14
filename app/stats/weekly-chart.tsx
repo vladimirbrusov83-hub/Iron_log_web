@@ -37,7 +37,9 @@ export function WeeklyChart({ weeks, rows }: { weeks: string[]; rows: WeeklyMusc
     try { localStorage.setItem(STORE_KEY, m); } catch { /* ignore */ }
   }
 
-  const picked = rows.filter((r) => muscle === ALL || r.muscleGroup === muscle);
+  // "All" adds up main-muscle credit only: every set sits in exactly one of
+  // those rows, while its "Also works ½" rows would count it again.
+  const picked = rows.filter((r) => (muscle === ALL ? r.isPrimary : r.muscleGroup === muscle));
   const bars = weeks.map((w) => {
     const inWeek = picked.filter((r) => r.weekStart === w);
     return {

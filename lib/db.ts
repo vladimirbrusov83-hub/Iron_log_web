@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import { countedSetSQL, effectiveRepsSQL } from "./effective-reps";
+import { countedSetSQL, effectiveRepsSQL, muscleCreditSQL } from "./effective-reps";
 import { HARD_SET_MAX_RIR } from "./targets";
 import { MAX_DAY_COPIES, byMuscleThenName, estimated1RM } from "./types";
 import type {
@@ -60,13 +60,13 @@ export async function updateSettings(s: Settings): Promise<void> {
 
 export async function getExercises(): Promise<Exercise[]> {
   const rows = (await sql`
-    SELECT id, name, muscle_group, is_compound, notes, is_preset
+    SELECT id, name, muscle_group, secondary_muscles, is_compound, notes, is_preset
       FROM exercises ORDER BY muscle_group, name`) as {
-    id: string; name: string; muscle_group: string;
+    id: string; name: string; muscle_group: string; secondary_muscles: string[];
     is_compound: boolean; notes: string; is_preset: boolean;
   }[];
   return rows.map((r) => ({
-    id: r.id, name: r.name, muscleGroup: r.muscle_group,
+    id: r.id, name: r.name, muscleGroup: r.muscle_group, secondaryMuscles: r.secondary_muscles,
     isCompound: r.is_compound, notes: r.notes, isPreset: r.is_preset,
   })).sort(byMuscleThenName);
 }
@@ -102,10 +102,12 @@ export async function getExerciseUsage(): Promise<Record<string, ExerciseUsage>>
  *  case-insensitive, so "bench press" collides with "Bench Press". */
 export async function addExercise(
   name: string, muscleGroup: string, isCompound: boolean, notes = "",
+  secondaryMuscles: string[] = [],
 ): Promise<string | null> {
   const rows = (await sql`
-    INSERT INTO exercises (name, muscle_group, is_compound, notes)
-    VALUES (${name.trim()}, ${muscleGroup}, ${isCompound}, ${notes})
+    INSERT INTO exercises (name, muscle_group, is_compound, notes, secondary_muscles)
+    VALUES (${name.trim()}, ${muscleGroup}, ${isCompound}, ${notes},
+            ${secondaryMuscles}::text[])
     ON CONFLICT (lower(name)) DO NOTHING
     RETURNING id`) as { id: string }[];
   return rows[0]?.id ?? null;
@@ -113,21 +115,31 @@ export async function addExercise(
 
 export async function updateExercise(
   id: string, name: string, muscleGroup: string, isCompound: boolean, notes: string,
+  secondaryMuscles: string[] = [],
 ): Promise<void> {
   // The muscle group is a snapshot in program days and past workouts too, so a
   // change here is carried to both — otherwise the lift would keep counting
   // toward its old muscle everywhere but the library. Matched by id or by the
   // name it had before this edit (one-off logs have no id), and run before the
-  // rename so that old name can still be read.
+  // rename so that old name can still be read. The "Also works ½" muscles go
+  // the same way, after the main muscle so each row drops its own main one —
+  // a change to them re-counts history as well.
   await sql.transaction([
     sql`UPDATE planned_exercises SET muscle_group = ${muscleGroup}
          WHERE (exercise_id = ${id} OR lower(name) = (SELECT lower(name) FROM exercises WHERE id = ${id})) AND muscle_group <> ${muscleGroup}`,
     sql`UPDATE exercise_logs SET muscle_group = ${muscleGroup}
          WHERE (exercise_id = ${id} OR lower(name) = (SELECT lower(name) FROM exercises WHERE id = ${id})) AND muscle_group <> ${muscleGroup}`,
+    sql`UPDATE planned_exercises
+           SET secondary_muscles = ARRAY(SELECT x FROM unnest(${secondaryMuscles}::text[]) AS x WHERE x <> muscle_group)
+         WHERE exercise_id = ${id} OR lower(name) = (SELECT lower(name) FROM exercises WHERE id = ${id})`,
+    sql`UPDATE exercise_logs
+           SET secondary_muscles = ARRAY(SELECT x FROM unnest(${secondaryMuscles}::text[]) AS x WHERE x <> muscle_group)
+         WHERE exercise_id = ${id} OR lower(name) = (SELECT lower(name) FROM exercises WHERE id = ${id})`,
     sql`
     UPDATE exercises
        SET name = ${name.trim()}, muscle_group = ${muscleGroup},
-           is_compound = ${isCompound}, notes = ${notes}
+           is_compound = ${isCompound}, notes = ${notes},
+           secondary_muscles = ${secondaryMuscles}::text[]
      WHERE id = ${id}`,
   ]);
 }
@@ -187,11 +199,13 @@ async function hydratePrograms(programRows: ProgramRow[]): Promise<Program[]> {
 
   const dayIds = dayRows.map((d) => d.id);
   const exRows = dayIds.length === 0 ? [] : ((await sql`
-    SELECT id, day_id, exercise_id, name, muscle_group, position, planned_sets, planned_reps
+    SELECT id, day_id, exercise_id, name, muscle_group, secondary_muscles, position,
+           planned_sets, planned_reps
       FROM planned_exercises WHERE day_id = ANY(${dayIds}::uuid[])
      ORDER BY day_id, position`) as {
     id: string; day_id: string; exercise_id: string | null; name: string;
-    muscle_group: string; position: number; planned_sets: number; planned_reps: number;
+    muscle_group: string; secondary_muscles: string[]; position: number;
+    planned_sets: number; planned_reps: number;
   }[]);
 
   const exByDay = new Map<string, ProgramDay["exercises"]>();
@@ -199,6 +213,7 @@ async function hydratePrograms(programRows: ProgramRow[]): Promise<Program[]> {
     const list = exByDay.get(e.day_id) ?? [];
     list.push({
       id: e.id, exerciseId: e.exercise_id, name: e.name, muscleGroup: e.muscle_group,
+      secondaryMuscles: e.secondary_muscles,
       position: e.position, plannedSets: e.planned_sets, plannedReps: e.planned_reps,
     });
     exByDay.set(e.day_id, list);
@@ -266,10 +281,11 @@ export async function getProgramDay(dayId: string): Promise<
   if (!row) return null;
 
   const exRows = (await sql`
-    SELECT id, exercise_id, name, muscle_group, position, planned_sets, planned_reps
+    SELECT id, exercise_id, name, muscle_group, secondary_muscles, position,
+           planned_sets, planned_reps
       FROM planned_exercises WHERE day_id = ${dayId} ORDER BY position`) as {
     id: string; exercise_id: string | null; name: string; muscle_group: string;
-    position: number; planned_sets: number; planned_reps: number;
+    secondary_muscles: string[]; position: number; planned_sets: number; planned_reps: number;
   }[];
 
   return {
@@ -279,6 +295,7 @@ export async function getProgramDay(dayId: string): Promise<
       id: row.id, name: row.name, position: row.position,
       exercises: exRows.map((e) => ({
         id: e.id, exerciseId: e.exercise_id, name: e.name, muscleGroup: e.muscle_group,
+        secondaryMuscles: e.secondary_muscles,
         position: e.position, plannedSets: e.planned_sets, plannedReps: e.planned_reps,
       })),
     },
@@ -305,7 +322,7 @@ export type ProgramInput = {
     name: string;
     exercises: {
       exerciseId: string | null; name: string; muscleGroup: string;
-      plannedSets: number; plannedReps: number;
+      secondaryMuscles?: string[]; plannedSets: number; plannedReps: number;
     }[];
   }[];
 };
@@ -345,9 +362,10 @@ export async function saveProgram(draft: ProgramInput): Promise<string> {
     for (const [i, ex] of day.exercises.entries()) {
       statements.push(sql`
         INSERT INTO planned_exercises
-          (day_id, exercise_id, name, muscle_group, position, planned_sets, planned_reps)
+          (day_id, exercise_id, name, muscle_group, secondary_muscles, position,
+           planned_sets, planned_reps)
         VALUES (${dayId}, ${ex.exerciseId}::uuid, ${ex.name}, ${ex.muscleGroup},
-                ${i}, ${ex.plannedSets}, ${ex.plannedReps})`);
+                ${ex.secondaryMuscles ?? []}::text[], ${i}, ${ex.plannedSets}, ${ex.plannedReps})`);
     }
   }
   if (statements.length > 0) await sql.transaction(statements);
@@ -407,8 +425,10 @@ export async function copyProgramDay(dayId: string): Promise<string | null> {
     sql`INSERT INTO program_days (id, program_id, name, position, copied_from)
         VALUES (${newId}, ${src.program_id}, ${src.name}, ${src.position + 1}, ${src.root})`,
     sql`INSERT INTO planned_exercises
-          (day_id, exercise_id, name, muscle_group, position, planned_sets, planned_reps)
-        SELECT ${newId}, exercise_id, name, muscle_group, position, planned_sets, planned_reps
+          (day_id, exercise_id, name, muscle_group, secondary_muscles, position,
+           planned_sets, planned_reps)
+        SELECT ${newId}, exercise_id, name, muscle_group, secondary_muscles, position,
+               planned_sets, planned_reps
           FROM planned_exercises WHERE day_id = ${dayId}`,
   ]);
   return newId;
@@ -425,7 +445,7 @@ export async function reorderProgramDays(programId: string, dayIds: string[]): P
 
 export type PlannedInput = {
   exerciseId: string | null; name: string; muscleGroup: string;
-  plannedSets: number; plannedReps: number;
+  secondaryMuscles?: string[]; plannedSets: number; plannedReps: number;
 };
 
 /**
@@ -445,9 +465,10 @@ export async function saveProgramDay(
   for (const [i, ex] of exercises.entries()) {
     statements.push(sql`
       INSERT INTO planned_exercises
-        (day_id, exercise_id, name, muscle_group, position, planned_sets, planned_reps)
+        (day_id, exercise_id, name, muscle_group, secondary_muscles, position,
+         planned_sets, planned_reps)
       VALUES (${dayId}, ${ex.exerciseId}::uuid, ${ex.name}, ${ex.muscleGroup},
-              ${i}, ${ex.plannedSets}, ${ex.plannedReps})`);
+              ${ex.secondaryMuscles ?? []}::text[], ${i}, ${ex.plannedSets}, ${ex.plannedReps})`);
   }
   await sql.transaction(statements);
 }
@@ -499,6 +520,7 @@ export async function duplicateProgram(id: string): Promise<string | null> {
       name: d.name,
       exercises: d.exercises.map((e) => ({
         exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup,
+        secondaryMuscles: e.secondaryMuscles,
         plannedSets: e.plannedSets, plannedReps: e.plannedReps,
       })),
     })),
@@ -519,12 +541,12 @@ async function hydrateSessions(sessionRows: SessionRow[]): Promise<Session[]> {
   const ids = sessionRows.map((s) => s.id);
 
   const logRows = (await sql`
-    SELECT id, session_id, exercise_id, name, muscle_group, position, notes,
-           planned_sets, planned_reps, is_done
+    SELECT id, session_id, exercise_id, name, muscle_group, secondary_muscles, position,
+           notes, planned_sets, planned_reps, is_done
       FROM exercise_logs WHERE session_id = ANY(${ids}::uuid[])
      ORDER BY session_id, position`) as {
     id: string; session_id: string; exercise_id: string | null; name: string;
-    muscle_group: string; position: number; notes: string;
+    muscle_group: string; secondary_muscles: string[]; position: number; notes: string;
     planned_sets: number; planned_reps: number; is_done: boolean;
   }[];
 
@@ -555,7 +577,7 @@ async function hydrateSessions(sessionRows: SessionRow[]): Promise<Session[]> {
     const list = logsBySession.get(l.session_id) ?? [];
     list.push({
       id: l.id, exerciseId: l.exercise_id, name: l.name, muscleGroup: l.muscle_group,
-      position: l.position, notes: l.notes, plannedSets: l.planned_sets,
+      secondaryMuscles: l.secondary_muscles, position: l.position, notes: l.notes, plannedSets: l.planned_sets,
       plannedReps: l.planned_reps, isDone: l.is_done, sets: setsByLog.get(l.id) ?? [],
     });
     logsBySession.set(l.session_id, list);
@@ -646,10 +668,10 @@ export async function startSession(dayId: string | null): Promise<string> {
       const logId = crypto.randomUUID();
       statements.push(sql`
         INSERT INTO exercise_logs
-          (id, session_id, exercise_id, name, muscle_group, position,
+          (id, session_id, exercise_id, name, muscle_group, secondary_muscles, position,
            planned_sets, planned_reps)
         VALUES (${logId}, ${sessionId}, ${planned.exerciseId}::uuid, ${planned.name},
-                ${planned.muscleGroup}, ${i}, ${planned.plannedSets},
+                ${planned.muscleGroup}, ${planned.secondaryMuscles}::text[], ${i}, ${planned.plannedSets},
                 ${planned.plannedReps})`);
       for (let n = 1; n <= Math.max(1, planned.plannedSets); n++) {
         statements.push(sql`
@@ -662,15 +684,20 @@ export async function startSession(dayId: string | null): Promise<string> {
   return sessionId;
 }
 
-/** Adds a lift to the workout in progress, with one empty set to start. */
+/** Adds a lift to the workout in progress, with one empty set to start. Its
+ *  "Also works ½" muscles come from the library row, when there is one. */
 export async function addExerciseToSession(
   sessionId: string, exerciseId: string | null, name: string, muscleGroup: string,
 ): Promise<string> {
   const logId = crypto.randomUUID();
   await sql.transaction([
     sql`
-      INSERT INTO exercise_logs (id, session_id, exercise_id, name, muscle_group, position)
+      INSERT INTO exercise_logs
+        (id, session_id, exercise_id, name, muscle_group, secondary_muscles, position)
       VALUES (${logId}, ${sessionId}, ${exerciseId}::uuid, ${name}, ${muscleGroup},
+              ARRAY(SELECT x FROM unnest(coalesce(
+                (SELECT secondary_muscles FROM exercises WHERE id = ${exerciseId}::uuid),
+                '{}'::text[])) AS x WHERE x <> ${muscleGroup}),
               (SELECT coalesce(max(position), -1) + 1 FROM exercise_logs
                 WHERE session_id = ${sessionId}))`,
     sql`INSERT INTO set_logs (exercise_log_id, set_number) VALUES (${logId}, 1)`,
@@ -688,8 +715,12 @@ export async function planExerciseOnSessionDay(
   sessionId: string, exerciseId: string | null, name: string, muscleGroup: string,
 ): Promise<void> {
   await sql`
-    INSERT INTO planned_exercises (day_id, exercise_id, name, muscle_group, position)
+    INSERT INTO planned_exercises
+      (day_id, exercise_id, name, muscle_group, secondary_muscles, position)
     SELECT s.day_id, ${exerciseId}::uuid, ${name}, ${muscleGroup},
+           ARRAY(SELECT x FROM unnest(coalesce(
+             (SELECT secondary_muscles FROM exercises WHERE id = ${exerciseId}::uuid),
+             '{}'::text[])) AS x WHERE x <> ${muscleGroup}),
            (SELECT coalesce(max(position), -1) + 1 FROM planned_exercises WHERE day_id = s.day_id)
       FROM sessions s
      WHERE s.id = ${sessionId} AND s.day_id IS NOT NULL
@@ -934,6 +965,10 @@ export async function getWeeklyTotals(weeks = 12): Promise<WeeklyTotals[]> {
 export type WeeklyMuscleRow = {
   weekStart: string;
   muscleGroup: string;
+  /** Credit as the lift's main muscle. Rows with false are "Also works ½"
+   *  credit, which a total across muscles must leave out — every set is
+   *  already in exactly one primary row. */
+  isPrimary: boolean;
   effectiveReps: number;
   workingSets: number;
   ratedSets: number;
@@ -941,8 +976,8 @@ export type WeeklyMuscleRow = {
 
 /**
  * The last `weeks` week starts, oldest first — empty weeks included so a gap
- * shows as a gap — plus effective reps per muscle per week. "All muscles" is
- * the sum of the rows; every exercise_log carries a muscle group.
+ * shows as a gap — plus effective reps per muscle per week, split into main
+ * and "Also works ½" credit. "All muscles" is the sum of the primary rows.
  */
 export async function getWeeklyMuscleTotals(
   weeks = 12,
@@ -957,20 +992,22 @@ export async function getWeeklyMuscleTotals(
     ) as unknown as Promise<{ week_start: string }[]>,
     sql.query(
       `SELECT to_char(date_trunc('week', s.started_at), 'YYYY-MM-DD') AS week_start,
-              el.muscle_group,
-              coalesce(sum(${effectiveRepsSQL}), 0) AS effective_reps,
-              count(*) FILTER (WHERE ${countedSetSQL}) AS working_sets,
-              count(*) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL) AS rated_sets
+              mc.credit_muscle AS muscle_group,
+              mc.credit = 1 AS is_primary,
+              coalesce(sum(mc.credit * (${effectiveRepsSQL})), 0) AS effective_reps,
+              coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL}), 0) AS working_sets,
+              coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL), 0) AS rated_sets
          FROM sessions s
          JOIN exercise_logs el ON el.session_id = s.id
          JOIN set_logs sl ON sl.exercise_log_id = el.id
+        CROSS JOIN LATERAL ${muscleCreditSQL} AS mc
         WHERE s.finished_at IS NOT NULL
           AND s.started_at >= date_trunc('week', now()) - ($1::int - 1) * interval '1 week'
           AND sl.is_completed
-        GROUP BY 1, 2`,
+        GROUP BY 1, 2, 3`,
       [weeks],
     ) as unknown as Promise<{
-      week_start: string; muscle_group: string; effective_reps: string;
+      week_start: string; muscle_group: string; is_primary: boolean; effective_reps: string;
       working_sets: string; rated_sets: string;
     }[]>,
   ]);
@@ -980,6 +1017,7 @@ export async function getWeeklyMuscleTotals(
       .map((r) => ({
         weekStart: r.week_start,
         muscleGroup: r.muscle_group,
+        isPrimary: r.is_primary,
         effectiveReps: Number(r.effective_reps),
         workingSets: Number(r.working_sets),
         ratedSets: Number(r.rated_sets),
@@ -996,22 +1034,24 @@ export type MuscleTotals = {
   effectiveReps: number;
   ratedSets: number;
   volume: number;
-  /** Distinct finished sessions in which this muscle was trained. */
+  /** Distinct finished sessions in which this muscle was trained, as the main
+   *  muscle or as an "Also works ½" one. */
   sessions: number;
 };
 
 export async function getMuscleTotals(days = 7): Promise<MuscleTotals[]> {
   const rows = (await sql.query(
-    `SELECT el.muscle_group,
-            count(*) FILTER (WHERE ${countedSetSQL}) AS working_sets,
-            count(*) FILTER (WHERE ${countedSetSQL} AND sl.rir <= $2) AS hard_sets,
-            coalesce(sum(${effectiveRepsSQL}), 0) AS effective_reps,
-            count(*) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL) AS rated_sets,
-            coalesce(sum(sl.weight * sl.reps) FILTER (WHERE ${countedSetSQL}), 0) AS volume,
+    `SELECT mc.credit_muscle AS muscle_group,
+            coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL}), 0) AS working_sets,
+            coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL} AND sl.rir <= $2), 0) AS hard_sets,
+            coalesce(sum(mc.credit * (${effectiveRepsSQL})), 0) AS effective_reps,
+            coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL), 0) AS rated_sets,
+            coalesce(sum(mc.credit * sl.weight * sl.reps) FILTER (WHERE ${countedSetSQL}), 0) AS volume,
             count(DISTINCT s.id) FILTER (WHERE ${countedSetSQL}) AS sessions
        FROM sessions s
        JOIN exercise_logs el ON el.session_id = s.id
        JOIN set_logs sl ON sl.exercise_log_id = el.id
+      CROSS JOIN LATERAL ${muscleCreditSQL} AS mc
       WHERE s.finished_at IS NOT NULL
         AND s.started_at >= now() - ($1::int * interval '1 day')
         AND sl.is_completed

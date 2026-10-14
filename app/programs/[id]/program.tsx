@@ -1,5 +1,6 @@
 "use client";
 
+import { muscleCredits } from "@/lib/effective-reps";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import {
@@ -44,7 +45,10 @@ export function ProgramPage({ program }: { program: Program }) {
   const perMuscle = new Map<string, number>();
   for (const d of days) {
     for (const e of d.exercises) {
-      perMuscle.set(e.muscleGroup, (perMuscle.get(e.muscleGroup) ?? 0) + e.plannedSets);
+      // "Also works ½" muscles get half of every planned set, as in the log.
+      for (const [muscle, credit] of muscleCredits(e)) {
+        perMuscle.set(muscle, (perMuscle.get(muscle) ?? 0) + credit * e.plannedSets);
+      }
     }
   }
 

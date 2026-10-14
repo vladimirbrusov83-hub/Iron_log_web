@@ -15,6 +15,7 @@ type Draft = {
   exerciseId: string | null;
   name: string;
   muscleGroup: string;
+  secondaryMuscles: string[];
   plannedSets: number;
   plannedReps: number;
 };
@@ -41,6 +42,7 @@ export function DayEditor({
     exerciseId: e.exerciseId,
     name: e.name,
     muscleGroup: e.muscleGroup,
+    secondaryMuscles: e.secondaryMuscles,
     plannedSets: e.plannedSets,
     plannedReps: e.plannedReps,
   })));
@@ -68,6 +70,7 @@ export function DayEditor({
         exerciseId: r.exerciseId,
         name: r.name,
         muscleGroup: r.muscleGroup,
+        secondaryMuscles: r.secondaryMuscles,
         plannedSets: r.plannedSets,
         plannedReps: r.plannedReps,
       })));
@@ -239,6 +242,7 @@ export function DayEditor({
               exerciseId: e.id,
               name: e.name,
               muscleGroup: e.muscleGroup,
+              secondaryMuscles: e.secondaryMuscles,
               plannedSets: 3,
               plannedReps: 10,
             }))]);

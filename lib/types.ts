@@ -12,6 +12,8 @@ export type Exercise = {
   id: string;
   name: string;
   muscleGroup: string;
+  /** "Also works ½": each set counts half a set for each of these. */
+  secondaryMuscles: string[];
   isCompound: boolean;
   notes: string;
   isPreset: boolean;
@@ -22,6 +24,7 @@ export type PlannedExercise = {
   exerciseId: string | null;
   name: string;
   muscleGroup: string;
+  secondaryMuscles: string[];
   position: number;
   plannedSets: number;
   plannedReps: number;
@@ -71,6 +74,7 @@ export type ExerciseLog = {
   exerciseId: string | null;
   name: string;
   muscleGroup: string;
+  secondaryMuscles: string[];
   position: number;
   notes: string;
   plannedSets: number;
@@ -108,6 +112,12 @@ export const MUSCLE_GROUPS = [
   "Chest", "Back", "Front delts", "Side delts", "Rear delts", "Biceps", "Triceps",
   "Quads", "Hamstrings", "Glutes", "Calves", "Core", "Other",
 ] as const;
+
+/** Muscles a lift can list under "Also works ½": every group but its own main
+ *  one and "Other". */
+export function secondaryOptions(primary: string): string[] {
+  return MUSCLE_GROUPS.filter((m) => m !== primary && m !== "Other");
+}
 
 /** Library order: by MUSCLE_GROUPS (so the three delts sit together, then the
  *  four leg muscles), then by name. A group not in the list goes last. */

@@ -67,11 +67,38 @@ added in full. Still **one** working set, and RIR over 4 voids the whole thing.
 
 `MUSCLE_GROUPS` in `lib/types.ts`. Legs and Shoulders were split in September 2026 at
 Vladimir's request: Quads / Hamstrings / Glutes / Calves and Front / Side / Rear delts.
-Still **one muscle per lift** — a squat credits Quads only, with no secondary-muscle
-share. The group is a text snapshot in three tables (`exercises`, `planned_exercises`,
+One **main** muscle per lift, plus optional **"Also works ½"** helpers (see below). The group is a text snapshot in three tables (`exercises`, `planned_exercises`,
 `exercise_logs`), so renaming a group means updating all three, not just the list and the
 seed: `db-push` inserts with ON CONFLICT DO NOTHING and never rewrites a stored group.
 A value missing from the list shows as the first option in the edit selects.
+
+### Also works ½ (secondary muscles)
+
+Ported from Effective Log (`~/Documents/ironLogPublic`, commit 2a79fc4) in October 2026
+at Vladimir's request — same code, same rule. `secondary_muscles text[]` on `exercises`,
+snapshotted like `muscle_group` into `planned_exercises` and `exercise_logs` — every
+insert that copies `muscle_group` copies it too (`saveProgram`, `saveProgramDay`,
+`copyProgramDay`, `startSession`; `addExerciseToSession` and `planExerciseOnSessionDay`
+read it from the library row). `updateExercise` carries a change to program rows and
+history, so editing helpers re-counts the past.
+
+- Each set credits the main muscle 1 and every helper `SECONDARY_CREDIT` (0.5): half a
+  working set, half a hard set, half its effective reps and volume. A helper equal to the
+  main muscle, or listed twice, counts once.
+- Two languages again: `muscleCredits()` (TS, `effectiveRepsByMuscle`) and
+  `muscleCreditSQL` (LATERAL, `getMuscleTotals`, `getWeeklyMuscleTotals`). `npm run check`
+  asserts they agree (inline VALUES — writes nothing).
+- **Per-muscle numbers can be fractional and their sum is more than the real total.**
+  Never add `MuscleSlice`s up into a session or headline number. The weekly chart's "All"
+  sums `isPrimary` rows only.
+- `sessions` per muscle counts a session where the muscle got any credit, helper included.
+- Default helpers for the compound lifts are `SECONDARY_MUSCLES` in `db/seed.mjs`, written
+  by the one-off `scripts/fill-secondaries.mjs` (`--dry` to preview), empty rows only,
+  history included. It is **not** in `db:push`: re-running would refill a helper cleared
+  on purpose.
+- UI: `components/secondary-muscles.tsx` chips in library New + Edit and the picker's New
+  exercise dialog. The main muscle is never offered and is dropped from helpers when
+  picked. The day editor does not edit helpers; it carries them through.
 
 Changing a lift's group in the exercise library (`updateExercise`) carries it to
 `planned_exercises` and `exercise_logs` as well, matched by `exercise_id` or the old name,

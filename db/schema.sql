@@ -162,6 +162,14 @@ CREATE TABLE IF NOT EXISTS set_logs (
 -- NULL here would void the whole sum. Added after the table existed, hence ALTER.
 ALTER TABLE set_logs ADD COLUMN IF NOT EXISTS rest_pause_reps int NOT NULL DEFAULT 0;
 
+-- "Also works ½": muscles a lift trains besides its main one. Each set counts
+-- as half a set (and half its effective reps) for every muscle listed here.
+-- Edited on the library row and snapshotted, like muscle_group, into program
+-- rows and logged lifts so history keeps its credit if the library row goes.
+ALTER TABLE exercises         ADD COLUMN IF NOT EXISTS secondary_muscles text[] NOT NULL DEFAULT '{}';
+ALTER TABLE planned_exercises ADD COLUMN IF NOT EXISTS secondary_muscles text[] NOT NULL DEFAULT '{}';
+ALTER TABLE exercise_logs     ADD COLUMN IF NOT EXISTS secondary_muscles text[] NOT NULL DEFAULT '{}';
+
 CREATE INDEX IF NOT EXISTS set_logs_log_idx ON set_logs (exercise_log_id, set_number);
 
 /* ---------------------------------------------------------------- records */

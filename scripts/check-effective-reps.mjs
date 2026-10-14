@@ -13,7 +13,9 @@
  *   node --env-file-if-exists=.env.local scripts/check-effective-reps.mjs
  */
 import { neon } from "@neondatabase/serverless";
-import { effectiveReps, effectiveRepsSQL } from "../lib/effective-reps.ts";
+import {
+  countedSetSQL, effectiveReps, effectiveRepsByMuscle, effectiveRepsSQL, muscleCreditSQL,
+} from "../lib/effective-reps.ts";
 
 const set = (reps, rir, extra = {}) =>
   ({ reps, rir, isWarmup: false, isCompleted: true, ...extra });
@@ -79,6 +81,48 @@ if (!url) {
     const pg = row.score === null ? null : Number(row.score);
     report(pg === ts, `sql  ${String(pg).padStart(4)} (ts ${ts})  ${label}`);
   }
+
+  /* Per muscle, with "Also works ½": effectiveRepsByMuscle (log screens) against
+     muscleCreditSQL (stats). Bench with triceps + front delts, a helper repeated
+     and one equal to the main muscle (both must count once), and a fly with none.
+     Inline VALUES, so nothing is written to the real database. */
+  const q = (v) => (v === null ? "NULL" : typeof v === "string" ? `'${v}'` : String(v));
+  const arr = (list) => `ARRAY[${list.map(q).join(",")}]::text[]`;
+  const lifts = [
+    { muscleGroup: "Chest", secondaryMuscles: ["Triceps", "Front delts"],
+      sets: [set(10, 1), set(10, 1), set(8, 0), set(10, 5), set(10, null)] },
+    { muscleGroup: "Triceps", secondaryMuscles: ["Chest", "Chest", "Triceps"],
+      sets: [set(12, 2), set(9, 1, { restPauseReps: 4 })] },
+    { muscleGroup: "Chest", secondaryMuscles: [], sets: [set(15, 3)] },
+  ];
+  const logRows = lifts.map((l, i) => `(${i}, ${q(l.muscleGroup)}, ${arr(l.secondaryMuscles)})`).join(", ");
+  const setRows = lifts.flatMap((l, i) => l.sets.map((s) =>
+    `(${i}, ${s.reps}, ${q(s.rir)}::int, ${s.isWarmup}, ${s.isCompleted}, ${s.restPauseReps ?? 0})`)).join(", ");
+  const pgRows = await sql.query(`
+    WITH el0 (id, muscle_group, secondary_muscles) AS (VALUES ${logRows}),
+         sl0 (exercise_log_id, reps, rir, is_warmup, is_completed, rest_pause_reps) AS (VALUES ${setRows})
+    SELECT mc.credit_muscle AS muscle,
+           coalesce(sum(mc.credit * (${effectiveRepsSQL})), 0) AS er,
+           coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL}), 0) AS working
+      FROM el0 el JOIN sl0 sl ON sl.exercise_log_id = el.id
+     CROSS JOIN LATERAL ${muscleCreditSQL} AS mc
+     WHERE sl.is_completed GROUP BY 1`);
+  console.log();
+  for (const m of effectiveRepsByMuscle(lifts)) {
+    const row = pgRows.find((r) => r.muscle === m.muscleGroup);
+    const ok = row && Number(row.er) === m.effectiveReps && Number(row.working) === m.workingSets;
+    report(ok, `muscle ${m.muscleGroup}: ts ${m.effectiveReps} er / ${m.workingSets} sets, ` +
+      `sql ${row ? `${Number(row.er)} / ${Number(row.working)}` : "missing"}`);
+  }
+  report(pgRows.length === effectiveRepsByMuscle(lifts).length, `muscle rows: sql ${pgRows.length}`);
+}
+
+{
+  const bench = effectiveRepsByMuscle([{ muscleGroup: "Chest", secondaryMuscles: ["Triceps", "Front delts"],
+    sets: [set(10, 1), set(10, 1), set(8, 0), set(10, 5), set(10, null)] }]);
+  const tri = bench.find((m) => m.muscleGroup === "Triceps");
+  report(tri?.workingSets === 2 && tri?.effectiveReps === 6.5,
+    `bench 4 working sets → triceps ${tri?.workingSets} sets, ${tri?.effectiveReps} er (want 2, 6.5)`);
 }
 
 console.log(failures === 0 ? "\nall pass" : `\n${failures} failed`);

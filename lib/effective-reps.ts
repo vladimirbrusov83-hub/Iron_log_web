@@ -116,6 +116,34 @@ export const effectiveRepsSQL = `
 export const countedSetSQL =
   `(NOT is_warmup AND (rir IS NULL OR rir <= ${MAX_COUNTED_RIR}))`;
 
+/** What a set is worth to a muscle it trains only as a helper ("Also works ½"):
+ *  half a set and half its effective reps. Fractional counting of indirect work
+ *  is how the volume dose-response literature counts it too. */
+export const SECONDARY_CREDIT = 0.5;
+
+/**
+ * The muscles one logged lift credits, as rows `(credit_muscle, credit)`: its
+ * main muscle at 1, each "Also works" muscle at SECONDARY_CREDIT. For the
+ * per-muscle aggregates, joined as `CROSS JOIN LATERAL ${muscleCreditSQL} AS mc`
+ * after `exercise_logs el`. A helper equal to the main muscle, or listed twice,
+ * counts once. The column names are chosen not to collide with set_logs, whose
+ * bare column names `effectiveRepsSQL` relies on.
+ */
+export const muscleCreditSQL = `(
+  SELECT el.muscle_group AS credit_muscle, 1::numeric AS credit
+  UNION ALL
+  SELECT DISTINCT sec, ${SECONDARY_CREDIT}::numeric
+    FROM unnest(el.secondary_muscles) AS sec WHERE sec <> el.muscle_group
+)`;
+
+/** `muscleCreditSQL` in TypeScript: [muscle, credit] pairs for one lift. */
+export function muscleCredits(
+  ex: { muscleGroup: string; secondaryMuscles?: string[] },
+): [string, number][] {
+  const helpers = [...new Set(ex.secondaryMuscles ?? [])].filter((m) => m !== ex.muscleGroup);
+  return [[ex.muscleGroup, 1], ...helpers.map((m): [string, number] => [m, SECONDARY_CREDIT])];
+}
+
 /** Wording for one set's score, used on the set row and in history. */
 export function effectiveRepsLabel(set: ScorableSet): string {
   const value = effectiveReps(set);
@@ -132,22 +160,26 @@ export type MuscleSlice = {
 };
 
 /** Effective reps and set counts per muscle group for a set of exercise logs,
- *  biggest first. Same null rules as everything above. */
+ *  biggest first. Same null rules as everything above. A lift's "Also works"
+ *  muscles get SECONDARY_CREDIT of each set, so these can be fractional and
+ *  their sum is more than the session's real total — never add them up. */
 export function effectiveRepsByMuscle(
-  exercises: { muscleGroup: string; sets: ScorableSet[] }[],
+  exercises: { muscleGroup: string; secondaryMuscles?: string[]; sets: ScorableSet[] }[],
 ): MuscleSlice[] {
   const map = new Map<string, MuscleSlice>();
   for (const ex of exercises) {
-    const slice = map.get(ex.muscleGroup) ?? {
-      muscleGroup: ex.muscleGroup, effectiveReps: 0, workingSets: 0, scoredSets: 0,
-    };
-    for (const s of ex.sets) {
-      if (!isCountedSet(s)) continue;
-      slice.workingSets += 1;
-      const er = effectiveReps(s);
-      if (er !== null) { slice.scoredSets += 1; slice.effectiveReps += er; }
+    for (const [muscle, credit] of muscleCredits(ex)) {
+      const slice = map.get(muscle) ?? {
+        muscleGroup: muscle, effectiveReps: 0, workingSets: 0, scoredSets: 0,
+      };
+      for (const s of ex.sets) {
+        if (!isCountedSet(s)) continue;
+        slice.workingSets += credit;
+        const er = effectiveReps(s);
+        if (er !== null) { slice.scoredSets += credit; slice.effectiveReps += credit * er; }
+      }
+      map.set(muscle, slice);
     }
-    map.set(ex.muscleGroup, slice);
   }
   return [...map.values()]
     .filter((m) => m.workingSets > 0)

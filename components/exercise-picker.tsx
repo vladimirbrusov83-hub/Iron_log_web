@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { createExercise } from "@/app/actions";
 import { Button, inputClass } from "@/components/ui";
 import { MUSCLE_GROUPS } from "@/lib/types";
+import { SecondaryMuscles, withoutPrimary } from "@/components/secondary-muscles";
 import type { Exercise } from "@/lib/types";
 
 /**
@@ -33,6 +34,7 @@ export function ExercisePicker({
   const [newName, setNewName] = useState("");
   const [newGroup, setNewGroup] = useState<string>(MUSCLE_GROUPS[0]);
   const [newCompound, setNewCompound] = useState(false);
+  const [newSecondary, setNewSecondary] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [keep, setKeep] = useState(false);
@@ -60,7 +62,10 @@ export function ExercisePicker({
    *  box and with the group already filtered to, since both are usually right. */
   function openCreate() {
     setNewName(query.trim());
-    if (group) setNewGroup(group);
+    if (group) {
+      setNewGroup(group);
+      setNewSecondary((s) => withoutPrimary(s, group));
+    }
     setError(null);
     setCreating(true);
   }
@@ -70,18 +75,19 @@ export function ExercisePicker({
     if (!name) return;
     setError(null);
     startTransition(async () => {
-      const result = await createExercise(name, newGroup, newCompound);
+      const result = await createExercise(name, newGroup, newCompound, newSecondary);
       if (!result?.ok) { setError(result?.error ?? "Could not add that."); return; }
       // Straight into the selection, so it lands in the day on the next tap
       // rather than being hunted for again.
       const made: Exercise = {
-        id: result.id, name, muscleGroup: newGroup,
+        id: result.id, name, muscleGroup: newGroup, secondaryMuscles: newSecondary,
         isCompound: newCompound, notes: "", isPreset: false,
       };
       onCreated(made);
       setChosen((current) => [...current, made]);
       setCreating(false);
       setNewName("");
+      setNewSecondary([]);
       setQuery("");
     });
   }
@@ -175,7 +181,8 @@ export function ExercisePicker({
         {creating && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75
                           px-4 backdrop-blur-sm">
-            <div className="w-full max-w-sm rounded-2xl border border-line-2 bg-panel p-4">
+            <div className="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-2xl border
+                            border-line-2 bg-panel p-4">
               <h3 className="display text-2xl font-semibold">New exercise</h3>
               <p className="mt-0.5 text-[11px] text-ink-faint">
                 Goes into the library for good, and into this day. Remove it later under
@@ -195,7 +202,10 @@ export function ExercisePicker({
               <div className="mt-2 flex gap-2">
                 <select
                   value={newGroup}
-                  onChange={(e) => setNewGroup(e.target.value)}
+                  onChange={(e) => {
+                    setNewGroup(e.target.value);
+                    setNewSecondary((s) => withoutPrimary(s, e.target.value));
+                  }}
                   className={inputClass}
                   aria-label="Muscle group"
                 >
@@ -211,6 +221,10 @@ export function ExercisePicker({
                   />
                   Compound
                 </label>
+              </div>
+
+              <div className="mt-2">
+                <SecondaryMuscles primary={newGroup} value={newSecondary} onChange={setNewSecondary} />
               </div>
 
               {similar && (

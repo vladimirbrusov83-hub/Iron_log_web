@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as db from "@/lib/db";
 import { MAX_RIR } from "@/lib/effective-reps";
-import type { Settings, WeightUnit } from "@/lib/types";
+import { type Settings, type WeightUnit, secondaryOptions } from "@/lib/types";
 
 /* Every action below is reachable by anything that can reach the app, so each
    one re-derives what it is allowed to touch rather than trusting its arguments.
@@ -224,6 +224,7 @@ export async function saveDay(
       exerciseId: e.exerciseId || null,
       name: e.name.trim(),
       muscleGroup: e.muscleGroup || "Other",
+      secondaryMuscles: cleanSecondaries(e.secondaryMuscles ?? [], e.muscleGroup || "Other"),
       plannedSets: Math.round(clampNumber(e.plannedSets, 1, 20, 3)),
       plannedReps: Math.round(clampNumber(e.plannedReps, 1, 100, 10)),
     }));
@@ -274,10 +275,20 @@ export async function copyProgram(id: string) {
 
 /* -------------------------------------------------------------- exercises */
 
-export async function createExercise(name: string, muscleGroup: string, isCompound: boolean) {
+/** "Also works ½" muscles as stored: known groups only, no repeats, never the
+ *  lift's own main muscle. */
+function cleanSecondaries(list: string[], primary: string): string[] {
+  return [...new Set(list)].filter((m) => secondaryOptions(primary).includes(m));
+}
+
+export async function createExercise(
+  name: string, muscleGroup: string, isCompound: boolean, secondaryMuscles: string[] = [],
+) {
   const trimmed = name.trim();
   if (!trimmed) return { ok: false as const, error: "Give it a name." };
-  const id = await db.addExercise(trimmed, muscleGroup || "Other", isCompound);
+  const primary = muscleGroup || "Other";
+  const id = await db.addExercise(
+    trimmed, primary, isCompound, "", cleanSecondaries(secondaryMuscles, primary));
   revalidatePath("/exercises");
   if (!id) return { ok: false as const, error: `"${trimmed}" is already in the library.` };
   return { ok: true as const, id };
@@ -285,8 +296,10 @@ export async function createExercise(name: string, muscleGroup: string, isCompou
 
 export async function editExercise(
   id: string, name: string, muscleGroup: string, isCompound: boolean, notes: string,
+  secondaryMuscles: string[] = [],
 ) {
-  await db.updateExercise(id, name, muscleGroup, isCompound, notes.slice(0, 2000));
+  await db.updateExercise(id, name, muscleGroup, isCompound, notes.slice(0, 2000),
+    cleanSecondaries(secondaryMuscles, muscleGroup));
   // A muscle change reaches program days and history too, so refresh them all.
   revalidatePath("/", "layout");
 }

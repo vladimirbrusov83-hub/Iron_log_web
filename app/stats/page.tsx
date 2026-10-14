@@ -239,6 +239,15 @@ export default async function StatsPage({
             </dd>
           </div>
           <div>
+            <dt className="inline text-ink">Also works ½. </dt>
+            <dd className="inline">
+              A lift can list helper muscles in the exercise library (bench: triceps, front
+              delts). Each set counts in full for its main muscle and as half a set, with half
+              its effective reps, for each helper. Totals across all muscles count every set
+              once.
+            </dd>
+          </div>
+          <div>
             <dt className="inline text-ink">Per session. </dt>
             <dd className="inline">
               {SESSION_ER_LOW}–{SESSION_ER_HIGH} effective reps per muscle, trained{" "}

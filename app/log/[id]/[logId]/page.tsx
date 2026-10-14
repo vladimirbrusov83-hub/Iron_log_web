@@ -65,7 +65,9 @@ export default async function ExerciseLogPage({
         byMuscle: effectiveRepsByMuscle(previous.exercises),
       }}
       muscleShared={session.exercises.some((e) =>
-        e.id !== log.id && e.muscleGroup === log.muscleGroup && e.sets.some((s) => s.isCompleted))}
+        e.id !== log.id
+        && (e.muscleGroup === log.muscleGroup || e.secondaryMuscles.includes(log.muscleGroup))
+        && e.sets.some((s) => s.isCompleted))}
     />
   );
 }
