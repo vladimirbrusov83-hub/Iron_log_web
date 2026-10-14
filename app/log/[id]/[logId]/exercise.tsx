@@ -225,7 +225,9 @@ export function ExerciseScreen({
               {last ? (
                 <>
                 {/* Headers are h-8 and rows h-9 in both columns, so set 1 sits
-                    beside set 1 on one line. Keep them matched. */}
+                    beside set 1 on one line. The Total row is one more h-9 slot
+                    on the same grid (mt-0.5 = the list's gap), so Today's total
+                    and its line sit level with a Last row. Keep them matched. */}
                 <ul className="tnum space-y-0.5">
                   {last.sets.map((s) => {
                     // Last time's sets are all completed (the query only returns those).
@@ -233,7 +235,7 @@ export function ExerciseScreen({
                     return (
                     <li
                       key={s.setNumber}
-                      className="box-border flex h-9 items-center gap-1.5 border-b border-line/60 text-sm last:border-0"
+                      className="box-border flex h-9 items-center gap-1.5 border-b border-line/60 text-sm last:border-line"
                     >
                       <span className="display w-4 shrink-0 text-xs font-semibold text-ink-faint">
                         {s.isWarmup ? "W" : s.setNumber}
@@ -257,7 +259,7 @@ export function ExerciseScreen({
                     );
                   })}
                 </ul>
-                <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-1.5">
+                <div className="mt-0.5 flex h-9 items-center justify-between">
                   <span className="eyebrow" style={{ fontSize: 9 }}>Total</span>
                   <span className="display tnum text-base font-semibold text-ink">
                     {totalEffectiveReps(last.sets.map((s) => ({ ...s, isCompleted: true })))}
@@ -280,7 +282,7 @@ export function ExerciseScreen({
                   {done.map((s, i) => {
                     const score = effectiveReps(s);
                     return (
-                      <li key={s.id} className="box-border h-9 border-b border-line/60 last:border-0">
+                      <li key={s.id} className="box-border h-9 border-b border-line/60 last:border-line">
                         <button
                           onClick={(e) => { e.stopPropagation(); setSheet({
                             set: s, fillId: null,
@@ -315,7 +317,7 @@ export function ExerciseScreen({
                 </ul>
                 {/* Always shown, to line up with Last's total. Named "This lift" once
                     another lift has added to the muscle total in the header. */}
-                <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-1.5">
+                <div className="mt-0.5 flex h-9 items-center justify-between">
                   <span className="eyebrow" style={{ fontSize: 9 }}>{muscleShared ? "This lift" : "Total"}</span>
                   <span className={`display tnum text-base font-semibold ${
                     exerciseTotal ? "text-accent" : "text-ink-faint"
