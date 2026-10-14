@@ -82,6 +82,17 @@ insert that copies `muscle_group` copies it too (`saveProgram`, `saveProgramDay`
 read it from the library row). `updateExercise` carries a change to program rows and
 history, so editing helpers re-counts the past.
 
+- **One helper at most** (Vladimir, Oct 2026 — Effective Log allows several). The column
+  stays `text[]` so the counting code matches Effective Log; `cleanSecondaries` keeps the
+  first, and the chips are single-select (tap another to swap, tap the picked one to clear).
+- **Changeable mid-workout**: the `+ ½ muscle` pill under the lift name on the gym screen
+  opens a sheet; `setLiftSecondary` → `db.setSecondaryForLog` writes the library row and
+  every program row and logged lift of that lift (by library id or name), so history
+  re-counts.
+- **Backups**: `scripts/backup.mjs` dumps every table to `backups/` (gitignored — public
+  repo). `scripts/restore-secondaries.mjs <file> [--dry]` puts helpers back by id from a
+  backup. The default fill ran 2026-10-14 after backup
+  `backups/ironlog-2026-10-14T00-22-23-815Z.json` (22 library, 64 program, 17 logged rows).
 - Each set credits the main muscle 1 and every helper `SECONDARY_CREDIT` (0.5): half a
   working set, half a hard set, half its effective reps and volume. A helper equal to the
   main muscle, or listed twice, counts once.

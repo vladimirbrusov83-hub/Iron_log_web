@@ -27,32 +27,32 @@ export const EXERCISES = [
 ];
 
 // [exercise name, sets, reps]
-// "Also works ½" for the library's compound lifts: clear synergists only, each
-// credited half a set per set. Isolation lifts have none. Written once by
-// scripts/fill-secondaries.mjs, not by db:push.
+// "Also works ½" for the library's compound lifts: one helper each (Vladimir,
+// Oct 2026), credited half a set per set. Isolation lifts have none. Written
+// once by scripts/fill-secondaries.mjs, not by db:push.
 export const SECONDARY_MUSCLES = {
-  "Bench Press": ["Triceps", "Front delts"],
-  "Incline Bench Press": ["Front delts", "Triceps"],
-  "Incline Dumbbell Press": ["Front delts", "Triceps"],
-  "Push Up": ["Triceps", "Front delts"],
-  "Deadlift": ["Glutes", "Hamstrings"],
-  "Barbell Row": ["Biceps", "Rear delts"],
+  "Bench Press": ["Triceps"],
+  "Incline Bench Press": ["Triceps"],
+  "Incline Dumbbell Press": ["Triceps"],
+  "Push Up": ["Triceps"],
+  "Dips": ["Chest"],
+  "Close Grip Bench Press": ["Chest"],
+  "Overhead Press": ["Triceps"],
+  "Dumbbell Shoulder Press": ["Triceps"],
+  "Arnold Press": ["Triceps"],
+  "Barbell Row": ["Biceps"],
+  "Cable Row": ["Biceps"],
+  "Dumbbell Row": ["Biceps"],
   "Pull Up": ["Biceps"],
   "Chin Up": ["Biceps"],
   "Lat Pulldown": ["Biceps"],
-  "Cable Row": ["Biceps", "Rear delts"],
-  "Dumbbell Row": ["Biceps", "Rear delts"],
   "Face Pull": ["Rear delts"],
+  "Deadlift": ["Glutes"],
   "Squat": ["Glutes"],
   "Front Squat": ["Glutes"],
   "Leg Press": ["Glutes"],
   "Romanian Deadlift": ["Glutes"],
   "Bulgarian Split Squat": ["Quads"],
-  "Overhead Press": ["Triceps", "Side delts"],
-  "Dumbbell Shoulder Press": ["Triceps", "Side delts"],
-  "Arnold Press": ["Triceps", "Side delts"],
-  "Dips": ["Chest", "Front delts"],
-  "Close Grip Bench Press": ["Chest", "Front delts"],
 };
 
 export const PROGRAMS = [

@@ -72,6 +72,13 @@ export async function addExercise(
   revalidatePath(`/log/${sessionId}`, "layout");
 }
 
+/** The ½ sheet on the gym screen. Carries to the library, programs and history. */
+export async function setLiftSecondary(sessionId: string, logId: string, muscle: string | null) {
+  const list = muscle && secondaryOptions("").includes(muscle) ? [muscle] : [];
+  await db.setSecondaryForLog(logId, list);
+  revalidatePath("/", "layout");
+}
+
 export async function dropExercise(sessionId: string, logId: string) {
   await db.removeExerciseLog(logId);
   revalidatePath(`/log/${sessionId}`, "layout");
@@ -275,10 +282,11 @@ export async function copyProgram(id: string) {
 
 /* -------------------------------------------------------------- exercises */
 
-/** "Also works ½" muscles as stored: known groups only, no repeats, never the
- *  lift's own main muscle. */
+/** "Also works ½" muscles as stored: known groups only, never the lift's own
+ *  main muscle, and at most one (Vladimir, Oct 2026). The column stays an
+ *  array so the counting matches Effective Log. */
 function cleanSecondaries(list: string[], primary: string): string[] {
-  return [...new Set(list)].filter((m) => secondaryOptions(primary).includes(m));
+  return [...new Set(list)].filter((m) => secondaryOptions(primary).includes(m)).slice(0, 1);
 }
 
 export async function createExercise(

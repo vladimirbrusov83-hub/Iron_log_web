@@ -3,10 +3,12 @@
 import { secondaryOptions } from "@/lib/types";
 
 /**
- * "Also works ½": the muscles a lift trains besides its main one. Each set then
- * counts as half a set, and half its effective reps, for every muscle ticked
- * here. Optional — an isolation lift leaves it empty. Used by the library's
- * New and Edit forms and by the picker's New exercise dialog.
+ * "Also works ½": the one muscle a lift trains besides its main one (one at
+ * most — Vladimir, Oct 2026). Each set then counts as half a set, and half its
+ * effective reps, for it. Optional — an isolation lift leaves it empty. Tapping
+ * another chip swaps it; tapping the picked one clears it. Used by the
+ * library's New and Edit forms, the picker's New exercise dialog and the gym
+ * screen's ½ sheet.
  *
  * The main muscle is never offered; when it changes to one already ticked, the
  * caller drops it with `withoutPrimary`.
@@ -21,7 +23,7 @@ export function SecondaryMuscles({
       <p className="flex items-baseline justify-between gap-2">
         <span className="eyebrow">Also works ½</span>
         <span className="text-[11px] text-ink-faint">
-          {value.length === 0 ? "optional" : `½ set each · ${value.length}`}
+          {value.length === 0 ? "optional · one" : "½ set per set"}
         </span>
       </p>
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -32,7 +34,7 @@ export function SecondaryMuscles({
               key={m}
               type="button"
               aria-pressed={on}
-              onClick={() => onChange(on ? value.filter((v) => v !== m) : [...value, m])}
+              onClick={() => onChange(on ? [] : [m])}
               className={`min-h-8 rounded-full border px-2.5 text-xs ${
                 on ? "border-accent bg-accent-soft text-accent" : "border-line-2 text-ink-dim"
               }`}

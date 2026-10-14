@@ -728,6 +728,35 @@ export async function planExerciseOnSessionDay(
                         WHERE pe.day_id = s.day_id AND lower(pe.name) = lower(${name}))`;
 }
 
+/**
+ * The gym screen's ½ sheet: sets the "Also works ½" muscles of the lift behind
+ * one logged lift, everywhere it appears — the library row (when there is one),
+ * every program row and every logged lift of it, matched like `updateExercise`
+ * by library id or name. So history re-counts, which is the point. Each row
+ * drops a helper equal to its own main muscle.
+ */
+export async function setSecondaryForLog(logId: string, secondaryMuscles: string[]): Promise<void> {
+  const [log] = (await sql`
+    SELECT el.name,
+           coalesce(el.exercise_id,
+                    (SELECT id FROM exercises WHERE lower(name) = lower(el.name))) AS lib_id
+      FROM exercise_logs el WHERE el.id = ${logId}`) as { name: string; lib_id: string | null }[];
+  if (!log) return;
+  const filtered = (table: "planned_exercises" | "exercise_logs") => sql.query(
+    `UPDATE ${table}
+        SET secondary_muscles = ARRAY(SELECT x FROM unnest($1::text[]) AS x WHERE x <> muscle_group)
+      WHERE ($2::uuid IS NOT NULL AND exercise_id = $2::uuid) OR lower(name) = lower($3)`,
+    [secondaryMuscles, log.lib_id, log.name]);
+  await sql.transaction([
+    sql`UPDATE exercises
+           SET secondary_muscles = ARRAY(SELECT x FROM unnest(${secondaryMuscles}::text[]) AS x
+                                          WHERE x <> muscle_group)
+         WHERE id = ${log.lib_id}::uuid`,
+    filtered("planned_exercises"),
+    filtered("exercise_logs"),
+  ]);
+}
+
 export async function removeExerciseLog(logId: string): Promise<void> {
   await sql`DELETE FROM exercise_logs WHERE id = ${logId}`;
 }

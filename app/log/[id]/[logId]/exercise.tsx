@@ -3,8 +3,9 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  logSet, markExerciseDone, noteExercise, removeSet,
+  logSet, markExerciseDone, noteExercise, removeSet, setLiftSecondary,
 } from "@/app/actions";
+import { SecondaryMuscles } from "@/components/secondary-muscles";
 import { RestTimer } from "@/components/rest-timer";
 import { WorkoutClock } from "@/components/workout-clock";
 import { BAND_COLOR, BackLink, Button, SessionErBar, inputClass } from "@/components/ui";
@@ -75,6 +76,7 @@ export function ExerciseScreen({
   const [sheet, setSheet] = useState<SheetTarget | null>(null);
   const [menu, setMenu] = useState(false);
   const [choosingLast, setChoosingLast] = useState(false);
+  const [helping, setHelping] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [restKey, setRestKey] = useState(0);
   const unit = settings.weightUnit;
@@ -134,6 +136,19 @@ export function ExerciseScreen({
                 {planned > 0 && ` · ${working}/${planned} planned`}
                 {volume > 0 && ` · ${Math.round(volume).toLocaleString("en-US")} ${unit}`}
               </p>
+              {/* "Also works ½", changeable mid-workout. Saved to the lift
+                  everywhere, so past workouts re-count too. */}
+              <button
+                type="button"
+                onClick={() => setHelping(true)}
+                className={`mt-1.5 inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs ${
+                  log.secondaryMuscles.length > 0
+                    ? "border-accent/60 bg-accent-soft text-accent"
+                    : "border-dashed border-line-2 text-ink-faint"
+                }`}
+              >
+                {log.secondaryMuscles.length > 0 ? `+ ½ ${log.secondaryMuscles[0]}` : "+ ½ muscle"}
+              </button>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <div className="text-right">
@@ -367,6 +382,44 @@ export function ExerciseScreen({
           <RestTimer defaultSeconds={settings.defaultRestSeconds} autoStartKey={restKey} />
         </div>
       </div>
+
+      {helping && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-black/70 px-4 backdrop-blur-sm"
+          style={{ paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))" }}
+          onClick={() => setHelping(false)}
+        >
+          <div
+            className="mx-auto w-full max-w-2xl rounded-2xl border border-line-2 bg-panel p-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="eyebrow text-accent">{log.name}</p>
+              <button
+                onClick={() => setHelping(false)}
+                className="display h-11 rounded-lg px-3 text-base font-semibold text-accent"
+              >
+                Close
+              </button>
+            </div>
+            <SecondaryMuscles
+              primary={log.muscleGroup}
+              value={log.secondaryMuscles}
+              onChange={(next) => {
+                setHelping(false);
+                run(async () => {
+                  await setLiftSecondary(sessionId, log.id, next[0] ?? null);
+                  router.refresh();
+                });
+              }}
+            />
+            <p className="mt-2 text-[11px] leading-snug text-ink-faint">
+              Each set counts in full for {log.muscleGroup} and as half a set for this one.
+              Saved to the lift, so past workouts re-count. Tap it again to clear.
+            </p>
+          </div>
+        </div>
+      )}
 
       {choosingLast && (
         <LastChooser
