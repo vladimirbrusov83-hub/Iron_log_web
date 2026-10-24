@@ -1101,6 +1101,61 @@ export async function getMuscleTotals(days = 7): Promise<MuscleTotals[]> {
   }));
 }
 
+/**
+ * Per-muscle totals for last calendar week, Monday to Sunday in TRAINING_TZ —
+ * the ⋯ panel's "Last week" tab on the gym screen. Vladimir asked for it in
+ * October 2026 to see mid-workout what last week added up to for the muscles
+ * he is training now. Same counting as getMuscleTotals, helpers at ½.
+ */
+export async function getLastWeekMuscleTotals(): Promise<{ weekStart: string; rows: MuscleTotals[] }> {
+  const rows = (await sql.query(
+    `WITH wk AS (
+       SELECT date_trunc('week', now() AT TIME ZONE $2) - interval '1 week' AS start,
+              date_trunc('week', now() AT TIME ZONE $2) AS stop
+     )
+     SELECT to_char((SELECT start FROM wk), 'YYYY-MM-DD') AS week_start,
+            mc.credit_muscle AS muscle_group,
+            coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL}), 0) AS working_sets,
+            coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL} AND sl.rir <= $1), 0) AS hard_sets,
+            coalesce(sum(mc.credit * (${effectiveRepsSQL})), 0) AS effective_reps,
+            coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL), 0) AS rated_sets,
+            coalesce(sum(mc.credit * sl.weight * sl.reps) FILTER (WHERE ${countedSetSQL}), 0) AS volume,
+            count(DISTINCT s.id) FILTER (WHERE ${countedSetSQL}) AS sessions
+       FROM sessions s
+       JOIN exercise_logs el ON el.session_id = s.id
+       JOIN set_logs sl ON sl.exercise_log_id = el.id
+      CROSS JOIN LATERAL ${muscleCreditSQL} AS mc
+      WHERE s.finished_at IS NOT NULL
+        AND (s.started_at AT TIME ZONE $2) >= (SELECT start FROM wk)
+        AND (s.started_at AT TIME ZONE $2) < (SELECT stop FROM wk)
+        AND sl.is_completed
+      GROUP BY mc.credit_muscle`,
+    [HARD_SET_MAX_RIR, TRAINING_TZ],
+  )) as {
+    week_start: string; muscle_group: string; working_sets: string; hard_sets: string;
+    effective_reps: string; rated_sets: string; volume: string; sessions: string;
+  }[];
+  // The week's start is worked out in Node too, so an empty week still has a label.
+  const now = new Date(new Date().toLocaleString("en-US", { timeZone: TRAINING_TZ }));
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) - 7);
+  const weekStart = rows[0]?.week_start
+    ?? `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
+  return {
+    weekStart,
+    rows: rows
+      .map((r) => ({
+        muscleGroup: r.muscle_group,
+        workingSets: Number(r.working_sets),
+        hardSets: Number(r.hard_sets),
+        effectiveReps: Number(r.effective_reps),
+        ratedSets: Number(r.rated_sets),
+        volume: Number(r.volume),
+        sessions: Number(r.sessions),
+      }))
+      .filter((r) => r.workingSets > 0),
+  };
+}
+
 export type ExerciseTotals = {
   name: string;
   workingSets: number;

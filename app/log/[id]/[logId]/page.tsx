@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import {
-  getExerciseNote, getLastSessionSets, getLiftSessions, getLiftSetsInSession,
+  getExerciseNote, getLastSessionSets, getLastWeekMuscleTotals, getLiftSessions, getLiftSetsInSession,
   getPreviousSession, getSession, getSettings,
 } from "@/lib/db";
 import { effectiveRepsByMuscle } from "@/lib/effective-reps";
@@ -35,13 +35,14 @@ export default async function ExerciseLogPage({
   if (index === -1) notFound();
   const log = session.exercises[index];
 
-  const [settings, latest, picked, liftSessions, note, previous] = await Promise.all([
+  const [settings, latest, picked, liftSessions, note, previous, lastWeek] = await Promise.all([
     getSettings(),
     getLastSessionSets([log.name]),
     fromId ? getLiftSetsInSession(log.name, fromId) : Promise.resolve(undefined),
     getLiftSessions(log.name),
     getExerciseNote(log.name),
     getPreviousSession(session),
+    getLastWeekMuscleTotals(),
   ]);
   const last = picked ?? latest.get(log.name.toLowerCase());
 
@@ -63,6 +64,14 @@ export default async function ExerciseLogPage({
         dayName: previous.dayName,
         startedAt: previous.startedAt,
         byMuscle: effectiveRepsByMuscle(previous.exercises),
+      }}
+      lastWeek={{
+        weekStart: lastWeek.weekStart,
+        // The muscles this workout trains, main then helpers, in lift order —
+        // last week's numbers for what is being trained now, not every muscle.
+        rows: [...new Set(session.exercises.flatMap((e) => [e.muscleGroup, ...e.secondaryMuscles]))]
+          .map((m) => lastWeek.rows.find((r) => r.muscleGroup === m)
+            ?? { muscleGroup: m, workingSets: 0, hardSets: 0, effectiveReps: 0, sessions: 0 }),
       }}
       muscleShared={session.exercises.some((e) =>
         e.id !== log.id

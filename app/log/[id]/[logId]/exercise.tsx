@@ -13,12 +13,19 @@ import {
   EFFECTIVE_REP_THRESHOLD, MAX_COUNTED_RIR, MAX_RIR, effectiveReps,
   isCountedSet, totalEffectiveReps, type MuscleSlice,
 } from "@/lib/effective-reps";
-import { SESSION_ER_HIGH, SESSION_ER_LOW, sessionErBand } from "@/lib/targets";
+import {
+  SESSION_ER_HIGH, SESSION_ER_LOW, WEEKLY_SETS_LOW, WEEKLY_SETS_HIGH, sessionErBand, weeklySetBand,
+} from "@/lib/targets";
 import { setVolume } from "@/lib/types";
 import type { ExerciseNote, LastSession, LiftSessionOption } from "@/lib/db";
 import type { ExerciseLog, SetLog, Settings } from "@/lib/types";
 
 type PreviousWorkout = { dayName: string; startedAt: string; byMuscle: MuscleSlice[] };
+
+type LastWeekRow = {
+  muscleGroup: string; effectiveReps: number; workingSets: number; hardSets: number; sessions: number;
+};
+type LastWeek = { weekStart: string; rows: LastWeekRow[] };
 
 type Props = {
   sessionId: string;
@@ -44,6 +51,9 @@ type Props = {
   /** The workout before this one (same program day if possible), per muscle —
    *  the ⋯ panel's "Last time" tab. Null when there is none. */
   previous: PreviousWorkout | null;
+  /** Last Monday–Sunday, per muscle this workout trains — the ⋯ panel's
+   *  "Last week" tab. A muscle not trained last week is there with zeros. */
+  lastWeek: LastWeek;
 };
 
 /** The set the sheet is open on: an existing row to edit, or a new one. */
@@ -69,7 +79,7 @@ type SheetTarget = {
  */
 export function ExerciseScreen({
   sessionId, dayName, startedAt, log, index, total, settings, last, lastId, liftSessions,
-  note, byMuscle, muscleShared, previous,
+  note, byMuscle, muscleShared, previous, lastWeek,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -181,7 +191,7 @@ export function ExerciseScreen({
       <main className="mx-auto max-w-2xl px-4 pt-4" style={{ paddingBottom: "8.5rem" }}>
         {menu && (
           <div className="mb-3 rounded-2xl border border-line bg-panel p-3">
-            <MusclePanel byMuscle={byMuscle} previous={previous} current={log.muscleGroup} />
+            <MusclePanel byMuscle={byMuscle} previous={previous} lastWeek={lastWeek} current={log.muscleGroup} />
           </div>
         )}
 
@@ -483,9 +493,9 @@ export function ExerciseScreen({
  * 20–40 per session; they describe workouts, they never suggest a load.
  */
 function MusclePanel({
-  byMuscle, previous, current,
-}: { byMuscle: MuscleSlice[]; previous: PreviousWorkout | null; current: string }) {
-  const [tab, setTab] = useState<"today" | "last">("today");
+  byMuscle, previous, lastWeek, current,
+}: { byMuscle: MuscleSlice[]; previous: PreviousWorkout | null; lastWeek: LastWeek; current: string }) {
+  const [tab, setTab] = useState<"today" | "last" | "week">("today");
   const showing = tab === "last" && previous ? previous.byMuscle : byMuscle;
   const lastLabel = previous
     ? new Date(previous.startedAt).toLocaleDateString("en-US", { day: "numeric", month: "short" })
@@ -501,11 +511,18 @@ function MusclePanel({
           onClick={() => setTab("last")} disabled={!previous}>
           {previous ? `Last · ${lastLabel}` : "No last workout"}
         </button>
+        <button role="tab" aria-selected={tab === "week"} className={tabClass(tab === "week")}
+          onClick={() => setTab("week")}>
+          Last week
+        </button>
         <button role="tab" aria-selected={tab === "today"} className={tabClass(tab === "today")}
           onClick={() => setTab("today")}>
           This workout
         </button>
       </div>
+      {tab === "week" ? (
+        <LastWeekList lastWeek={lastWeek} current={current} />
+      ) : (<>
       {tab === "last" && previous && (
         <p className="mb-2 truncate text-xs text-ink-faint">{previous.dayName}</p>
       )}
@@ -539,7 +556,55 @@ function MusclePanel({
       <p className="mt-2.5 text-[11px] text-ink-faint">
         Shaded: {SESSION_ER_LOW}–{SESSION_ER_HIGH} effective reps per muscle per session.
       </p>
+      </>)}
     </div>
+  );
+}
+
+/**
+ * Last calendar week (Monday–Sunday) for the muscles in this workout: total
+ * effective reps, working and hard sets, sessions. Vladimir asked for it in
+ * October 2026 — the other two tabs show one workout each, and there was no
+ * quick way to see what the whole previous week added up to. Hard sets are
+ * coloured against the paper's weekly 10–16; the effective-rep total is not
+ * coloured, because the paper's band for it is per session, not per week.
+ */
+function LastWeekList({ lastWeek, current }: { lastWeek: LastWeek; current: string }) {
+  const start = new Date(`${lastWeek.weekStart}T12:00:00`);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const day = (d: Date) => d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+  return (
+    <>
+      <p className="mb-2 text-xs text-ink-faint">{day(start)} – {day(end)}</p>
+      {lastWeek.rows.length === 0 ? (
+        <p className="text-xs text-ink-faint">No lifts in this workout yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {lastWeek.rows.map((m) => (
+            <li key={m.muscleGroup} className="flex items-baseline justify-between gap-3 text-sm">
+              <span className={m.muscleGroup === current ? "font-semibold text-ink" : "text-ink-dim"}>
+                {m.muscleGroup}
+              </span>
+              <span className="tnum shrink-0 text-xs text-ink-faint">
+                <span className={`display text-base font-semibold ${
+                  m.effectiveReps ? "text-accent" : "text-ink-faint"
+                }`}>
+                  {fmt(m.effectiveReps)}
+                </span>
+                {" eff · "}
+                <span className={BAND_COLOR[weeklySetBand(m.hardSets)]}>{fmt(m.hardSets)} hard</span>
+                {" / "}{fmt(m.workingSets)} sets · {m.sessions}×
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2.5 text-[11px] text-ink-faint">
+        Whole week, Monday–Sunday. Hard sets coloured against {WEEKLY_SETS_LOW}–{WEEKLY_SETS_HIGH} a week.
+      </p>
+    </>
   );
 }
 

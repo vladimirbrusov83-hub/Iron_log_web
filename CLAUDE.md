@@ -164,7 +164,7 @@ Finish and Discard. It no longer loads `getLastSessionSets`; that belongs to one
 list beside today's, the `+ Add set` button, and the ⋯ drawer: effective reps per muscle
 for the whole workout so far (bars against the 20–40 band, this lift's muscle in bold),
 with a **Last** tab showing the same for the previous workout (`getPreviousSession`: last
-finished run of the same program day, else the most recent finished workout), and nothing else — Remove exercise was taken out of it at his request, so a lift cannot
+finished run of the same program day, else the most recent finished workout), and a **Last week** tab (Oct 2026, his ask: whole previous Monday–Sunday in `TRAINING_TZ`, `getLastWeekMuscleTotals`, for the muscles this workout trains — main + helpers, zeros included; effective reps, hard/working sets coloured by `weeklySetBand`, sessions), and nothing else — Remove exercise was taken out of it at his request, so a lift cannot
 currently be removed from a running workout (`dropExercise` is still in actions). The drawer used to hold the per-session note; it moved to the right half of the notes card. It is a real page and can be landed on directly, so it repeats the
 `finishedAt → /history/[id]` guard and `notFound()`s on a `logId` that is not in the
 session.
