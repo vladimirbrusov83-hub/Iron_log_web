@@ -1001,6 +1001,8 @@ export type WeeklyMuscleRow = {
   effectiveReps: number;
   workingSets: number;
   ratedSets: number;
+  /** weight × reps over counted sets, in whatever unit the sets were logged in. */
+  volume: number;
 };
 
 /**
@@ -1025,7 +1027,8 @@ export async function getWeeklyMuscleTotals(
               mc.credit = 1 AS is_primary,
               coalesce(sum(mc.credit * (${effectiveRepsSQL})), 0) AS effective_reps,
               coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL}), 0) AS working_sets,
-              coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL), 0) AS rated_sets
+              coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL} AND sl.rir IS NOT NULL), 0) AS rated_sets,
+              coalesce(sum(mc.credit * sl.weight * sl.reps) FILTER (WHERE ${countedSetSQL}), 0) AS volume
          FROM sessions s
          JOIN exercise_logs el ON el.session_id = s.id
          JOIN set_logs sl ON sl.exercise_log_id = el.id
@@ -1037,7 +1040,7 @@ export async function getWeeklyMuscleTotals(
       [weeks],
     ) as unknown as Promise<{
       week_start: string; muscle_group: string; is_primary: boolean; effective_reps: string;
-      working_sets: string; rated_sets: string;
+      working_sets: string; rated_sets: string; volume: string;
     }[]>,
   ]);
   return {
@@ -1050,6 +1053,7 @@ export async function getWeeklyMuscleTotals(
         effectiveReps: Number(r.effective_reps),
         workingSets: Number(r.working_sets),
         ratedSets: Number(r.rated_sets),
+        volume: Number(r.volume),
       }))
       .filter((r) => r.workingSets > 0),
   };
