@@ -62,7 +62,11 @@ export function WeeklyChart({
   // "All" adds up main-muscle credit only: every set sits in exactly one of
   // those rows, while its "Also works ½" rows would count it again.
   const picked = rows.filter((r) => (muscle === ALL ? r.isPrimary : r.muscleGroup === muscle));
-  const bars = weeks.map((w) => {
+  // Start at the first week with anything logged, so a young log fills the
+  // chart instead of sitting on the right behind a row of empty weeks.
+  const first = weeks.findIndex((w) => rows.some((r) => r.weekStart === w));
+  const shown = first > 0 ? weeks.slice(first) : weeks;
+  const bars = shown.map((w) => {
     const inWeek = picked.filter((r) => r.weekStart === w);
     return {
       week: w,
@@ -191,7 +195,7 @@ export function WeeklyChart({
           <>
             <span className="text-ink">{Math.round(total).toLocaleString("en-US")}</span>{" "}
             {metric === "er" ? "eff reps" : metric === "sets" ? "sets" : unit} over{" "}
-            {trained} of {weeks.length} weeks · {rated} of {sets} sets rated
+            {trained} of {shown.length} weeks · {rated} of {sets} sets rated
           </>
         )}
       </p>
