@@ -5,12 +5,12 @@ import {
   getProgramsByRecentUse, getSettings,
 } from "@/lib/db";
 import {
-  BAND_COLOR, ButtonLink, Header, Page, Panel, SetsBandBar,
+  BAND_COLOR, ButtonLink, Header, Page, Panel, WeekErBar,
 } from "@/components/ui";
 import { ProgramCarousel } from "@/components/program-carousel";
 import { CachedHome, RememberHome, TilesSkeleton } from "@/components/cached-home";
 import { effectiveRepsCoverage, totalEffectiveReps } from "@/lib/effective-reps";
-import { WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW, weeklySetBand } from "@/lib/targets";
+import { WEEKLY_ER_HIGH, WEEKLY_ER_LOW, weeklyErBand } from "@/lib/targets";
 import { formatDuration, sessionVolume } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -101,7 +101,7 @@ async function HomeLive() {
       <details className="rise rise-3 group mb-4 overflow-hidden rounded-2xl border border-line bg-panel">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
           <div className="min-w-0 flex-1">
-            <p className="eyebrow">Hard sets per muscle · 7d</p>
+            <p className="eyebrow">Effective reps per muscle · 7d</p>
             <p className="tnum mt-0.5 truncate text-sm">
               {muscles.length === 0 ? (
                 <span className="text-ink-faint">Nothing logged this week</span>
@@ -110,8 +110,8 @@ async function HomeLive() {
                   <span key={m.muscleGroup}>
                     {i > 0 && <span className="text-ink-faint"> · </span>}
                     <span className="text-ink-dim">{m.muscleGroup} </span>
-                    <span className={`font-semibold ${BAND_COLOR[weeklySetBand(m.hardSets)]}`}>
-                      {m.hardSets}
+                    <span className={`font-semibold ${BAND_COLOR[weeklyErBand(m.effectiveReps)]}`}>
+                      {m.effectiveReps}
                     </span>
                   </span>
                 ))
@@ -136,30 +136,30 @@ async function HomeLive() {
             <>
               <ul className="space-y-3">
                 {muscles.map((m) => {
-                  const band = weeklySetBand(m.hardSets);
+                  const band = weeklyErBand(m.effectiveReps);
                   return (
                     <li key={m.muscleGroup}>
                       <div className="flex items-baseline justify-between gap-2 text-sm">
                         <span className="font-medium">{m.muscleGroup}</span>
                         <span className="tnum text-xs">
                           <span className={`display text-base font-semibold ${BAND_COLOR[band]}`}>
-                            {m.hardSets}
+                            {m.effectiveReps}
                           </span>
-                          <span className="text-ink-faint"> hard sets · </span>
-                          <span className="text-accent">{m.effectiveReps}</span>
-                          <span className="text-ink-faint"> eff reps</span>
+                          <span className="text-ink-faint"> eff reps · </span>
+                          <span className="text-ink-dim">{m.hardSets}</span>
+                          <span className="text-ink-faint"> hard sets</span>
                         </span>
                       </div>
                       <div className="mt-1.5">
-                        <SetsBandBar sets={m.hardSets} band={band} />
+                        <WeekErBar er={m.effectiveReps} band={band} />
                       </div>
                     </li>
                   );
                 })}
               </ul>
               <p className="mt-3 text-[11px] leading-snug text-ink-faint">
-                Green band is the productive range, {WEEKLY_SETS_LOW}–{WEEKLY_SETS_HIGH} hard sets a
-                week. The tick is the floor. A hard set finished within 3 reps of failure.
+                Green band is {WEEKLY_ER_LOW}–{WEEKLY_ER_HIGH} effective reps a week (20–40 a session,
+                twice). The tick is the floor. A hard set finished within 3 reps of failure.
               </p>
               <Link href="/stats" className="mt-2 inline-block text-xs text-accent">
                 Full breakdown on Stats →

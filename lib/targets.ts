@@ -23,6 +23,10 @@ export const SESSION_SETS_MAX = 10;
 /** Sessions per muscle per week. */
 export const FREQUENCY_TARGET = 2;
 
+/** Effective reps per muscle per week: the per-session 20–40 at 2 sessions a week. */
+export const WEEKLY_ER_LOW = SESSION_ER_LOW * FREQUENCY_TARGET;   // 40
+export const WEEKLY_ER_HIGH = SESSION_ER_HIGH * FREQUENCY_TARGET; // 80
+
 /** A set counts as "hard" when it finished within this many reps of failure. */
 export const HARD_SET_MAX_RIR = 3;
 
@@ -43,6 +47,15 @@ export function sessionErBand(er: number): Band {
   if (er < SESSION_ER_LOW / 2) return "below";
   if (er < SESSION_ER_LOW) return "low";
   if (er <= SESSION_ER_HIGH) return "in";
+  return "above";
+}
+
+/** Where a week's effective reps for one muscle sit against 40–80; under half of 40 is below the floor. */
+export function weeklyErBand(er: number): Band {
+  if (er <= 0) return "none";
+  if (er < WEEKLY_ER_LOW / 2) return "below";
+  if (er < WEEKLY_ER_LOW) return "low";
+  if (er <= WEEKLY_ER_HIGH) return "in";
   return "above";
 }
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import {
   type Band, BAND_LABEL, SESSION_ER_HIGH, SESSION_ER_LOW,
-  WEEKLY_SETS_FLOOR, WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW,
+  WEEKLY_ER_HIGH, WEEKLY_ER_LOW, WEEKLY_SETS_FLOOR, WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW,
 } from "@/lib/targets";
 
 export function Page({ children }: { children: ReactNode }) {
@@ -201,6 +201,26 @@ export function SessionErBar({ er, band }: { er: number; band: Band }) {
         className="absolute inset-y-0 bg-good/15"
         style={{ left: pct(SESSION_ER_LOW), width: pct(SESSION_ER_HIGH - SESSION_ER_LOW) }}
       />
+      <div
+        className={`absolute inset-y-0 left-0 rounded-full ${BAND_BG[band]} transition-[width] duration-500`}
+        style={{ width: pct(er) }}
+      />
+    </div>
+  );
+}
+
+/** One muscle's effective reps over 7 days, drawn against 40–80 a week (the
+ *  per-session 20–40, twice). The tick is the floor at 20; the scale runs to 100. */
+export function WeekErBar({ er, band }: { er: number; band: Band }) {
+  const scale = 100;
+  const pct = (n: number) => `${Math.min(100, (n / scale) * 100)}%`;
+  return (
+    <div className="relative h-2 w-full overflow-hidden rounded-full bg-panel-3">
+      <div
+        className="absolute inset-y-0 bg-good/15"
+        style={{ left: pct(WEEKLY_ER_LOW), width: pct(WEEKLY_ER_HIGH - WEEKLY_ER_LOW) }}
+      />
+      <div className="absolute inset-y-0 w-px bg-line-2" style={{ left: pct(WEEKLY_ER_LOW / 2) }} />
       <div
         className={`absolute inset-y-0 left-0 rounded-full ${BAND_BG[band]} transition-[width] duration-500`}
         style={{ width: pct(er) }}
