@@ -80,8 +80,8 @@ async function HomeLive() {
         <Tile label="Sessions" value={String(week.sessions)} />
         <SplitTile
           label={`Vol ${unit}`}
-          now={Math.round(week.volume).toLocaleString("en-US")}
-          last={Math.round(lastWeek.volume).toLocaleString("en-US")}
+          now={compactVolume(week.volume)}
+          last={compactVolume(lastWeek.volume)}
         />
       </section>
 
@@ -255,6 +255,12 @@ async function HomeLive() {
 }
 
 /** A compact headline number. Smaller than `Stat` because three sit on one row. */
+/** 22,050 → "22.1k": two five-digit numbers do not fit either side of the
+ *  split tile's diagonal on a phone. */
+function compactVolume(v: number): string {
+  return v >= 10_000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toLocaleString("en-US");
+}
+
 /** This week over last week: a diagonal cuts the box, this week top-left,
  *  last week bottom-right (Vladimir, Oct 2026). */
 function SplitTile({ label, now, last, accent = false }: {
