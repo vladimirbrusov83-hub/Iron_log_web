@@ -71,8 +71,10 @@ async function HomeLive() {
       {/* Three numbers on one line. The week's detail lives in the drawer below
           and on Stats; this is only the glance. */}
       <section className="rise rise-1 mb-4 grid grid-cols-3 gap-2">
-        <Tile label="Eff reps · week" value={week.effectiveReps.toLocaleString("en-US")} accent
-              sub={`Last wk ${lastWeekEr.toLocaleString("en-US")}`} />
+        <SplitTile
+          now={week.effectiveReps.toLocaleString("en-US")}
+          last={lastWeekEr.toLocaleString("en-US")}
+        />
         <Tile label="Sessions" value={String(week.sessions)} />
         <Tile label={`Volume · ${unit}`} value={Math.round(week.volume).toLocaleString("en-US")} />
       </section>
@@ -247,16 +249,36 @@ async function HomeLive() {
 }
 
 /** A compact headline number. Smaller than `Stat` because three sit on one row. */
-function Tile({ label, value, accent = false, sub }: {
-  label: string; value: string; accent?: boolean; sub?: string;
-}) {
+/** Effective reps, this week over last week: a diagonal cuts the box, this
+ *  week top-left, last week bottom-right (Vladimir, Oct 2026). */
+function SplitTile({ now, last }: { now: string; last: string }) {
+  return (
+    <div className="relative min-h-[84px] overflow-hidden rounded-2xl border border-line bg-panel">
+      <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100"
+           preserveAspectRatio="none" aria-hidden>
+        <line x1="100" y1="26" x2="18" y2="100" stroke="var(--line-2)" strokeWidth="1.5"
+              vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="absolute left-2.5 top-2.5">
+        <div className="eyebrow" style={{ fontSize: 9 }}>Eff reps · this wk</div>
+        <div className="display tnum text-2xl font-semibold leading-none text-accent">{now}</div>
+      </div>
+      <div className="absolute bottom-2 right-2.5 text-right">
+        <div className="display tnum text-base font-semibold leading-none text-ink-dim">{last}</div>
+        <div className="eyebrow" style={{ fontSize: 9 }}>Last wk</div>
+      </div>
+      <span className="sr-only">Effective reps: {now} this week, {last} last week</span>
+    </div>
+  );
+}
+
+function Tile({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="rounded-2xl border border-line bg-panel px-2.5 py-2.5">
       <div className="eyebrow truncate" style={{ fontSize: 9 }}>{label}</div>
       <div className={`display tnum mt-0.5 truncate text-2xl font-semibold ${accent ? "text-accent" : ""}`}>
         {value}
       </div>
-      {sub && <div className="tnum truncate text-[11px] text-ink-faint">{sub}</div>}
     </div>
   );
 }
