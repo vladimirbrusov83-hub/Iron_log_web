@@ -44,8 +44,8 @@ async function HomeLive() {
     getActiveSession(),
     getProgramsByRecentUse(),
     getFinishedSessions(3),
-    getHeadline(7),
-    getMuscleTotals(7),
+    getHeadline("week"),
+    getMuscleTotals("week"),
     getSettings(),
   ]);
 
@@ -70,7 +70,7 @@ async function HomeLive() {
       {/* Three numbers on one line. The week's detail lives in the drawer below
           and on Stats; this is only the glance. */}
       <section className="rise rise-1 mb-4 grid grid-cols-3 gap-2">
-        <Tile label={`Eff reps · 7d`} value={week.effectiveReps.toLocaleString("en-US")} accent />
+        <Tile label="Eff reps · week" value={week.effectiveReps.toLocaleString("en-US")} accent />
         <Tile label="Sessions" value={String(week.sessions)} />
         <Tile label={`Volume · ${unit}`} value={Math.round(week.volume).toLocaleString("en-US")} />
       </section>
@@ -101,7 +101,7 @@ async function HomeLive() {
       <details className="rise rise-3 group mb-4 overflow-hidden rounded-2xl border border-line bg-panel">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
           <div className="min-w-0 flex-1">
-            <p className="eyebrow">Effective reps per muscle · 7d</p>
+            <p className="eyebrow">Effective reps per muscle · this week</p>
             <p className="tnum mt-0.5 truncate text-sm">
               {muscles.length === 0 ? (
                 <span className="text-ink-faint">Nothing logged this week</span>

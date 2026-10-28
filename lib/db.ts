@@ -1072,7 +1072,19 @@ export type MuscleTotals = {
   sessions: number;
 };
 
-export async function getMuscleTotals(days = 7): Promise<MuscleTotals[]> {
+/** A window of the last N days, or "week": since Monday 00:00 in TRAINING_TZ
+ *  (Postgres weeks start on Monday). The home screen uses "week" — Vladimir,
+ *  Oct 2026: "every week starts on Monday". */
+export type Window = number | "week";
+
+/** $1 is the day count, or NULL for the training week; $tz is TRAINING_TZ. */
+const sinceSQL = (tz: number) => `CASE WHEN $1::int IS NULL
+         THEN date_trunc('week', now() AT TIME ZONE $${tz}) AT TIME ZONE $${tz}
+         ELSE now() - ($1::int * interval '1 day') END`;
+
+const windowParam = (w: Window) => (w === "week" ? null : w);
+
+export async function getMuscleTotals(days: Window = 7): Promise<MuscleTotals[]> {
   const rows = (await sql.query(
     `SELECT mc.credit_muscle AS muscle_group,
             coalesce(sum(mc.credit) FILTER (WHERE ${countedSetSQL}), 0) AS working_sets,
@@ -1086,10 +1098,10 @@ export async function getMuscleTotals(days = 7): Promise<MuscleTotals[]> {
        JOIN set_logs sl ON sl.exercise_log_id = el.id
       CROSS JOIN LATERAL ${muscleCreditSQL} AS mc
       WHERE s.finished_at IS NOT NULL
-        AND s.started_at >= now() - ($1::int * interval '1 day')
+        AND s.started_at >= ${sinceSQL(3)}
         AND sl.is_completed
       GROUP BY 1 ORDER BY effective_reps DESC, working_sets DESC`,
-    [days, HARD_SET_MAX_RIR],
+    [windowParam(days), HARD_SET_MAX_RIR, TRAINING_TZ],
   )) as {
     muscle_group: string; working_sets: string; hard_sets: string; effective_reps: string;
     rated_sets: string; volume: string; sessions: string;
@@ -1235,7 +1247,7 @@ export type Headline = {
   ratedSets: number;
 };
 
-export async function getHeadline(days: number): Promise<Headline> {
+export async function getHeadline(days: Window): Promise<Headline> {
   const rows = (await sql.query(
     `SELECT count(DISTINCT s.id) AS sessions,
             coalesce(sum(sl.weight * sl.reps) FILTER (WHERE ${countedSetSQL}), 0) AS volume,
@@ -1246,8 +1258,8 @@ export async function getHeadline(days: number): Promise<Headline> {
        LEFT JOIN exercise_logs el ON el.session_id = s.id
        LEFT JOIN set_logs sl ON sl.exercise_log_id = el.id AND sl.is_completed
       WHERE s.finished_at IS NOT NULL
-        AND s.started_at >= now() - ($1::int * interval '1 day')`,
-    [days],
+        AND s.started_at >= ${sinceSQL(2)}`,
+    [windowParam(days), TRAINING_TZ],
   )) as {
     sessions: string; volume: string; working_sets: string;
     effective_reps: string; rated_sets: string;

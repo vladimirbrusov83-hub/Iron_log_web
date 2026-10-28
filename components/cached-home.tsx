@@ -68,7 +68,7 @@ export function CachedHome() {
 export function TilesSkeleton() {
   return (
     <section className="mb-4 grid grid-cols-3 gap-2" aria-hidden>
-      {["Eff reps · 7d", "Sessions", "Volume"].map((label) => (
+      {["Eff reps · week", "Sessions", "Volume"].map((label) => (
         <div key={label} className="rounded-2xl border border-line bg-panel px-2.5 py-2.5">
           <div className="eyebrow truncate" style={{ fontSize: 9 }}>{label}</div>
           <div className="display tnum mt-0.5 text-2xl font-semibold text-ink-faint">–</div>
