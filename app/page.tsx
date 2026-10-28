@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import {
-  getActiveSession, getFinishedSessions, getHeadline, getLastWeekEffectiveReps, getMuscleTotals,
+  getActiveSession, getFinishedSessions, getHeadline, getLastWeekHeadline, getMuscleTotals,
   getProgramsByRecentUse, getSettings,
 } from "@/lib/db";
 import {
@@ -40,12 +40,12 @@ export default function HomePage() {
 }
 
 async function HomeLive() {
-  const [active, programs, recent, week, lastWeekEr, muscles, settings] = await Promise.all([
+  const [active, programs, recent, week, lastWeek, muscles, settings] = await Promise.all([
     getActiveSession(),
     getProgramsByRecentUse(),
     getFinishedSessions(3),
     getHeadline("week"),
-    getLastWeekEffectiveReps(),
+    getLastWeekHeadline(),
     getMuscleTotals("week"),
     getSettings(),
   ]);
@@ -72,11 +72,17 @@ async function HomeLive() {
           and on Stats; this is only the glance. */}
       <section className="rise rise-1 mb-4 grid grid-cols-3 gap-2">
         <SplitTile
+          label="Eff reps"
           now={week.effectiveReps.toLocaleString("en-US")}
-          last={lastWeekEr.toLocaleString("en-US")}
+          last={lastWeek.effectiveReps.toLocaleString("en-US")}
+          accent
         />
         <Tile label="Sessions" value={String(week.sessions)} />
-        <Tile label={`Volume · ${unit}`} value={Math.round(week.volume).toLocaleString("en-US")} />
+        <SplitTile
+          label={`Vol ${unit}`}
+          now={Math.round(week.volume).toLocaleString("en-US")}
+          last={Math.round(lastWeek.volume).toLocaleString("en-US")}
+        />
       </section>
 
       {/* ------------------------------------------------ the point of the page */}
@@ -249,9 +255,11 @@ async function HomeLive() {
 }
 
 /** A compact headline number. Smaller than `Stat` because three sit on one row. */
-/** Effective reps, this week over last week: a diagonal cuts the box, this
- *  week top-left, last week bottom-right (Vladimir, Oct 2026). */
-function SplitTile({ now, last }: { now: string; last: string }) {
+/** This week over last week: a diagonal cuts the box, this week top-left,
+ *  last week bottom-right (Vladimir, Oct 2026). */
+function SplitTile({ label, now, last, accent = false }: {
+  label: string; now: string; last: string; accent?: boolean;
+}) {
   return (
     <div className="relative min-h-[84px] overflow-hidden rounded-2xl border border-line bg-panel">
       <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100"
@@ -260,14 +268,14 @@ function SplitTile({ now, last }: { now: string; last: string }) {
               vectorEffect="non-scaling-stroke" />
       </svg>
       <div className="absolute left-2.5 top-2.5">
-        <div className="eyebrow" style={{ fontSize: 9 }}>Eff reps · this wk</div>
-        <div className="display tnum text-2xl font-semibold leading-none text-accent">{now}</div>
+        <div className="eyebrow" style={{ fontSize: 9 }}>{label} · this wk</div>
+        <div className={`display tnum text-2xl font-semibold leading-none ${accent ? "text-accent" : ""}`}>{now}</div>
       </div>
       <div className="absolute bottom-2 right-2.5 text-right">
         <div className="display tnum text-base font-semibold leading-none text-ink-dim">{last}</div>
         <div className="eyebrow" style={{ fontSize: 9 }}>Last wk</div>
       </div>
-      <span className="sr-only">Effective reps: {now} this week, {last} last week</span>
+      <span className="sr-only">{label}: {now} this week, {last} last week</span>
     </div>
   );
 }

@@ -1247,11 +1247,13 @@ export type Headline = {
   ratedSets: number;
 };
 
-/** Effective reps for last calendar week, Monday to Sunday in TRAINING_TZ —
- *  shown under this week's number on the home tile (Vladimir, Oct 2026). */
-export async function getLastWeekEffectiveReps(): Promise<number> {
+/** Effective reps and volume for last calendar week, Monday to Sunday in
+ *  TRAINING_TZ — the bottom-right half of the home tiles (Vladimir, Oct 2026).
+ *  Counted like getHeadline. */
+export async function getLastWeekHeadline(): Promise<{ effectiveReps: number; volume: number }> {
   const rows = (await sql.query(
-    `SELECT coalesce(sum(${effectiveRepsSQL}), 0) AS effective_reps
+    `SELECT coalesce(sum(${effectiveRepsSQL}), 0) AS effective_reps,
+            coalesce(sum(sl.weight * sl.reps) FILTER (WHERE ${countedSetSQL}), 0) AS volume
        FROM sessions s
        JOIN exercise_logs el ON el.session_id = s.id
        JOIN set_logs sl ON sl.exercise_log_id = el.id AND sl.is_completed
@@ -1259,8 +1261,11 @@ export async function getLastWeekEffectiveReps(): Promise<number> {
         AND (s.started_at AT TIME ZONE $1) >= date_trunc('week', now() AT TIME ZONE $1) - interval '1 week'
         AND (s.started_at AT TIME ZONE $1) < date_trunc('week', now() AT TIME ZONE $1)`,
     [TRAINING_TZ],
-  )) as { effective_reps: string }[];
-  return Number(rows[0]?.effective_reps ?? 0);
+  )) as { effective_reps: string; volume: string }[];
+  return {
+    effectiveReps: Number(rows[0]?.effective_reps ?? 0),
+    volume: Number(rows[0]?.volume ?? 0),
+  };
 }
 
 export async function getHeadline(days: Window): Promise<Headline> {
