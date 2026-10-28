@@ -80,7 +80,7 @@ async function HomeLive() {
         <Tile label="Sessions" value={String(week.sessions)} />
         <SplitTile
           label={`Vol ${unit}`}
-          now={compactVolume(week.volume)}
+          now={Math.round(week.volume).toLocaleString("en-US")}
           last={compactVolume(lastWeek.volume)}
         />
       </section>
@@ -254,9 +254,8 @@ async function HomeLive() {
   );
 }
 
-/** A compact headline number. Smaller than `Stat` because three sit on one row. */
-/** 22,050 → "22.1k": two five-digit numbers do not fit either side of the
- *  split tile's diagonal on a phone. */
+/** 55,733 → "55.7k" for last week: the full number under the diagonal ran into
+ *  it on a phone. This week stays in full (Vladimir, Oct 2026). */
 function compactVolume(v: number): string {
   return v >= 10_000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toLocaleString("en-US");
 }
@@ -286,6 +285,7 @@ function SplitTile({ label, now, last, accent = false }: {
   );
 }
 
+/** A compact headline number. Smaller than `Stat` because three sit on one row. */
 function Tile({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="rounded-2xl border border-line bg-panel px-2.5 py-2.5">
