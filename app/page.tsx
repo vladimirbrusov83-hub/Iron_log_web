@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import {
-  getActiveSession, getFinishedSessions, getHeadline, getMuscleTotals,
+  getActiveSession, getFinishedSessions, getHeadline, getLastWeekEffectiveReps, getMuscleTotals,
   getProgramsByRecentUse, getSettings,
 } from "@/lib/db";
 import {
@@ -40,11 +40,12 @@ export default function HomePage() {
 }
 
 async function HomeLive() {
-  const [active, programs, recent, week, muscles, settings] = await Promise.all([
+  const [active, programs, recent, week, lastWeekEr, muscles, settings] = await Promise.all([
     getActiveSession(),
     getProgramsByRecentUse(),
     getFinishedSessions(3),
     getHeadline("week"),
+    getLastWeekEffectiveReps(),
     getMuscleTotals("week"),
     getSettings(),
   ]);
@@ -70,7 +71,8 @@ async function HomeLive() {
       {/* Three numbers on one line. The week's detail lives in the drawer below
           and on Stats; this is only the glance. */}
       <section className="rise rise-1 mb-4 grid grid-cols-3 gap-2">
-        <Tile label="Eff reps · week" value={week.effectiveReps.toLocaleString("en-US")} accent />
+        <Tile label="Eff reps · week" value={week.effectiveReps.toLocaleString("en-US")} accent
+              sub={`Last wk ${lastWeekEr.toLocaleString("en-US")}`} />
         <Tile label="Sessions" value={String(week.sessions)} />
         <Tile label={`Volume · ${unit}`} value={Math.round(week.volume).toLocaleString("en-US")} />
       </section>
@@ -245,13 +247,16 @@ async function HomeLive() {
 }
 
 /** A compact headline number. Smaller than `Stat` because three sit on one row. */
-function Tile({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+function Tile({ label, value, accent = false, sub }: {
+  label: string; value: string; accent?: boolean; sub?: string;
+}) {
   return (
     <div className="rounded-2xl border border-line bg-panel px-2.5 py-2.5">
       <div className="eyebrow truncate" style={{ fontSize: 9 }}>{label}</div>
       <div className={`display tnum mt-0.5 truncate text-2xl font-semibold ${accent ? "text-accent" : ""}`}>
         {value}
       </div>
+      {sub && <div className="tnum truncate text-[11px] text-ink-faint">{sub}</div>}
     </div>
   );
 }

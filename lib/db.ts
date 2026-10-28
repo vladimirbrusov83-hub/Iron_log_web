@@ -1247,6 +1247,22 @@ export type Headline = {
   ratedSets: number;
 };
 
+/** Effective reps for last calendar week, Monday to Sunday in TRAINING_TZ —
+ *  shown under this week's number on the home tile (Vladimir, Oct 2026). */
+export async function getLastWeekEffectiveReps(): Promise<number> {
+  const rows = (await sql.query(
+    `SELECT coalesce(sum(${effectiveRepsSQL}), 0) AS effective_reps
+       FROM sessions s
+       JOIN exercise_logs el ON el.session_id = s.id
+       JOIN set_logs sl ON sl.exercise_log_id = el.id AND sl.is_completed
+      WHERE s.finished_at IS NOT NULL
+        AND (s.started_at AT TIME ZONE $1) >= date_trunc('week', now() AT TIME ZONE $1) - interval '1 week'
+        AND (s.started_at AT TIME ZONE $1) < date_trunc('week', now() AT TIME ZONE $1)`,
+    [TRAINING_TZ],
+  )) as { effective_reps: string }[];
+  return Number(rows[0]?.effective_reps ?? 0);
+}
+
 export async function getHeadline(days: Window): Promise<Headline> {
   const rows = (await sql.query(
     `SELECT count(DISTINCT s.id) AS sessions,
