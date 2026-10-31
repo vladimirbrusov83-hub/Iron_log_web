@@ -1,16 +1,16 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
-  getBodyweight, getExerciseTotals, getHeadline, getMuscleTotals,
+  getBodyweight, getExerciseTotals, getHeadline,
   getPersonalRecords, getSettings, getTrainingTime, getWeeklyMuscleTotals,
 } from "@/lib/db";
 import {
-  BAND_COLOR, BandTag, Empty, Header, Page, Panel, SectionTitle, SetsBandBar, Stat,
+  Empty, Header, Page, Panel, SectionTitle, Stat,
 } from "@/components/ui";
 import { EFFECTIVE_REP_THRESHOLD, MAX_COUNTED_RIR } from "@/lib/effective-reps";
 import {
   FREQUENCY_TARGET, HARD_SET_MAX_RIR, SESSION_ER_HIGH, SESSION_ER_LOW, WEEKLY_SETS_FLOOR,
-  WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW, weeklySetBand,
+  WEEKLY_SETS_HIGH, WEEKLY_SETS_LOW,
 } from "@/lib/targets";
 import { estimated1RM } from "@/lib/types";
 import { BodyweightPanel } from "./bodyweight";
@@ -39,13 +39,11 @@ export default async function StatsPage({
 }: { searchParams: Promise<{ days?: string }> }) {
   const { days: raw } = await searchParams;
   const days = WINDOWS.some((w) => String(w.days) === raw) ? Number(raw) : 7;
-  const weeks = Math.max(1, days / 7);
 
-  const [headline, weekly, muscles, exercises, records, bodyweight, settings, time] =
+  const [headline, weekly, exercises, records, bodyweight, settings, time] =
     await Promise.all([
       getHeadline(days),
       getWeeklyMuscleTotals(12),
-      getMuscleTotals(days),
       getExerciseTotals(days),
       getPersonalRecords(),
       getBodyweight(),
@@ -105,55 +103,6 @@ export default async function StatsPage({
       <section className="rise rise-2 mb-5">
         <WeeklyChart weeks={weekly.weeks} rows={weekly.rows} seconds={weekly.seconds} allSets={weekly.allSets} unit={unit} />
       </section>
-
-      <Fold title="By muscle group · per week" hint={`${muscles.length} muscle${muscles.length === 1 ? "" : "s"}`}>
-        {muscles.length === 0 ? (
-          <Empty>Nothing in this window.</Empty>
-        ) : (
-          <Panel>
-            <ul className="divide-y divide-line/60">
-              {muscles.map((m) => {
-                const setsPerWeek = m.hardSets / weeks;
-                const erPerSession = m.sessions > 0 ? m.effectiveReps / m.sessions : 0;
-                const freq = m.sessions / weeks;
-                const band = weeklySetBand(Math.round(setsPerWeek));
-                return (
-                  <li key={m.muscleGroup} className="py-3 first:pt-0 last:pb-0">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="display text-lg font-semibold">{m.muscleGroup}</span>
-                      <BandTag band={band} />
-                    </div>
-                    <div className="mt-1.5">
-                      <SetsBandBar sets={setsPerWeek} band={band} />
-                    </div>
-                    <div className="tnum mt-2 grid grid-cols-4 gap-1 text-center">
-                      <Cell label="hard sets/wk" value={fmt(setsPerWeek)} tone={BAND_COLOR[band]} />
-                      <Cell label="eff reps/wk" value={fmt(m.effectiveReps / weeks)} tone="text-accent" />
-                      <Cell
-                        label="eff/session"
-                        value={fmt(erPerSession)}
-                        tone={erPerSession >= SESSION_ER_LOW && erPerSession <= SESSION_ER_HIGH
-                          ? "text-good" : "text-ink"}
-                      />
-                      <Cell
-                        label="sessions/wk"
-                        value={fmt(freq)}
-                        tone={freq >= FREQUENCY_TARGET ? "text-good" : "text-ink"}
-                      />
-                    </div>
-                    {m.ratedSets < m.workingSets && (
-                      <p className="mt-1.5 text-[11px] text-ink-faint">
-                        {m.workingSets - m.ratedSets} of {m.workingSets} working sets had no RIR
-                        and are not counted as hard.
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </Panel>
-        )}
-      </Fold>
 
       <Fold title="Effective reps by exercise" hint={`${exercises.length} lift${exercises.length === 1 ? "" : "s"}`}>
         {exercises.length === 0 ? (
@@ -266,19 +215,6 @@ function fmtDuration(seconds: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
-function fmt(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1);
-}
-
-function Cell({ label, value, tone }: { label: string; value: string; tone: string }) {
-  return (
-    <div className="rounded-lg bg-panel-2 px-1 py-1.5">
-      <div className={`display text-lg font-semibold ${tone}`}>{value}</div>
-      <div className="text-[9px] uppercase tracking-wider text-ink-faint">{label}</div>
-    </div>
-  );
 }
 
 /** A section folded away by default, its count on the summary row. Native <details>, no JS. */
