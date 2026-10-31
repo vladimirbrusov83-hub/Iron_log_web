@@ -23,12 +23,16 @@ function compact(n: number) {
  * line. The switch on top picks what is drawn, the chip row picks the muscle;
  * both choices are remembered on this phone only.
  *
- * Intensity is working sets per minute trained. Time belongs to a whole workout
- * and cannot be split by muscle, so it always counts every set and hides the chips.
+ * Intensity is sets per minute trained, warm-ups and 5 RIR sets included, since
+ * the time spent on them is in the minutes. Time belongs to a whole workout and
+ * cannot be split by muscle, so it always covers every lift and hides the chips.
  */
 export function WeeklyChart({
-  weeks, rows, seconds, unit,
-}: { weeks: string[]; rows: WeeklyMuscleRow[]; seconds: Record<string, number>; unit: string }) {
+  weeks, rows, seconds, allSets, unit,
+}: {
+  weeks: string[]; rows: WeeklyMuscleRow[]; seconds: Record<string, number>;
+  allSets: Record<string, number>; unit: string;
+}) {
   const [muscle, setMuscle] = useState(ALL);
   const [metric, setMetric] = useState<Metric>("er");
 
@@ -81,10 +85,11 @@ export function WeeklyChart({
       sets: inWeek.reduce((n, r) => n + r.workingSets, 0),
       volume: inWeek.reduce((n, r) => n + r.volume, 0),
       minutes: (seconds[w] ?? 0) / 60,
+      allSets: allSets[w] ?? 0,
     };
   });
-  const setsPerMinute = (b: { sets: number; minutes: number }) =>
-    (b.minutes > 0 ? b.sets / b.minutes : 0);
+  const setsPerMinute = (b: { allSets: number; minutes: number }) =>
+    (b.minutes > 0 ? b.allSets / b.minutes : 0);
   const value = (b: (typeof bars)[number]) =>
     metric === "er" ? b.er : metric === "sets" ? b.sets
       : metric === "volume" ? b.volume : setsPerMinute(b);
@@ -114,7 +119,7 @@ export function WeeklyChart({
   const trained = bars.filter(hasValue).length;
   // Whole-window sets over whole-window minutes, not an average of the weeks.
   const timed = bars.filter(hasValue);
-  const timedSets = timed.reduce((n, b) => n + b.sets, 0);
+  const timedSets = timed.reduce((n, b) => n + b.allSets, 0);
   const timedMinutes = timed.reduce((n, b) => n + b.minutes, 0);
 
   return (
@@ -208,12 +213,12 @@ export function WeeklyChart({
       </div>
 
       <p className="tnum mt-3 text-[11px] text-ink-faint">
-        {sets === 0 ? (
+        {(isIntensity ? timedSets : sets) === 0 ? (
           "Nothing logged in these weeks."
         ) : isIntensity ? (
           <>
-            <span className="text-ink">{setsPerMinute({ sets: timedSets, minutes: timedMinutes }).toFixed(2)}</span>{" "}
-            sets per minute · {timedSets} sets in {Math.round(timedMinutes).toLocaleString("en-US")} min
+            <span className="text-ink">{setsPerMinute({ allSets: timedSets, minutes: timedMinutes }).toFixed(2)}</span>{" "}
+            sets per minute · {timedSets} sets, warm-ups included, in {Math.round(timedMinutes).toLocaleString("en-US")} min
             {" "}over {trained} of {shown.length} weeks
           </>
         ) : (

@@ -102,7 +102,7 @@ export default async function StatsPage({
       </section>
 
       <section className="rise rise-2 mb-5">
-        <WeeklyChart weeks={weekly.weeks} rows={weekly.rows} seconds={weekly.seconds} unit={unit} />
+        <WeeklyChart weeks={weekly.weeks} rows={weekly.rows} seconds={weekly.seconds} allSets={weekly.allSets} unit={unit} />
       </section>
 
       <Fold title="By muscle group · per week" hint={`${muscles.length} muscle${muscles.length === 1 ? "" : "s"}`}>

@@ -1011,11 +1011,17 @@ export type WeeklyMuscleRow = {
  * and "Also works ½" credit. "All muscles" is the sum of the primary rows.
  * `seconds` is the time trained per week, for sets per minute; it reads
  * `sessions` alone, because joining the sets would add a duration once per set.
+ * `allSets` is every ticked set per week, warm-ups and 5 RIR included: the time
+ * spent on them is in `seconds`, so intensity counts them (Vladimir, Oct 2026).
+ * It is for that one number — every other total stays on `countedSetSQL`.
  */
 export async function getWeeklyMuscleTotals(
   weeks = 12,
-): Promise<{ weeks: string[]; rows: WeeklyMuscleRow[]; seconds: Record<string, number> }> {
-  const [weekRows, rows, timeRows] = await Promise.all([
+): Promise<{
+  weeks: string[]; rows: WeeklyMuscleRow[];
+  seconds: Record<string, number>; allSets: Record<string, number>;
+}> {
+  const [weekRows, rows, timeRows, setRows] = await Promise.all([
     sql.query(
       `SELECT to_char(w, 'YYYY-MM-DD') AS week_start
          FROM generate_series(date_trunc('week', now()) - ($1::int - 1) * interval '1 week',
@@ -1053,10 +1059,22 @@ export async function getWeeklyMuscleTotals(
         GROUP BY 1`,
       [weeks],
     ) as unknown as Promise<{ week_start: string; seconds: string }[]>,
+    sql.query(
+      `SELECT to_char(date_trunc('week', s.started_at), 'YYYY-MM-DD') AS week_start,
+              count(sl.id) AS sets
+         FROM sessions s
+         JOIN exercise_logs el ON el.session_id = s.id
+         JOIN set_logs sl ON sl.exercise_log_id = el.id AND sl.is_completed
+        WHERE s.finished_at IS NOT NULL
+          AND s.started_at >= date_trunc('week', now()) - ($1::int - 1) * interval '1 week'
+        GROUP BY 1`,
+      [weeks],
+    ) as unknown as Promise<{ week_start: string; sets: string }[]>,
   ]);
   return {
     weeks: weekRows.map((r) => r.week_start),
     seconds: Object.fromEntries(timeRows.map((r) => [r.week_start, Number(r.seconds)])),
+    allSets: Object.fromEntries(setRows.map((r) => [r.week_start, Number(r.sets)])),
     rows: rows
       .map((r) => ({
         weekStart: r.week_start,
