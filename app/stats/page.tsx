@@ -96,6 +96,7 @@ export default async function StatsPage({
           windows={TIME_WINDOWS.map((w, i) => ({
             label: w.label,
             days: time[i]?.daysTrained ?? 0,
+            sessions: time[i]?.sessions ?? 0,
             time: fmtDuration(time[i]?.seconds ?? 0),
           }))}
         />

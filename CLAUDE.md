@@ -133,7 +133,7 @@ by week**, then By muscle group, By exercise, Personal records, Bodyweight, How 
 is counted (last). By muscle group, By exercise and Personal records are native `<details>`
 (`Fold` in `page.tsx`), closed by default, count on the summary row. Days & time is
 `app/stats/training-time.tsx`: a 5-across picker (7d/30d/90d/1y/All) showing one window's
-days + time; all windows come from the server, the pick is `localStorage`
+days + sessions + time; all windows come from the server, the pick is `localStorage`
 (`ironlog.stats.timeWindow`).
 
 ## Stats: effective reps by week

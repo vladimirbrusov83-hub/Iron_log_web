@@ -12,7 +12,7 @@ const STORE_KEY = "ironlog.stats.timeWindow";
  */
 export function TrainingTime({
   windows,
-}: { windows: { label: string; days: number; time: string }[] }) {
+}: { windows: { label: string; days: number; sessions: number; time: string }[] }) {
   const [picked, setPicked] = useState(0);
 
   useEffect(() => {
@@ -50,6 +50,10 @@ export function TrainingTime({
         <div className="text-center">
           <span className="display text-2xl font-semibold">{w.days}</span>
           <span className="ml-1 text-xs text-ink-faint">day{w.days === 1 ? "" : "s"}</span>
+        </div>
+        <div className="text-center">
+          <span className="display text-2xl font-semibold">{w.sessions}</span>
+          <span className="ml-1 text-xs text-ink-faint">session{w.sessions === 1 ? "" : "s"}</span>
         </div>
         <div className="text-center">
           <span className="display text-2xl font-semibold text-accent">{w.time}</span>

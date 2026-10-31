@@ -1244,7 +1244,7 @@ export async function getExerciseTotals(days = 30): Promise<ExerciseTotals[]> {
  *  evening session in St. Louis would otherwise land on tomorrow's date. */
 const TRAINING_TZ = "America/Chicago";
 
-export type TrainingTime = { days: number | null; daysTrained: number; seconds: number };
+export type TrainingTime = { days: number | null; daysTrained: number; sessions: number; seconds: number };
 
 /**
  * Days trained and time trained, for each window at once (null = all time).
@@ -1255,6 +1255,7 @@ export async function getTrainingTime(windows: (number | null)[]): Promise<Train
   const rows = (await sql.query(
     `SELECT w.days,
             count(DISTINCT (s.started_at AT TIME ZONE $2)::date) AS days_trained,
+            count(s.id) AS sessions,
             coalesce(sum(s.duration_seconds), 0) AS seconds
        FROM unnest($1::int[]) WITH ORDINALITY AS w(days, ord)
        LEFT JOIN sessions s
@@ -1263,9 +1264,10 @@ export async function getTrainingTime(windows: (number | null)[]): Promise<Train
       GROUP BY w.days, w.ord
       ORDER BY w.ord`,
     [windows, TRAINING_TZ],
-  )) as { days: number | null; days_trained: string; seconds: string }[];
+  )) as { days: number | null; days_trained: string; sessions: string; seconds: string }[];
   return rows.map((r) => ({
-    days: r.days, daysTrained: Number(r.days_trained), seconds: Number(r.seconds),
+    days: r.days, daysTrained: Number(r.days_trained), sessions: Number(r.sessions),
+    seconds: Number(r.seconds),
   }));
 }
 
