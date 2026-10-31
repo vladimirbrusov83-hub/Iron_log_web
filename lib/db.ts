@@ -1009,11 +1009,13 @@ export type WeeklyMuscleRow = {
  * The last `weeks` week starts, oldest first — empty weeks included so a gap
  * shows as a gap — plus effective reps per muscle per week, split into main
  * and "Also works ½" credit. "All muscles" is the sum of the primary rows.
+ * `seconds` is the time trained per week, for sets per minute; it reads
+ * `sessions` alone, because joining the sets would add a duration once per set.
  */
 export async function getWeeklyMuscleTotals(
   weeks = 12,
-): Promise<{ weeks: string[]; rows: WeeklyMuscleRow[] }> {
-  const [weekRows, rows] = await Promise.all([
+): Promise<{ weeks: string[]; rows: WeeklyMuscleRow[]; seconds: Record<string, number> }> {
+  const [weekRows, rows, timeRows] = await Promise.all([
     sql.query(
       `SELECT to_char(w, 'YYYY-MM-DD') AS week_start
          FROM generate_series(date_trunc('week', now()) - ($1::int - 1) * interval '1 week',
@@ -1042,9 +1044,19 @@ export async function getWeeklyMuscleTotals(
       week_start: string; muscle_group: string; is_primary: boolean; effective_reps: string;
       working_sets: string; rated_sets: string; volume: string;
     }[]>,
+    sql.query(
+      `SELECT to_char(date_trunc('week', started_at), 'YYYY-MM-DD') AS week_start,
+              sum(duration_seconds) AS seconds
+         FROM sessions
+        WHERE finished_at IS NOT NULL
+          AND started_at >= date_trunc('week', now()) - ($1::int - 1) * interval '1 week'
+        GROUP BY 1`,
+      [weeks],
+    ) as unknown as Promise<{ week_start: string; seconds: string }[]>,
   ]);
   return {
     weeks: weekRows.map((r) => r.week_start),
+    seconds: Object.fromEntries(timeRows.map((r) => [r.week_start, Number(r.seconds)])),
     rows: rows
       .map((r) => ({
         weekStart: r.week_start,
@@ -1237,32 +1249,6 @@ export async function getTrainingTime(windows: (number | null)[]): Promise<Train
   return rows.map((r) => ({
     days: r.days, daysTrained: Number(r.days_trained), seconds: Number(r.seconds),
   }));
-}
-
-export type TrainingDay = { date: string; seconds: number; sessions: number };
-
-/** Time trained per day in TRAINING_TZ, oldest first, and today's date there —
- *  the Stats time chart groups these into weeks, months and years. */
-export async function getTrainingDays(): Promise<{ today: string; days: TrainingDay[] }> {
-  const rows = (await sql.query(
-    `SELECT to_char(started_at AT TIME ZONE $1, 'YYYY-MM-DD') AS day,
-            sum(duration_seconds) AS seconds,
-            count(*) AS sessions,
-            to_char(now() AT TIME ZONE $1, 'YYYY-MM-DD') AS today
-       FROM sessions
-      WHERE finished_at IS NOT NULL
-      GROUP BY 1
-      ORDER BY 1`,
-    [TRAINING_TZ],
-  )) as { day: string; seconds: string; sessions: string; today: string }[];
-  const today = rows[0]?.today
-    ?? new Date().toLocaleDateString("en-CA", { timeZone: TRAINING_TZ });
-  return {
-    today,
-    days: rows.map((r) => ({
-      date: r.day, seconds: Number(r.seconds), sessions: Number(r.sessions),
-    })),
-  };
 }
 
 export type Headline = {

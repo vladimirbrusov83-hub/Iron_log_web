@@ -128,9 +128,7 @@ that stays the line. `getMuscleTotals` returns `hardSets` and `sessions` for the
 
 ## Stats layout
 
-Order (Vladimir, Oct 2026): window tabs, headline, **Days & time trained**, **Training time**
-(folded; `app/stats/time-chart.tsx`, bars for this week by day, this month by week, this year
-by month, all by month or by year past 24 months; ignores the window tabs), **Effective reps
+Order (Vladimir, Oct 2026): window tabs, headline, **Days & time trained**, **Effective reps
 by week**, then By muscle group, By exercise, Personal records, Bodyweight, How this
 is counted (last). By muscle group, By exercise and Personal records are native `<details>`
 (`Fold` in `page.tsx`), closed by default, count on the summary row. Days & time is
@@ -140,7 +138,7 @@ days + time; all windows come from the server, the pick is `localStorage`
 
 ## Stats: effective reps by week
 
-One chart, not one per muscle (Vladimir, Oct 2026, to save screen space). `app/stats/weekly-chart.tsx` takes `getWeeklyMuscleTotals(12)` — every week start in the window (drawn as connected dots; a week with nothing for the picked muscle breaks the line and shows a grey dot on the baseline) plus per-muscle-per-week rows — and a chip row picks All muscles or one group. "All" is the sum of the rows. The pick is remembered in `localStorage` (`ironlog.stats.muscle`). The line under it carries the `rated of sets` count. It ignores the 7d/30d/1y tabs; it is always the last 12 weeks.
+One chart, not one per muscle (Vladimir, Oct 2026, to save screen space). `app/stats/weekly-chart.tsx` takes `getWeeklyMuscleTotals(12)` — every week start in the window (drawn as connected dots; a week with nothing for the picked muscle breaks the line and shows a grey dot on the baseline) plus per-muscle-per-week rows — and a chip row picks All muscles or one group. "All" is the sum of the rows. The pick is remembered in `localStorage` (`ironlog.stats.muscle`). The line under it carries the `rated of sets` count. It ignores the 7d/30d/1y tabs; it is always the last 12 weeks. **Intensity** (Oct 2026, his ask) is working sets ÷ minutes trained per week: time belongs to a whole workout, so it always counts all muscles and hides the chips.
 
 ## Design
 

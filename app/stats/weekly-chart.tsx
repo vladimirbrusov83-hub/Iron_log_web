@@ -9,8 +9,8 @@ const ALL = "All";
 const STORE_KEY = "ironlog.stats.muscle";
 const METRIC_KEY = "ironlog.stats.metric";
 
-type Metric = "er" | "sets" | "volume";
-const METRICS: Metric[] = ["er", "sets", "volume"];
+type Metric = "er" | "sets" | "volume" | "intensity";
+const METRICS: Metric[] = ["er", "sets", "volume", "intensity"];
 
 /** Volume runs to five digits a week, so the dot labels shorten it: 12.3k. */
 function compact(n: number) {
@@ -22,10 +22,13 @@ function compact(n: number) {
  * week over the last twelve weeks as connected dots, empty weeks breaking the
  * line. The switch on top picks what is drawn, the chip row picks the muscle;
  * both choices are remembered on this phone only.
+ *
+ * Intensity is working sets per minute trained. Time belongs to a whole workout
+ * and cannot be split by muscle, so it always counts every set and hides the chips.
  */
 export function WeeklyChart({
-  weeks, rows, unit,
-}: { weeks: string[]; rows: WeeklyMuscleRow[]; unit: string }) {
+  weeks, rows, seconds, unit,
+}: { weeks: string[]; rows: WeeklyMuscleRow[]; seconds: Record<string, number>; unit: string }) {
   const [muscle, setMuscle] = useState(ALL);
   const [metric, setMetric] = useState<Metric>("er");
 
@@ -57,11 +60,15 @@ export function WeeklyChart({
     try { localStorage.setItem(METRIC_KEY, m); } catch { /* ignore */ }
   }
 
-  const LABEL: Record<Metric, string> = { er: "Eff reps", sets: "Sets", volume: `Volume ${unit}` };
+  const LABEL: Record<Metric, string> = {
+    er: "Eff reps", sets: "Sets", volume: `Vol ${unit}`, intensity: "Intensity",
+  };
+  const isIntensity = metric === "intensity";
 
   // "All" adds up main-muscle credit only: every set sits in exactly one of
   // those rows, while its "Also works ½" rows would count it again.
-  const picked = rows.filter((r) => (muscle === ALL ? r.isPrimary : r.muscleGroup === muscle));
+  const picked = rows.filter((r) =>
+    (muscle === ALL || isIntensity ? r.isPrimary : r.muscleGroup === muscle));
   // Start at the first week with anything logged, so a young log fills the
   // chart instead of sitting on the right behind a row of empty weeks.
   const first = weeks.findIndex((w) => rows.some((r) => r.weekStart === w));
@@ -73,41 +80,53 @@ export function WeeklyChart({
       er: inWeek.reduce((n, r) => n + r.effectiveReps, 0),
       sets: inWeek.reduce((n, r) => n + r.workingSets, 0),
       volume: inWeek.reduce((n, r) => n + r.volume, 0),
+      minutes: (seconds[w] ?? 0) / 60,
     };
   });
+  const setsPerMinute = (b: { sets: number; minutes: number }) =>
+    (b.minutes > 0 ? b.sets / b.minutes : 0);
   const value = (b: (typeof bars)[number]) =>
-    metric === "er" ? b.er : metric === "sets" ? b.sets : b.volume;
-  const peak = Math.max(1, ...bars.map(value));
+    metric === "er" ? b.er : metric === "sets" ? b.sets
+      : metric === "volume" ? b.volume : setsPerMinute(b);
+  // A week draws a dot only if it has a number: intensity also needs time logged.
+  const hasValue = (b: (typeof bars)[number]) => (isIntensity ? value(b) > 0 : b.sets > 0);
+  // Not floored at 1: sets per minute sits well under it.
+  const peak = Math.max(...bars.map(value)) || 1;
   const points = bars.map((b, i) => ({
     ...b,
     v: value(b),
+    has: hasValue(b),
     x: ((i + 0.5) / bars.length) * 100,
-    y: b.sets > 0 ? 100 - (value(b) / peak) * 100 : 100,
+    y: hasValue(b) ? 100 - (value(b) / peak) * 100 : 100,
   }));
   // A week with nothing logged for the muscle breaks the line rather than
   // diving to zero — it shows as a small grey dot on the baseline instead.
   const segments: (typeof points)[] = [];
   let run: typeof points = [];
   for (const p of points) {
-    if (p.sets > 0) run.push(p);
+    if (p.has) run.push(p);
     else if (run.length) { segments.push(run); run = []; }
   }
   if (run.length) segments.push(run);
   const total = bars.reduce((n, b) => n + value(b), 0);
   const sets = picked.reduce((n, r) => n + r.workingSets, 0);
   const rated = picked.reduce((n, r) => n + r.ratedSets, 0);
-  const trained = bars.filter((b) => b.sets > 0).length;
+  const trained = bars.filter(hasValue).length;
+  // Whole-window sets over whole-window minutes, not an average of the weeks.
+  const timed = bars.filter(hasValue);
+  const timedSets = timed.reduce((n, b) => n + b.sets, 0);
+  const timedMinutes = timed.reduce((n, b) => n + b.minutes, 0);
 
   return (
     <>
-    <div className="mb-2 flex items-center justify-between gap-2">
-      <h2 className="eyebrow">By week</h2>
-      <div className="grid grid-cols-3 gap-1 rounded-xl border border-line bg-panel p-1">
+    <div className="mb-2">
+      <h2 className="eyebrow mb-2">By week</h2>
+      <div className="grid grid-cols-4 gap-1 rounded-xl border border-line bg-panel p-1">
         {METRICS.map((m) => (
           <button
             key={m}
             onClick={() => pickMetric(m)}
-            className={`display min-h-9 rounded-lg px-2.5 text-sm font-semibold ${
+            className={`display min-h-9 rounded-lg px-1 text-sm font-semibold ${
               m === metric ? "bg-accent text-black" : "text-ink-dim"
             }`}
           >
@@ -117,7 +136,7 @@ export function WeeklyChart({
       </div>
     </div>
     <Panel>
-      <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+      {!isIntensity && <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
         {[ALL, ...muscles].map((m) => (
           <button
             key={m}
@@ -131,7 +150,7 @@ export function WeeklyChart({
             {m === ALL ? "All muscles" : m}
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* Line and dots share one coordinate space: x is the week's column centre,
           y is the share of the peak. The SVG stretches to fit (the stroke does not
@@ -163,12 +182,12 @@ export function WeeklyChart({
             key={p.week}
             className="absolute -translate-x-1/2 translate-y-1/2"
             style={{ left: `${p.x}%`, bottom: `${100 - p.y}%` }}
-            title={`${p.er} eff reps · ${p.sets} sets · ${Math.round(p.volume)} ${unit}`}
+            title={`${p.er} eff reps · ${p.sets} sets · ${Math.round(p.volume)} ${unit} · ${Math.round(p.minutes)} min`}
           >
-            {p.sets > 0 ? (
+            {p.has ? (
               <>
                 <span className="display tnum absolute bottom-full left-1/2 mb-1 -translate-x-1/2 text-[11px] font-semibold text-accent">
-                  {metric === "volume" ? compact(p.v) : p.v}
+                  {isIntensity ? p.v.toFixed(2) : metric === "volume" ? compact(p.v) : p.v}
                 </span>
                 <span className="block size-2.5 rounded-full border-2 border-accent bg-panel" />
               </>
@@ -191,6 +210,12 @@ export function WeeklyChart({
       <p className="tnum mt-3 text-[11px] text-ink-faint">
         {sets === 0 ? (
           "Nothing logged in these weeks."
+        ) : isIntensity ? (
+          <>
+            <span className="text-ink">{setsPerMinute({ sets: timedSets, minutes: timedMinutes }).toFixed(2)}</span>{" "}
+            sets per minute · {timedSets} sets in {Math.round(timedMinutes).toLocaleString("en-US")} min
+            {" "}over {trained} of {shown.length} weeks
+          </>
         ) : (
           <>
             <span className="text-ink">{Math.round(total).toLocaleString("en-US")}</span>{" "}

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   getBodyweight, getExerciseTotals, getHeadline, getMuscleTotals,
-  getPersonalRecords, getSettings, getTrainingDays, getTrainingTime, getWeeklyMuscleTotals,
+  getPersonalRecords, getSettings, getTrainingTime, getWeeklyMuscleTotals,
 } from "@/lib/db";
 import {
   BAND_COLOR, BandTag, Empty, Header, Page, Panel, SectionTitle, SetsBandBar, Stat,
@@ -14,7 +14,6 @@ import {
 } from "@/lib/targets";
 import { estimated1RM } from "@/lib/types";
 import { BodyweightPanel } from "./bodyweight";
-import { TimeChart } from "./time-chart";
 import { TrainingTime } from "./training-time";
 import { WeeklyChart } from "./weekly-chart";
 
@@ -42,7 +41,7 @@ export default async function StatsPage({
   const days = WINDOWS.some((w) => String(w.days) === raw) ? Number(raw) : 7;
   const weeks = Math.max(1, days / 7);
 
-  const [headline, weekly, muscles, exercises, records, bodyweight, settings, time, trainingDays] =
+  const [headline, weekly, muscles, exercises, records, bodyweight, settings, time] =
     await Promise.all([
       getHeadline(days),
       getWeeklyMuscleTotals(12),
@@ -52,7 +51,6 @@ export default async function StatsPage({
       getBodyweight(),
       getSettings(),
       getTrainingTime(TIME_WINDOWS.map((w) => w.days)),
-      getTrainingDays(),
     ]);
 
   const unit = settings.weightUnit;
@@ -103,15 +101,8 @@ export default async function StatsPage({
         />
       </section>
 
-      <Fold
-        title="Training time"
-        hint={`${fmtDuration(trainingDays.days.reduce((n, d) => n + d.seconds, 0))} total`}
-      >
-        <TimeChart today={trainingDays.today} days={trainingDays.days} />
-      </Fold>
-
       <section className="rise rise-2 mb-5">
-        <WeeklyChart weeks={weekly.weeks} rows={weekly.rows} unit={unit} />
+        <WeeklyChart weeks={weekly.weeks} rows={weekly.rows} seconds={weekly.seconds} unit={unit} />
       </section>
 
       <Fold title="By muscle group · per week" hint={`${muscles.length} muscle${muscles.length === 1 ? "" : "s"}`}>
