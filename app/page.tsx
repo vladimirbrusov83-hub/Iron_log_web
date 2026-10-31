@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import {
   getActiveSession, getFinishedSessions, getHeadline, getLastWeekHeadline, getMuscleTotals,
-  getProgramsByRecentUse, getSettings,
+  getProgramsByRecentUse, getSettings, getWeekTime, type WeekTime,
 } from "@/lib/db";
 import {
   BAND_COLOR, ButtonLink, Header, Page, Panel, WeekErBar,
@@ -40,7 +40,7 @@ export default function HomePage() {
 }
 
 async function HomeLive() {
-  const [active, programs, recent, week, lastWeek, muscles, settings] = await Promise.all([
+  const [active, programs, recent, week, lastWeek, muscles, settings, weekTime] = await Promise.all([
     getActiveSession(),
     getProgramsByRecentUse(),
     getFinishedSessions(3),
@@ -48,6 +48,7 @@ async function HomeLive() {
     getLastWeekHeadline(),
     getMuscleTotals("week"),
     getSettings(),
+    getWeekTime(),
   ]);
 
   // Ordered most-recently-trained first, so the card opens on the one being run.
@@ -77,7 +78,11 @@ async function HomeLive() {
           last={lastWeek.effectiveReps.toLocaleString("en-US")}
           accent
         />
-        <Tile label="Sessions" value={String(week.sessions)} />
+        <SplitTile
+          label="Sess/time"
+          now={sessionsAndTime(weekTime.now)}
+          last={sessionsAndTime(weekTime.last).replaceAll(" ", "")}
+        />
         <SplitTile
           label={`Vol ${unit}`}
           now={Math.round(week.volume).toLocaleString("en-US")}
@@ -260,6 +265,14 @@ function compactVolume(v: number): string {
   return v >= 10_000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toLocaleString("en-US");
 }
 
+/** 3 sessions, 3 h 25 min → "3 · 3:25" (hours:minutes), short enough to fit
+ *  beside the diagonal on a phone. */
+function sessionsAndTime({ sessions, seconds }: WeekTime): string {
+  const minutes = Math.round(seconds / 60);
+  const mm = String(minutes % 60).padStart(2, "0");
+  return `${sessions} · ${Math.floor(minutes / 60)}:${mm}`;
+}
+
 /** This week over last week: a diagonal cuts the box, this week top-left,
  *  last week bottom-right (Vladimir, Oct 2026). */
 function SplitTile({ label, now, last, accent = false }: {
@@ -281,18 +294,6 @@ function SplitTile({ label, now, last, accent = false }: {
         <div className="eyebrow" style={{ fontSize: 9 }}>Last wk</div>
       </div>
       <span className="sr-only">{label}: {now} this week, {last} last week</span>
-    </div>
-  );
-}
-
-/** A compact headline number. Smaller than `Stat` because three sit on one row. */
-function Tile({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="rounded-2xl border border-line bg-panel px-2.5 py-2.5">
-      <div className="eyebrow truncate" style={{ fontSize: 9 }}>{label}</div>
-      <div className={`display tnum mt-0.5 truncate text-2xl font-semibold ${accent ? "text-accent" : ""}`}>
-        {value}
-      </div>
     </div>
   );
 }

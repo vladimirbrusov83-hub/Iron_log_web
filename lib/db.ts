@@ -1268,6 +1268,31 @@ export async function getLastWeekHeadline(): Promise<{ effectiveReps: number; vo
   };
 }
 
+export type WeekTime = { sessions: number; seconds: number };
+
+/** Finished sessions and training time for this week and last, Monday to Sunday
+ *  in TRAINING_TZ — the home screen's middle tile (Vladimir, Oct 2026). Reads
+ *  `sessions` alone: joining the sets would add a duration once per set. */
+export async function getWeekTime(): Promise<{ now: WeekTime; last: WeekTime }> {
+  const rows = (await sql.query(
+    `WITH wk AS (SELECT date_trunc('week', now() AT TIME ZONE $1) AS start),
+          s AS (SELECT started_at AT TIME ZONE $1 AS local_start, duration_seconds
+                  FROM sessions WHERE finished_at IS NOT NULL)
+     SELECT count(*) FILTER (WHERE s.local_start >= wk.start) AS now_sessions,
+            coalesce(sum(s.duration_seconds) FILTER (WHERE s.local_start >= wk.start), 0) AS now_seconds,
+            count(*) FILTER (WHERE s.local_start < wk.start) AS last_sessions,
+            coalesce(sum(s.duration_seconds) FILTER (WHERE s.local_start < wk.start), 0) AS last_seconds
+       FROM s CROSS JOIN wk
+      WHERE s.local_start >= wk.start - interval '1 week'`,
+    [TRAINING_TZ],
+  )) as { now_sessions: string; now_seconds: string; last_sessions: string; last_seconds: string }[];
+  const r = rows[0];
+  return {
+    now: { sessions: Number(r?.now_sessions ?? 0), seconds: Number(r?.now_seconds ?? 0) },
+    last: { sessions: Number(r?.last_sessions ?? 0), seconds: Number(r?.last_seconds ?? 0) },
+  };
+}
+
 export async function getHeadline(days: Window): Promise<Headline> {
   const rows = (await sql.query(
     `SELECT count(DISTINCT s.id) AS sessions,
