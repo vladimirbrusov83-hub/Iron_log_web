@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import {
   getActiveSession, getFinishedSessions, getHeadline, getLastWeekHeadline, getMuscleTotals,
-  getProgramsByRecentUse, getSettings, getWeekTime, type WeekTime,
+  getProgramsByRecentUse, getSettings, getWeekTime,
 } from "@/lib/db";
 import {
   BAND_COLOR, ButtonLink, Header, Page, Panel, WeekErBar,
@@ -80,8 +80,10 @@ async function HomeLive() {
         />
         <SplitTile
           label="Sess/time"
-          now={sessionsAndTime(weekTime.now)}
-          last={sessionsAndTime(weekTime.last).replaceAll(" ", "")}
+          now={String(weekTime.now.sessions)}
+          nowUnder={hoursMinutes(weekTime.now.seconds)}
+          last={String(weekTime.last.sessions)}
+          lastUnder={hoursMinutes(weekTime.last.seconds)}
         />
         <SplitTile
           label={`Vol ${unit}`}
@@ -265,21 +267,19 @@ function compactVolume(v: number): string {
   return v >= 10_000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toLocaleString("en-US");
 }
 
-/** 3 sessions, 3 h 25 min → "3 · 3:25" (hours:minutes), short enough to fit
- *  beside the diagonal on a phone. */
-function sessionsAndTime({ sessions, seconds }: WeekTime): string {
+/** 3 h 25 min → "3:25". */
+function hoursMinutes(seconds: number): string {
   const minutes = Math.round(seconds / 60);
-  const mm = String(minutes % 60).padStart(2, "0");
-  return `${sessions} · ${Math.floor(minutes / 60)}:${mm}`;
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
 /** This week over last week: a diagonal cuts the box, this week top-left,
  *  last week bottom-right (Vladimir, Oct 2026). */
-function SplitTile({ label, now, last, accent = false }: {
-  label: string; now: string; last: string; accent?: boolean;
+function SplitTile({ label, now, nowUnder, last, lastUnder, accent = false }: {
+  label: string; now: string; nowUnder?: string; last: string; lastUnder?: string; accent?: boolean;
 }) {
   return (
-    <div className="relative min-h-[84px] overflow-hidden rounded-2xl border border-line bg-panel">
+    <div className="relative min-h-[96px] overflow-hidden rounded-2xl border border-line bg-panel">
       <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100"
            preserveAspectRatio="none" aria-hidden>
         <line x1="100" y1="26" x2="18" y2="100" stroke="var(--line-2)" strokeWidth="1.5"
@@ -288,12 +288,16 @@ function SplitTile({ label, now, last, accent = false }: {
       <div className="absolute left-2.5 top-2.5">
         <div className="eyebrow" style={{ fontSize: 9 }}>{label} · this wk</div>
         <div className={`display tnum text-2xl font-semibold leading-none ${accent ? "text-accent" : ""}`}>{now}</div>
+        {nowUnder && <div className="display tnum text-2xl font-semibold leading-none">{nowUnder}</div>}
       </div>
       <div className="absolute bottom-2 right-2.5 text-right">
         <div className="display tnum text-base font-semibold leading-none text-ink-dim">{last}</div>
+        {lastUnder && <div className="display tnum text-base font-semibold leading-none text-ink-dim">{lastUnder}</div>}
         <div className="eyebrow" style={{ fontSize: 9 }}>Last wk</div>
       </div>
-      <span className="sr-only">{label}: {now} this week, {last} last week</span>
+      <span className="sr-only">
+        {label}: {now}{nowUnder && `, ${nowUnder}`} this week, {last}{lastUnder && `, ${lastUnder}`} last week
+      </span>
     </div>
   );
 }
