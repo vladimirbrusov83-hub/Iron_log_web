@@ -80,10 +80,10 @@ async function HomeLive() {
         />
         <SplitTile
           label="Sess/time"
-          now={String(weekTime.now.sessions)}
-          nowUnder={hoursMinutes(weekTime.now.seconds)}
-          last={String(weekTime.last.sessions)}
-          lastUnder={hoursMinutes(weekTime.last.seconds)}
+          now={hoursMinutes(weekTime.now.seconds)}
+          nowUnder={sessionCount(weekTime.now.sessions)}
+          last={hoursMinutes(weekTime.last.seconds)}
+          lastUnder={sessionCount(weekTime.last.sessions)}
         />
         <SplitTile
           label={`Vol ${unit}`}
@@ -267,10 +267,14 @@ function compactVolume(v: number): string {
   return v >= 10_000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toLocaleString("en-US");
 }
 
-/** 3 h 25 min → "3:25". */
+/** 3 h 5 min → "3h:05m". */
 function hoursMinutes(seconds: number): string {
   const minutes = Math.round(seconds / 60);
-  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
+  return `${Math.floor(minutes / 60)}h:${String(minutes % 60).padStart(2, "0")}m`;
+}
+
+function sessionCount(n: number): string {
+  return `${n} session${n === 1 ? "" : "s"}`;
 }
 
 /** This week over last week: a diagonal cuts the box, this week top-left,
@@ -279,20 +283,20 @@ function SplitTile({ label, now, nowUnder, last, lastUnder, accent = false }: {
   label: string; now: string; nowUnder?: string; last: string; lastUnder?: string; accent?: boolean;
 }) {
   return (
-    <div className="relative min-h-[96px] overflow-hidden rounded-2xl border border-line bg-panel">
+    <div className="relative min-h-[112px] overflow-hidden rounded-2xl border border-line bg-panel">
       <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100"
            preserveAspectRatio="none" aria-hidden>
-        <line x1="100" y1="26" x2="18" y2="100" stroke="var(--line-2)" strokeWidth="1.5"
+        <line x1="100" y1="18" x2="8" y2="100" stroke="var(--line-2)" strokeWidth="1.5"
               vectorEffect="non-scaling-stroke" />
       </svg>
       <div className="absolute left-2.5 top-2.5">
         <div className="eyebrow" style={{ fontSize: 9 }}>{label} · this wk</div>
         <div className={`display tnum text-2xl font-semibold leading-none ${accent ? "text-accent" : ""}`}>{now}</div>
-        {nowUnder && <div className="display tnum text-2xl font-semibold leading-none">{nowUnder}</div>}
+        {nowUnder && <div className="tnum mt-0.5 text-[11px] leading-none text-ink-dim">{nowUnder}</div>}
       </div>
       <div className="absolute bottom-2 right-2.5 text-right">
-        <div className="display tnum text-base font-semibold leading-none text-ink-dim">{last}</div>
-        {lastUnder && <div className="display tnum text-base font-semibold leading-none text-ink-dim">{lastUnder}</div>}
+        <div className={`display tnum font-semibold leading-none text-ink-dim ${lastUnder ? "text-sm" : "text-base"}`}>{last}</div>
+        {lastUnder && <div className="tnum mt-0.5 text-[10px] leading-none text-ink-dim">{lastUnder}</div>}
         <div className="eyebrow" style={{ fontSize: 9 }}>Last wk</div>
       </div>
       <span className="sr-only">
