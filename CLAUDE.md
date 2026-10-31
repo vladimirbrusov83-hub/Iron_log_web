@@ -382,7 +382,9 @@ live block streams in ahead of it. Three things that matter:
   and a day deleted since the copy was taken starts freestyle instead of failing on the
   `day_id` foreign key.
 
-Hard sets per muscle and Recent workouts are native `<details>` drawers, closed by
+The effective-reps-per-muscle drawer holds a **This week / Last week** carousel
+(`components/week-carousel.tsx`, native snap like the program card; Oct 2026, his ask);
+its summary row always reads this week. Hard sets per muscle and Recent workouts are native `<details>` drawers, closed by
 default, each with the headline on its summary row so the page reads without opening them.
 
 ## Testing without touching real training data

@@ -1,17 +1,20 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import {
-  getActiveSession, getFinishedSessions, getHeadline, getLastWeekHeadline, getMuscleTotals,
+  getActiveSession, getFinishedSessions, getHeadline, getLastWeekHeadline,
+  getLastWeekMuscleTotals, getMuscleTotals,
   getProgramsByRecentUse, getSettings, getWeekTime,
 } from "@/lib/db";
 import {
   BAND_COLOR, ButtonLink, Header, Page, Panel, WeekErBar,
 } from "@/components/ui";
+import { WeekCarousel } from "@/components/week-carousel";
 import { ProgramCarousel } from "@/components/program-carousel";
 import { CachedHome, RememberHome, TilesSkeleton } from "@/components/cached-home";
 import { effectiveRepsCoverage, totalEffectiveReps } from "@/lib/effective-reps";
 import { WEEKLY_ER_HIGH, WEEKLY_ER_LOW, weeklyErBand } from "@/lib/targets";
 import { formatDuration, sessionVolume } from "@/lib/types";
+import type { MuscleTotals } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -40,13 +43,14 @@ export default function HomePage() {
 }
 
 async function HomeLive() {
-  const [active, programs, recent, week, lastWeek, muscles, settings, weekTime] = await Promise.all([
+  const [active, programs, recent, week, lastWeek, muscles, lastWeekMuscles, settings, weekTime] = await Promise.all([
     getActiveSession(),
     getProgramsByRecentUse(),
     getFinishedSessions(3),
     getHeadline("week"),
     getLastWeekHeadline(),
     getMuscleTotals("week"),
+    getLastWeekMuscleTotals(),
     getSettings(),
     getWeekTime(),
   ]);
@@ -144,45 +148,28 @@ async function HomeLive() {
           </svg>
         </summary>
 
-        <div className="border-t border-line px-4 py-3">
-          {muscles.length === 0 ? (
-            <p className="text-sm text-ink-faint">
-              Finish a workout and each muscle you trained shows up here.
+        <div className="border-t border-line">
+          <WeekCarousel
+            pages={[
+              {
+                label: "This week",
+                content: <MuscleWeek muscles={muscles} empty="Finish a workout and each muscle you trained shows up here." />,
+              },
+              {
+                label: "Last week",
+                content: <MuscleWeek muscles={lastWeekMuscles.rows} empty="Nothing logged last week." />,
+              },
+            ]}
+          />
+          <div className="px-4 pb-3">
+            <p className="text-[11px] leading-snug text-ink-faint">
+              Green band is {WEEKLY_ER_LOW}–{WEEKLY_ER_HIGH} effective reps a week (20–40 a session,
+              twice). The tick is the floor. A hard set finished within 3 reps of failure.
             </p>
-          ) : (
-            <>
-              <ul className="space-y-3">
-                {muscles.map((m) => {
-                  const band = weeklyErBand(m.effectiveReps);
-                  return (
-                    <li key={m.muscleGroup}>
-                      <div className="flex items-baseline justify-between gap-2 text-sm">
-                        <span className="font-medium">{m.muscleGroup}</span>
-                        <span className="tnum text-xs">
-                          <span className={`display text-base font-semibold ${BAND_COLOR[band]}`}>
-                            {m.effectiveReps}
-                          </span>
-                          <span className="text-ink-faint"> eff reps · </span>
-                          <span className="text-ink-dim">{m.hardSets}</span>
-                          <span className="text-ink-faint"> hard sets</span>
-                        </span>
-                      </div>
-                      <div className="mt-1.5">
-                        <WeekErBar er={m.effectiveReps} band={band} />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="mt-3 text-[11px] leading-snug text-ink-faint">
-                Green band is {WEEKLY_ER_LOW}–{WEEKLY_ER_HIGH} effective reps a week (20–40 a session,
-                twice). The tick is the floor. A hard set finished within 3 reps of failure.
-              </p>
-              <Link href="/stats" className="mt-2 inline-block text-xs text-accent">
-                Full breakdown on Stats →
-              </Link>
-            </>
-          )}
+            <Link href="/stats" className="mt-2 inline-block text-xs text-accent">
+              Full breakdown on Stats →
+            </Link>
+          </div>
         </div>
       </details>
 
@@ -258,6 +245,38 @@ async function HomeLive() {
         </div>
       </details>
     </div>
+  );
+}
+
+/** One week's muscles, most effective reps first, each against the weekly band. */
+function MuscleWeek({ muscles, empty }: { muscles: MuscleTotals[]; empty: string }) {
+  if (muscles.length === 0) return <p className="text-sm text-ink-faint">{empty}</p>;
+  const sorted = [...muscles].sort((a, b) =>
+    b.effectiveReps - a.effectiveReps || b.workingSets - a.workingSets);
+  return (
+    <ul className="space-y-3">
+      {sorted.map((m) => {
+        const band = weeklyErBand(m.effectiveReps);
+        return (
+          <li key={m.muscleGroup}>
+            <div className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="font-medium">{m.muscleGroup}</span>
+              <span className="tnum text-xs">
+                <span className={`display text-base font-semibold ${BAND_COLOR[band]}`}>
+                  {m.effectiveReps}
+                </span>
+                <span className="text-ink-faint"> eff reps · </span>
+                <span className="text-ink-dim">{m.hardSets}</span>
+                <span className="text-ink-faint"> hard sets</span>
+              </span>
+            </div>
+            <div className="mt-1.5">
+              <WeekErBar er={m.effectiveReps} band={band} />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
