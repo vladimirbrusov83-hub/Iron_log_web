@@ -1239,6 +1239,32 @@ export async function getTrainingTime(windows: (number | null)[]): Promise<Train
   }));
 }
 
+export type TrainingDay = { date: string; seconds: number; sessions: number };
+
+/** Time trained per day in TRAINING_TZ, oldest first, and today's date there —
+ *  the Stats time chart groups these into weeks, months and years. */
+export async function getTrainingDays(): Promise<{ today: string; days: TrainingDay[] }> {
+  const rows = (await sql.query(
+    `SELECT to_char(started_at AT TIME ZONE $1, 'YYYY-MM-DD') AS day,
+            sum(duration_seconds) AS seconds,
+            count(*) AS sessions,
+            to_char(now() AT TIME ZONE $1, 'YYYY-MM-DD') AS today
+       FROM sessions
+      WHERE finished_at IS NOT NULL
+      GROUP BY 1
+      ORDER BY 1`,
+    [TRAINING_TZ],
+  )) as { day: string; seconds: string; sessions: string; today: string }[];
+  const today = rows[0]?.today
+    ?? new Date().toLocaleDateString("en-CA", { timeZone: TRAINING_TZ });
+  return {
+    today,
+    days: rows.map((r) => ({
+      date: r.day, seconds: Number(r.seconds), sessions: Number(r.sessions),
+    })),
+  };
+}
+
 export type Headline = {
   sessions: number;
   volume: number;

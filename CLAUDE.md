@@ -128,7 +128,9 @@ that stays the line. `getMuscleTotals` returns `hardSets` and `sessions` for the
 
 ## Stats layout
 
-Order (Vladimir, Oct 2026): window tabs, headline, **Days & time trained**, **Effective reps
+Order (Vladimir, Oct 2026): window tabs, headline, **Days & time trained**, **Training time**
+(folded; `app/stats/time-chart.tsx`, bars for this week by day, this month by week, this year
+by month, all by month or by year past 24 months; ignores the window tabs), **Effective reps
 by week**, then By muscle group, By exercise, Personal records, Bodyweight, How this
 is counted (last). By muscle group, By exercise and Personal records are native `<details>`
 (`Fold` in `page.tsx`), closed by default, count on the summary row. Days & time is
