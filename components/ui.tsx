@@ -229,6 +229,26 @@ export function WeekErBar({ er, band }: { er: number; band: Band }) {
   );
 }
 
+/** A bar whose fill, colour and shaded band all glide when the numbers behind it
+ *  change, so a tab switch moves the bar instead of swapping it (Nov 2026). */
+export function GlideBar({ value, band, scale, low, high }: {
+  value: number; band: Band; scale: number; low: number; high: number;
+}) {
+  const pct = (n: number) => `${Math.min(100, (n / scale) * 100)}%`;
+  return (
+    <div className="relative h-2 w-full overflow-hidden rounded-full bg-panel-3">
+      <div
+        className="absolute inset-y-0 bg-good/15 transition-[left,width] duration-500"
+        style={{ left: pct(low), width: pct(high - low) }}
+      />
+      <div
+        className={`absolute inset-y-0 left-0 rounded-full ${BAND_BG[band]} transition-[width,background-color] duration-500`}
+        style={{ width: pct(value) }}
+      />
+    </div>
+  );
+}
+
 export function BandTag({ band }: { band: Band }) {
   return (
     <span className={`eyebrow ${BAND_COLOR[band]}`} style={{ letterSpacing: "0.08em" }}>

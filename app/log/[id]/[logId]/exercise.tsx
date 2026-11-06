@@ -8,13 +8,15 @@ import {
 import { SecondaryMuscles } from "@/components/secondary-muscles";
 import { RestTimer } from "@/components/rest-timer";
 import { WorkoutClock } from "@/components/workout-clock";
-import { BAND_COLOR, BackLink, Button, SessionErBar, inputClass } from "@/components/ui";
+import { BAND_COLOR, BackLink, Button, GlideBar, inputClass } from "@/components/ui";
+import { RollingNumber, useSideSwipe } from "@/components/animated";
 import {
   EFFECTIVE_REP_THRESHOLD, MAX_COUNTED_RIR, MAX_RIR, effectiveReps,
   isCountedSet, totalEffectiveReps, type MuscleSlice,
 } from "@/lib/effective-reps";
 import {
-  SESSION_ER_HIGH, SESSION_ER_LOW, WEEKLY_SETS_LOW, WEEKLY_SETS_HIGH, sessionErBand, weeklySetBand,
+  SESSION_ER_HIGH, SESSION_ER_LOW, WEEKLY_ER_HIGH, WEEKLY_ER_LOW, WEEKLY_SETS_LOW, WEEKLY_SETS_HIGH,
+  sessionErBand, weeklyErBand, weeklySetBand,
 } from "@/lib/targets";
 import { setVolume } from "@/lib/types";
 import type { ExerciseNote, LastSession, LiftSessionOption } from "@/lib/db";
@@ -484,28 +486,53 @@ export function ExerciseScreen({
 /* ---------------------------------------------------------- muscle panel */
 
 /**
- * Effective reps per muscle behind the ⋯ button, with two tabs, ordered like the
- * set columns (last on the left, today on the right): this workout so
- * far, and the workout before it (the last run of the same program day, else
- * the most recent one). Vladimir asked for the second tab in September 2026 to
- * see last time's per-muscle totals mid-workout. It replaced a per-session note
- * field that used to sit in this drawer. Bars are coloured against the paper's
- * 20–40 per session; they describe workouts, they never suggest a load.
+ * Effective reps per muscle behind the ⋯ button, three tabs ordered like the set
+ * columns (older on the left): the workout before this one (last run of the same
+ * program day, else the most recent), last Monday–Sunday, and this workout so far.
+ * Last workout came in September 2026, Last week in October.
+ *
+ * Since November 2026 it works like the home drawer: one list in one muscle order
+ * for all three tabs (every muscle in any of them, zeros where a tab has none), and
+ * a sideways swipe or a tab tap only rolls the numbers and glides the bars — the
+ * names and bars never move. Workout tabs are coloured against the paper's 20–40
+ * per session, the week against 40–80 a week, hard sets against 10–16 a week.
+ * They describe what happened; they never suggest a load.
  */
+type PanelTab = "last" | "week" | "today";
+
 function MusclePanel({
   byMuscle, previous, lastWeek, current,
 }: { byMuscle: MuscleSlice[]; previous: PreviousWorkout | null; lastWeek: LastWeek; current: string }) {
-  const [tab, setTab] = useState<"today" | "last" | "week">("today");
-  const showing = tab === "last" && previous ? previous.byMuscle : byMuscle;
-  const lastLabel = previous
-    ? new Date(previous.startedAt).toLocaleDateString("en-US", { day: "numeric", month: "short" })
-    : null;
+  const [tab, setTab] = useState<PanelTab>("today");
+  const tabs: PanelTab[] = previous ? ["last", "week", "today"] : ["week", "today"];
+  const swipe = useSideSwipe((dir) => {
+    const i = tabs.indexOf(tab) - dir; // finger right → the tab to the left
+    if (i >= 0 && i < tabs.length) setTab(tabs[i]);
+  });
+
+  const today = new Map(byMuscle.map((m) => [m.muscleGroup, m]));
+  const last = new Map((previous?.byMuscle ?? []).map((m) => [m.muscleGroup, m]));
+  const week = new Map(lastWeek.rows.map((m) => [m.muscleGroup, m]));
+  const er = (m: { effectiveReps: number } | undefined) => m?.effectiveReps ?? 0;
+  const order = [...new Set([...today.keys(), ...last.keys(), ...week.keys()])].sort((a, b) =>
+    er(today.get(b)) - er(today.get(a)) || er(last.get(b)) - er(last.get(a)) ||
+    er(week.get(b)) - er(week.get(a)) || a.localeCompare(b));
+
+  const day = (d: Date) => d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+  const lastLabel = previous ? day(new Date(previous.startedAt)) : null;
+  const weekStart = new Date(`${lastWeek.weekStart}T12:00:00`);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const subtitle = tab === "today" ? "This workout so far"
+    : tab === "last" ? previous?.dayName ?? ""
+    : `${day(weekStart)} – ${day(weekEnd)}`;
+
   const tabClass = (on: boolean) =>
-    `flex-1 rounded-md px-2 py-1.5 text-xs font-semibold ${
+    `flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors duration-300 ${
       on ? "bg-panel-3 text-ink" : "text-ink-faint"
     }`;
   return (
-    <div>
+    <div style={swipe.style} onTouchStart={swipe.onTouchStart} onTouchEnd={swipe.onTouchEnd}>
       <div className="mb-2.5 flex gap-1 rounded-lg bg-panel-2 p-1" role="tablist">
         <button role="tab" aria-selected={tab === "last"} className={tabClass(tab === "last")}
           onClick={() => setTab("last")} disabled={!previous}>
@@ -520,33 +547,43 @@ function MusclePanel({
           This workout
         </button>
       </div>
-      {tab === "week" ? (
-        <LastWeekList lastWeek={lastWeek} current={current} />
-      ) : (<>
-      {tab === "last" && previous && (
-        <p className="mb-2 truncate text-xs text-ink-faint">{previous.dayName}</p>
-      )}
-      {showing.length === 0 ? (
-        <p className="text-xs text-ink-faint">No working sets logged{tab === "today" ? " yet" : ""}.</p>
+      <p className="mb-2 truncate text-xs text-ink-faint">{subtitle}</p>
+      {order.length === 0 ? (
+        <p className="text-xs text-ink-faint">No working sets logged yet.</p>
       ) : (
         <ul className="space-y-2.5">
-          {showing.map((m) => {
-            const band = sessionErBand(m.effectiveReps);
+          {order.map((name) => {
+            const isWeek = tab === "week";
+            const w = week.get(name);
+            const s = (tab === "last" ? last : today).get(name);
+            const value = isWeek ? er(w) : er(s);
+            const band = isWeek ? weeklyErBand(value) : sessionErBand(value);
             return (
-              <li key={m.muscleGroup}>
-                <div className="flex items-baseline justify-between text-sm">
-                  <span className={m.muscleGroup === current ? "font-semibold text-ink" : "text-ink-dim"}>
-                    {m.muscleGroup}
+              <li key={name}>
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className={name === current ? "font-semibold text-ink" : "text-ink-dim"}>
+                    {name}
                   </span>
-                  <span className="tnum text-xs text-ink-faint">
-                    <span className={`display text-base font-semibold ${BAND_COLOR[band]}`}>
-                      {m.effectiveReps}
+                  <span className="tnum shrink-0 text-xs text-ink-faint">
+                    <span className={`display text-base font-semibold transition-colors duration-500 ${BAND_COLOR[band]}`}>
+                      <RollingNumber value={value} />
                     </span>
-                    {" · "}{m.scoredSets} of {m.workingSets} sets rated
+                    {isWeek ? (<>
+                      {" · "}
+                      <span className={`transition-colors duration-500 ${BAND_COLOR[weeklySetBand(w?.hardSets ?? 0)]}`}>
+                        <RollingNumber value={w?.hardSets ?? 0} /> hard
+                      </span>
+                      {" / "}<RollingNumber value={w?.workingSets ?? 0} /> sets · {w?.sessions ?? 0}×
+                    </>) : (<>
+                      {" · "}<RollingNumber value={s?.scoredSets ?? 0} /> of{" "}
+                      <RollingNumber value={s?.workingSets ?? 0} /> sets rated
+                    </>)}
                   </span>
                 </div>
                 <div className="mt-1">
-                  <SessionErBar er={m.effectiveReps} band={band} />
+                  {isWeek
+                    ? <GlideBar value={value} band={band} scale={100} low={WEEKLY_ER_LOW} high={WEEKLY_ER_HIGH} />
+                    : <GlideBar value={value} band={band} scale={50} low={SESSION_ER_LOW} high={SESSION_ER_HIGH} />}
                 </div>
               </li>
             );
@@ -554,57 +591,11 @@ function MusclePanel({
         </ul>
       )}
       <p className="mt-2.5 text-[11px] text-ink-faint">
-        Shaded: {SESSION_ER_LOW}–{SESSION_ER_HIGH} effective reps per muscle per session.
+        {tab === "week"
+          ? `Shaded: ${WEEKLY_ER_LOW}–${WEEKLY_ER_HIGH} effective reps a week. Hard sets against ${WEEKLY_SETS_LOW}–${WEEKLY_SETS_HIGH}.`
+          : `Shaded: ${SESSION_ER_LOW}–${SESSION_ER_HIGH} effective reps per muscle per session.`}
       </p>
-      </>)}
     </div>
-  );
-}
-
-/**
- * Last calendar week (Monday–Sunday) for the muscles in this workout: total
- * effective reps, working and hard sets, sessions. Vladimir asked for it in
- * October 2026 — the other two tabs show one workout each, and there was no
- * quick way to see what the whole previous week added up to. Hard sets are
- * coloured against the paper's weekly 10–16; the effective-rep total is not
- * coloured, because the paper's band for it is per session, not per week.
- */
-function LastWeekList({ lastWeek, current }: { lastWeek: LastWeek; current: string }) {
-  const start = new Date(`${lastWeek.weekStart}T12:00:00`);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  const day = (d: Date) => d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
-  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
-  return (
-    <>
-      <p className="mb-2 text-xs text-ink-faint">{day(start)} – {day(end)}</p>
-      {lastWeek.rows.length === 0 ? (
-        <p className="text-xs text-ink-faint">No lifts in this workout yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {lastWeek.rows.map((m) => (
-            <li key={m.muscleGroup} className="flex items-baseline justify-between gap-3 text-sm">
-              <span className={m.muscleGroup === current ? "font-semibold text-ink" : "text-ink-dim"}>
-                {m.muscleGroup}
-              </span>
-              <span className="tnum shrink-0 text-xs text-ink-faint">
-                <span className={`display text-base font-semibold ${
-                  m.effectiveReps ? "text-accent" : "text-ink-faint"
-                }`}>
-                  {fmt(m.effectiveReps)}
-                </span>
-                {" eff · "}
-                <span className={BAND_COLOR[weeklySetBand(m.hardSets)]}>{fmt(m.hardSets)} hard</span>
-                {" / "}{fmt(m.workingSets)} sets · {m.sessions}×
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="mt-2.5 text-[11px] text-ink-faint">
-        Whole week, Monday–Sunday. Hard sets coloured against {WEEKLY_SETS_LOW}–{WEEKLY_SETS_HIGH} a week.
-      </p>
-    </>
   );
 }
 
