@@ -23,8 +23,8 @@ const WEEKS = [{ label: "Last week", i: 1 }, { label: "This week", i: 0 }] as co
  */
 export function MuscleWeekSwitch({ rows, empty }: { rows: MuscleWeekRow[]; empty: string }) {
   const [index, setIndex] = useState(0);
-  // Finger right → the tab to the left (last week); left → this week.
-  const swipe = useSideSwipe((dir) => setIndex(dir === 1 ? 1 : 0));
+  // Endless: with two weeks every swipe, either way, flips to the other one (Vladimir, Nov 2026).
+  const swipe = useSideSwipe(() => setIndex((i) => 1 - i));
 
   return (
     <>

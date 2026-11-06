@@ -506,8 +506,9 @@ function MusclePanel({
   const [tab, setTab] = useState<PanelTab>("today");
   const tabs: PanelTab[] = previous ? ["last", "week", "today"] : ["week", "today"];
   const swipe = useSideSwipe((dir) => {
-    const i = tabs.indexOf(tab) - dir; // finger right → the tab to the left
-    if (i >= 0 && i < tabs.length) setTab(tabs[i]);
+    // Finger right → the tab to the left; endless, wraps round at both ends (Vladimir, Nov 2026).
+    const n = tabs.length;
+    setTab(tabs[(((tabs.indexOf(tab) - dir) % n) + n) % n]);
   });
 
   const today = new Map(byMuscle.map((m) => [m.muscleGroup, m]));
