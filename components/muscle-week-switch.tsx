@@ -10,7 +10,9 @@ export type MuscleWeekRow = {
   last: { effectiveReps: number; hardSets: number };
 };
 
-const WEEKS = ["This week", "Last week"] as const;
+// Last week on the left, this week on the right, like a timeline (Vladimir, Nov 2026).
+// The index is still 0 = this week, which is what the switch opens on.
+const WEEKS = [{ label: "Last week", i: 1 }, { label: "This week", i: 0 }] as const;
 
 /**
  * The home drawer's this week / last week. One list that never moves: a swipe or
@@ -36,13 +38,13 @@ export function MuscleWeekSwitch({ rows, empty }: { rows: MuscleWeekRow[]; empty
     const dy = t.clientY - s.y;
     // A sideways flick, not a scroll: far enough, and more across than down.
     if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    setIndex(dx < 0 ? 1 : 0); // swipe left → last week, right → this week
+    setIndex(dx > 0 ? 1 : 0); // swipe right → last week (left tab), left → this week
   }
 
   return (
     <>
       <div className="grid grid-cols-2 gap-1 px-4 pt-3">
-        {WEEKS.map((label, i) => (
+        {WEEKS.map(({ label, i }) => (
           <button
             key={label}
             onClick={() => setIndex(i)}
