@@ -8,7 +8,7 @@ import {
 import {
   BAND_COLOR, ButtonLink, Header, Page, Panel, WeekErBar,
 } from "@/components/ui";
-import { WeekCarousel } from "@/components/week-carousel";
+import { MuscleWeekSwitch, type MuscleWeekRow } from "@/components/muscle-week-switch";
 import { ProgramCarousel } from "@/components/program-carousel";
 import { CachedHome, RememberHome, TilesSkeleton } from "@/components/cached-home";
 import { effectiveRepsCoverage, totalEffectiveReps } from "@/lib/effective-reps";
@@ -54,7 +54,7 @@ async function HomeLive() {
     getSettings(),
     getWeekTime(),
   ]);
-  const muscleOrder = sharedMuscleOrder(muscles, lastWeekMuscles.rows);
+  const muscleRows = sharedMuscleRows(muscles, lastWeekMuscles.rows);
 
   // Ordered most-recently-trained first, so the card opens on the one being run.
   const hasProgram = programs.length > 0;
@@ -150,17 +150,9 @@ async function HomeLive() {
         </summary>
 
         <div className="border-t border-line">
-          <WeekCarousel
-            pages={[
-              {
-                label: "This week",
-                content: <MuscleWeek muscles={muscles} order={muscleOrder} empty="Finish a workout and each muscle you trained shows up here." />,
-              },
-              {
-                label: "Last week",
-                content: <MuscleWeek muscles={lastWeekMuscles.rows} order={muscleOrder} empty="Nothing logged last week." />,
-              },
-            ]}
+          <MuscleWeekSwitch
+            rows={muscleRows}
+            empty="Finish a workout and each muscle you trained shows up here."
           />
           <div className="px-4 pb-3">
             <p className="text-[11px] leading-snug text-ink-faint">
@@ -251,54 +243,24 @@ async function HomeLive() {
 
 /** One order for both weeks, so a swipe keeps every muscle on its row and only
  *  the numbers change (Vladimir, Nov 2026): every muscle trained in either week,
- *  this week's effective reps first, last week's as the tie-break. */
-function sharedMuscleOrder(thisWeek: MuscleTotals[], lastWeek: MuscleTotals[]): string[] {
+ *  this week's effective reps first, last week's as the tie-break; a muscle missing
+ *  from a week shows 0 there. */
+function sharedMuscleRows(thisWeek: MuscleTotals[], lastWeek: MuscleTotals[]): MuscleWeekRow[] {
   const now = new Map(thisWeek.map((m) => [m.muscleGroup, m]));
   const last = new Map(lastWeek.map((m) => [m.muscleGroup, m]));
-  const names = [...new Set([...now.keys(), ...last.keys()])];
-  const key = (m: MuscleTotals | undefined) => [m?.effectiveReps ?? 0, m?.workingSets ?? 0];
-  return names.sort((a, b) => {
-    const [na, nsa] = key(now.get(a)), [nb, nsb] = key(now.get(b));
-    const [la, lsa] = key(last.get(a)), [lb, lsb] = key(last.get(b));
-    return nb - na || nsb - nsa || lb - la || lsb - lsa || a.localeCompare(b);
-  });
-}
-
-/** One week's muscles in the shared order, each against the weekly band. A muscle
- *  trained only in the other week shows as 0 so the rows line up across the swipe. */
-function MuscleWeek({ muscles, order, empty }: { muscles: MuscleTotals[]; order: string[]; empty: string }) {
-  if (order.length === 0) return <p className="text-sm text-ink-faint">{empty}</p>;
-  const byName = new Map(muscles.map((m) => [m.muscleGroup, m]));
-  const rows = order.map((name) => ({
-    muscleGroup: name,
-    effectiveReps: byName.get(name)?.effectiveReps ?? 0,
-    hardSets: byName.get(name)?.hardSets ?? 0,
-  }));
-  return (
-    <ul className="space-y-3">
-      {rows.map((m) => {
-        const band = weeklyErBand(m.effectiveReps);
-        return (
-          <li key={m.muscleGroup}>
-            <div className="flex items-baseline justify-between gap-2 text-sm">
-              <span className="font-medium">{m.muscleGroup}</span>
-              <span className="tnum text-xs">
-                <span className={`display text-base font-semibold ${BAND_COLOR[band]}`}>
-                  {m.effectiveReps}
-                </span>
-                <span className="text-ink-faint"> eff reps · </span>
-                <span className="text-ink-dim">{m.hardSets}</span>
-                <span className="text-ink-faint"> hard sets</span>
-              </span>
-            </div>
-            <div className="mt-1.5">
-              <WeekErBar er={m.effectiveReps} band={band} />
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
+  const pick = (m: MuscleTotals | undefined) =>
+    ({ effectiveReps: m?.effectiveReps ?? 0, hardSets: m?.hardSets ?? 0, workingSets: m?.workingSets ?? 0 });
+  return [...new Set([...now.keys(), ...last.keys()])]
+    .map((name) => ({ muscleGroup: name, n: pick(now.get(name)), l: pick(last.get(name)) }))
+    .sort((a, b) =>
+      b.n.effectiveReps - a.n.effectiveReps || b.n.workingSets - a.n.workingSets ||
+      b.l.effectiveReps - a.l.effectiveReps || b.l.workingSets - a.l.workingSets ||
+      a.muscleGroup.localeCompare(b.muscleGroup))
+    .map(({ muscleGroup, n, l }) => ({
+      muscleGroup,
+      now: { effectiveReps: n.effectiveReps, hardSets: n.hardSets },
+      last: { effectiveReps: l.effectiveReps, hardSets: l.hardSets },
+    }));
 }
 
 /** 55,733 → "55.7k" for last week: the full number under the diagonal ran into

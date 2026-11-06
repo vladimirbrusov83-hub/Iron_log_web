@@ -382,8 +382,11 @@ live block streams in ahead of it. Three things that matter:
   and a day deleted since the copy was taken starts freestyle instead of failing on the
   `day_id` foreign key.
 
-The effective-reps-per-muscle drawer holds a **This week / Last week** carousel
-(`components/week-carousel.tsx`, native snap like the program card; Oct 2026, his ask);
+The effective-reps-per-muscle drawer holds a **This week / Last week** switch
+(`components/muscle-week-switch.tsx`; Oct 2026, his ask). Since Nov 2026 it is one list
+that never slides: both weeks share one muscle order (`sharedMuscleRows`, zeros for a
+muscle trained only in the other week), and a sideways swipe or tab tap only rolls the
+numbers and the bar's fill and colour. Do not bring back a sliding carousel there;
 its summary row always reads this week. Hard sets per muscle and Recent workouts are native `<details>` drawers, closed by
 default, each with the headline on its summary row so the page reads without opening them.
 

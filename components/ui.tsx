@@ -222,7 +222,7 @@ export function WeekErBar({ er, band }: { er: number; band: Band }) {
       />
       <div className="absolute inset-y-0 w-px bg-line-2" style={{ left: pct(WEEKLY_ER_LOW / 2) }} />
       <div
-        className={`absolute inset-y-0 left-0 rounded-full ${BAND_BG[band]} transition-[width] duration-500`}
+        className={`absolute inset-y-0 left-0 rounded-full ${BAND_BG[band]} transition-[width,background-color] duration-500`}
         style={{ width: pct(er) }}
       />
     </div>
