@@ -1152,12 +1152,17 @@ export async function getMuscleTotals(days: Window = 7): Promise<MuscleTotals[]>
  * the ⋯ panel's "Last week" tab on the gym screen. Vladimir asked for it in
  * October 2026 to see mid-workout what last week added up to for the muscles
  * he is training now. Same counting as getMuscleTotals, helpers at ½.
+ * `weeksAgo = 0` is this week (Nov 2026, the "This week" tab), and
+ * `liveSessionId` adds the unfinished workout so this week includes today.
  */
-export async function getLastWeekMuscleTotals(): Promise<{ weekStart: string; rows: MuscleTotals[] }> {
+export async function getLastWeekMuscleTotals(
+  weeksAgo: 0 | 1 = 1,
+  liveSessionId: string | null = null,
+): Promise<{ weekStart: string; rows: MuscleTotals[] }> {
   const rows = (await sql.query(
     `WITH wk AS (
-       SELECT date_trunc('week', now() AT TIME ZONE $2) - interval '1 week' AS start,
-              date_trunc('week', now() AT TIME ZONE $2) AS stop
+       SELECT date_trunc('week', now() AT TIME ZONE $2) - $3::int * interval '1 week' AS start,
+              date_trunc('week', now() AT TIME ZONE $2) - ($3::int - 1) * interval '1 week' AS stop
      )
      SELECT to_char((SELECT start FROM wk), 'YYYY-MM-DD') AS week_start,
             mc.credit_muscle AS muscle_group,
@@ -1171,19 +1176,19 @@ export async function getLastWeekMuscleTotals(): Promise<{ weekStart: string; ro
        JOIN exercise_logs el ON el.session_id = s.id
        JOIN set_logs sl ON sl.exercise_log_id = el.id
       CROSS JOIN LATERAL ${muscleCreditSQL} AS mc
-      WHERE s.finished_at IS NOT NULL
+      WHERE (s.finished_at IS NOT NULL OR s.id = $4::uuid)
         AND (s.started_at AT TIME ZONE $2) >= (SELECT start FROM wk)
         AND (s.started_at AT TIME ZONE $2) < (SELECT stop FROM wk)
         AND sl.is_completed
       GROUP BY mc.credit_muscle`,
-    [HARD_SET_MAX_RIR, TRAINING_TZ],
+    [HARD_SET_MAX_RIR, TRAINING_TZ, weeksAgo, liveSessionId],
   )) as {
     week_start: string; muscle_group: string; working_sets: string; hard_sets: string;
     effective_reps: string; rated_sets: string; volume: string; sessions: string;
   }[];
   // The week's start is worked out in Node too, so an empty week still has a label.
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: TRAINING_TZ }));
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) - 7);
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) - 7 * weeksAgo);
   const weekStart = rows[0]?.week_start
     ?? `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
   return {

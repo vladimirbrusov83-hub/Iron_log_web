@@ -56,6 +56,8 @@ type Props = {
   /** Last Monday–Sunday, per muscle this workout trains — the ⋯ panel's
    *  "Last week" tab. A muscle not trained last week is there with zeros. */
   lastWeek: LastWeek;
+  /** Same shape for this Monday–Sunday, this workout included so far. */
+  thisWeek: LastWeek;
 };
 
 /** The set the sheet is open on: an existing row to edit, or a new one. */
@@ -81,7 +83,7 @@ type SheetTarget = {
  */
 export function ExerciseScreen({
   sessionId, dayName, startedAt, log, index, total, settings, last, lastId, liftSessions,
-  note, byMuscle, muscleShared, previous, lastWeek,
+  note, byMuscle, muscleShared, previous, lastWeek, thisWeek,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -193,7 +195,7 @@ export function ExerciseScreen({
       <main className="mx-auto max-w-2xl px-4 pt-4" style={{ paddingBottom: "8.5rem" }}>
         {menu && (
           <div className="mb-3 rounded-2xl border border-line bg-panel p-3">
-            <MusclePanel byMuscle={byMuscle} previous={previous} lastWeek={lastWeek} current={log.muscleGroup} />
+            <MusclePanel byMuscle={byMuscle} previous={previous} lastWeek={lastWeek} thisWeek={thisWeek} current={log.muscleGroup} />
           </div>
         )}
 
@@ -486,50 +488,60 @@ export function ExerciseScreen({
 /* ---------------------------------------------------------- muscle panel */
 
 /**
- * Effective reps per muscle behind the ⋯ button, three tabs ordered like the set
+ * Effective reps per muscle behind the ⋯ button, four tabs ordered like the set
  * columns (older on the left): the workout before this one (last run of the same
- * program day, else the most recent), last Monday–Sunday, and this workout so far.
+ * program day, else the most recent), last Monday–Sunday, this Monday–Sunday (this
+ * workout included, added Nov 2026), and this workout so far.
  * Last workout came in September 2026, Last week in October.
  *
  * Since November 2026 it works like the home drawer: one list in one muscle order
- * for all three tabs (every muscle in any of them, zeros where a tab has none), and
+ * for all tabs (every muscle in any of them, zeros where a tab has none), and
  * a sideways swipe or a tab tap only rolls the numbers and glides the bars — the
  * names and bars never move. Workout tabs are coloured against the paper's 20–40
  * per session, the week against 40–80 a week, hard sets against 10–16 a week.
  * They describe what happened; they never suggest a load.
  */
-type PanelTab = "last" | "week" | "today";
+type PanelTab = "last" | "week" | "thisWeek" | "today";
 
 function MusclePanel({
-  byMuscle, previous, lastWeek, current,
-}: { byMuscle: MuscleSlice[]; previous: PreviousWorkout | null; lastWeek: LastWeek; current: string }) {
+  byMuscle, previous, lastWeek, thisWeek, current,
+}: {
+  byMuscle: MuscleSlice[]; previous: PreviousWorkout | null; lastWeek: LastWeek; thisWeek: LastWeek; current: string;
+}) {
   const [tab, setTab] = useState<PanelTab>("today");
-  const tabs: PanelTab[] = previous ? ["last", "week", "today"] : ["week", "today"];
+  const tabs: PanelTab[] = previous ? ["last", "week", "thisWeek", "today"] : ["week", "thisWeek", "today"];
   const swipe = useSideSwipe((dir) => {
-    // Finger right → the tab to the left; endless, wraps round at both ends (Vladimir, Nov 2026).
+    // The highlight follows the finger: swipe left → the tab to the left,
+    // right → the tab to the right; endless, wraps round at both ends
+    // (Vladimir flipped it Nov 7, 2026 — it used to run against the finger).
     const n = tabs.length;
-    setTab(tabs[(((tabs.indexOf(tab) - dir) % n) + n) % n]);
+    setTab(tabs[(((tabs.indexOf(tab) + dir) % n) + n) % n]);
   });
 
   const today = new Map(byMuscle.map((m) => [m.muscleGroup, m]));
   const last = new Map((previous?.byMuscle ?? []).map((m) => [m.muscleGroup, m]));
-  const week = new Map(lastWeek.rows.map((m) => [m.muscleGroup, m]));
+  const lastWk = new Map(lastWeek.rows.map((m) => [m.muscleGroup, m]));
+  const thisWk = new Map(thisWeek.rows.map((m) => [m.muscleGroup, m]));
   const er = (m: { effectiveReps: number } | undefined) => m?.effectiveReps ?? 0;
-  const order = [...new Set([...today.keys(), ...last.keys(), ...week.keys()])].sort((a, b) =>
+  const order = [...new Set([...today.keys(), ...last.keys(), ...lastWk.keys(), ...thisWk.keys()])].sort((a, b) =>
     er(today.get(b)) - er(today.get(a)) || er(last.get(b)) - er(last.get(a)) ||
-    er(week.get(b)) - er(week.get(a)) || a.localeCompare(b));
+    er(thisWk.get(b)) - er(thisWk.get(a)) || er(lastWk.get(b)) - er(lastWk.get(a)) || a.localeCompare(b));
 
   const day = (d: Date) => d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
   const lastLabel = previous ? day(new Date(previous.startedAt)) : null;
-  const weekStart = new Date(`${lastWeek.weekStart}T12:00:00`);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
+  const range = (w: LastWeek) => {
+    const start = new Date(`${w.weekStart}T12:00:00`);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return `${day(start)} – ${day(end)}`;
+  };
   const subtitle = tab === "today" ? "This workout so far"
     : tab === "last" ? previous?.dayName ?? ""
-    : `${day(weekStart)} – ${day(weekEnd)}`;
+    : tab === "thisWeek" ? `${range(thisWeek)} · this workout included`
+    : range(lastWeek);
 
   const tabClass = (on: boolean) =>
-    `flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors duration-300 ${
+    `flex-1 whitespace-nowrap rounded-md px-1 py-1.5 text-xs font-semibold transition-colors duration-300 ${
       on ? "bg-panel-3 text-ink" : "text-ink-faint"
     }`;
   return (
@@ -537,11 +549,15 @@ function MusclePanel({
       <div className="mb-2.5 flex gap-1 rounded-lg bg-panel-2 p-1" role="tablist">
         <button role="tab" aria-selected={tab === "last"} className={tabClass(tab === "last")}
           onClick={() => setTab("last")} disabled={!previous}>
-          {previous ? `Last · ${lastLabel}` : "No last workout"}
+          {previous ? `Last · ${lastLabel}` : "No last"}
         </button>
         <button role="tab" aria-selected={tab === "week"} className={tabClass(tab === "week")}
           onClick={() => setTab("week")}>
           Last week
+        </button>
+        <button role="tab" aria-selected={tab === "thisWeek"} className={tabClass(tab === "thisWeek")}
+          onClick={() => setTab("thisWeek")}>
+          This week
         </button>
         <button role="tab" aria-selected={tab === "today"} className={tabClass(tab === "today")}
           onClick={() => setTab("today")}>
@@ -554,8 +570,8 @@ function MusclePanel({
       ) : (
         <ul className="space-y-2.5">
           {order.map((name) => {
-            const isWeek = tab === "week";
-            const w = week.get(name);
+            const isWeek = tab === "week" || tab === "thisWeek";
+            const w = (tab === "thisWeek" ? thisWk : lastWk).get(name);
             const s = (tab === "last" ? last : today).get(name);
             const value = isWeek ? er(w) : er(s);
             const band = isWeek ? weeklyErBand(value) : sessionErBand(value);
@@ -592,7 +608,7 @@ function MusclePanel({
         </ul>
       )}
       <p className="mt-2.5 text-[11px] text-ink-faint">
-        {tab === "week"
+        {tab === "week" || tab === "thisWeek"
           ? `Shaded: ${WEEKLY_ER_LOW}–${WEEKLY_ER_HIGH} effective reps a week. Hard sets against ${WEEKLY_SETS_LOW}–${WEEKLY_SETS_HIGH}.`
           : `Shaded: ${SESSION_ER_LOW}–${SESSION_ER_HIGH} effective reps per muscle per session.`}
       </p>
