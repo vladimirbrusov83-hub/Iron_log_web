@@ -7,6 +7,7 @@ import { SwipeRow } from "@/app/history/swipe-row";
 import { RestTimer } from "@/components/rest-timer";
 import { WorkoutClock } from "@/components/workout-clock";
 import { ExercisePicker } from "@/components/exercise-picker";
+import { MusclePanel, type LastWeek, type PreviousWorkout } from "@/components/muscle-panel";
 import { BAND_COLOR, BackLink, Button, inputClass } from "@/components/ui";
 import {
   MAX_RIR, effectiveRepsByMuscle, effectiveRepsCoverage, isCountedSet, totalEffectiveReps,
@@ -19,6 +20,10 @@ type Props = {
   session: Session;
   settings: Settings;
   library: Exercise[];
+  /** The ⋯ panel: the workout before this one, last and this Monday–Sunday. */
+  previous: PreviousWorkout | null;
+  lastWeek: LastWeek;
+  thisWeek: LastWeek;
 };
 
 /**
@@ -30,7 +35,8 @@ type Props = {
  * split in September 2026 — the old two-column cards stacked down one page
  * left no room to read either side.
  */
-export function Workout({ session, settings, library: initialLibrary }: Props) {
+export function Workout({ session, settings, library: initialLibrary, previous, lastWeek, thisWeek }: Props) {
+  const [menu, setMenu] = useState(false);
   const [pending, startTransition] = useTransition();
   const [picking, setPicking] = useState(false);
   const [openRow, setOpenRow] = useState<string | null>(null);
@@ -68,11 +74,21 @@ export function Workout({ session, settings, library: initialLibrary }: Props) {
                 {" · "}{coverage.scored}/{coverage.working} rated
               </p>
             </div>
-            <div className="shrink-0 text-right">
-              <div className="display tnum text-5xl font-semibold leading-none text-accent">
-                {dayTotal}
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="text-right">
+                <div className="display tnum text-5xl font-semibold leading-none text-accent">
+                  {dayTotal}
+                </div>
+                <div className="eyebrow" style={{ fontSize: 9 }}>effective reps</div>
               </div>
-              <div className="eyebrow" style={{ fontSize: 9 }}>effective reps</div>
+              <button
+                onClick={() => setMenu((v) => !v)}
+                aria-label="Effective reps by muscle"
+                aria-expanded={menu}
+                className="h-9 w-9 rounded-lg border border-line-2 bg-panel-2 text-ink-dim"
+              >
+                ⋯
+              </button>
             </div>
           </div>
 
@@ -100,6 +116,12 @@ export function Workout({ session, settings, library: initialLibrary }: Props) {
       </div>
 
       <main className="mx-auto max-w-2xl px-4 pt-4" style={{ paddingBottom: "7.5rem" }}>
+        {menu && (
+          <div className="mb-3 rounded-2xl border border-line bg-panel p-3">
+            <MusclePanel byMuscle={byMuscle} previous={previous} lastWeek={lastWeek} thisWeek={thisWeek} />
+          </div>
+        )}
+
         <ul className="space-y-2">
           {session.exercises.map((log, i) => (
             <li key={log.id}>

@@ -158,9 +158,14 @@ little of either side readable.
 `scored/working` rated line, per-muscle chips) over **one row per lift**: position, name,
 muscle, `done/planned` sets, the last set done, its effective reps, a chevron. The whole
 row is the link — nothing on it is separately tappable. Then Add exercise, session notes,
-Finish and Discard. It no longer loads `getLastSessionSets`; that belongs to one lift.
+Finish and Discard. It no longer loads `getLastSessionSets`; that belongs to one lift. A ⋯ button beside the
+total opens `components/muscle-panel.tsx` with **all four tabs** — Last workout, Last week,
+This week, This workout (Nov 13 2026, his ask); the page loads `getPreviousSession` and
+both `getLastWeekMuscleTotals` for it.
 
-**`/log/[id]/[logId]` — one lift.** The notes card (last note | today's note), then last session's complete set
+**`/log/[id]/[logId]` — one lift.** (Nov 13 2026: its ⋯ drawer keeps only **Last workout |
+This workout**; the week tabs moved to the session list. Same `MusclePanel`, weeks not passed.
+The paragraph below describes the drawer before that split.) The notes card (last note | today's note), then last session's complete set
 list beside today's, the `+ Add set` button, and the ⋯ drawer: effective reps per muscle
 for the whole workout so far (bars against the 20–40 band, this lift's muscle in bold),
 with a **Last** tab showing the same for the previous workout (`getPreviousSession`: last
