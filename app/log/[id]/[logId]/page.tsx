@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import {
   getExerciseNote, getLastSessionSets, getLiftSessions, getLiftSetsInSession,
-  getPreviousSession, getSession, getSettings,
+  getLastWeekMuscleTotals, getPreviousSession, getSession, getSettings,
 } from "@/lib/db";
 import { effectiveRepsByMuscle } from "@/lib/effective-reps";
 import { ExerciseScreen } from "./exercise";
@@ -35,13 +35,17 @@ export default async function ExerciseLogPage({
   if (index === -1) notFound();
   const log = session.exercises[index];
 
-  const [settings, latest, picked, liftSessions, note, previous] = await Promise.all([
+  // Freestyle (Nov 14 2026, Vladimir): the ⋯ panel is This week | This workout,
+  // the week showing every muscle trained in it.
+  const freestyle = !session.programName;
+  const [settings, latest, picked, liftSessions, note, previous, thisWeek] = await Promise.all([
     getSettings(),
     getLastSessionSets([log.name]),
     fromId ? getLiftSetsInSession(log.name, fromId) : Promise.resolve(undefined),
     getLiftSessions(log.name),
     getExerciseNote(log.name),
     getPreviousSession(session),
+    freestyle ? getLastWeekMuscleTotals(0, session.id) : Promise.resolve(undefined),
   ]);
   const last = picked ?? latest.get(log.name.toLowerCase());
   return (
@@ -63,6 +67,8 @@ export default async function ExerciseLogPage({
         startedAt: previous.startedAt,
         byMuscle: effectiveRepsByMuscle(previous.exercises),
       }}
+      freestyle={freestyle}
+      thisWeek={thisWeek}
       muscleShared={session.exercises.some((e) =>
         e.id !== log.id
         && (e.muscleGroup === log.muscleGroup || e.secondaryMuscles.includes(log.muscleGroup))

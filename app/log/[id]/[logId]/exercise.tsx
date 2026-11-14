@@ -9,7 +9,7 @@ import { SecondaryMuscles } from "@/components/secondary-muscles";
 import { RestTimer } from "@/components/rest-timer";
 import { WorkoutClock } from "@/components/workout-clock";
 import { BAND_COLOR, BackLink, Button, inputClass } from "@/components/ui";
-import { MusclePanel, type PreviousWorkout } from "@/components/muscle-panel";
+import { MusclePanel, type LastWeek, type PreviousWorkout } from "@/components/muscle-panel";
 import {
   EFFECTIVE_REP_THRESHOLD, MAX_COUNTED_RIR, MAX_RIR, effectiveReps,
   isCountedSet, totalEffectiveReps, type MuscleSlice,
@@ -43,6 +43,10 @@ type Props = {
   /** The workout before this one (same program day if possible), per muscle —
    *  the ⋯ panel's "Last time" tab. Null when there is none. */
   previous: PreviousWorkout | null;
+  /** No program: the ⋯ panel is This week | This workout instead. */
+  freestyle: boolean;
+  /** This Monday–Sunday, this workout included — freestyle only. */
+  thisWeek?: LastWeek;
 };
 
 /** The set the sheet is open on: an existing row to edit, or a new one. */
@@ -68,7 +72,7 @@ type SheetTarget = {
  */
 export function ExerciseScreen({
   sessionId, dayName, startedAt, log, index, total, settings, last, lastId, liftSessions,
-  note, byMuscle, muscleShared, previous,
+  note, byMuscle, muscleShared, previous, freestyle, thisWeek,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -180,7 +184,8 @@ export function ExerciseScreen({
       <main className="mx-auto max-w-2xl px-4 pt-4" style={{ paddingBottom: "8.5rem" }}>
         {menu && (
           <div className="mb-3 rounded-2xl border border-line bg-panel p-3">
-            <MusclePanel byMuscle={byMuscle} previous={previous} current={log.muscleGroup} />
+            <MusclePanel byMuscle={byMuscle} previous={previous} current={log.muscleGroup}
+              freestyle={freestyle} thisWeek={thisWeek} />
           </div>
         )}
 

@@ -163,6 +163,12 @@ total opens `components/muscle-panel.tsx` with **all four tabs** — Last workou
 This week, This workout (Nov 13 2026, his ask); the page loads `getPreviousSession` and
 both `getLastWeekMuscleTotals` for it.
 
+**Freestyle sessions** (`!session.programName`, Nov 14 2026, his ask) get a different ⋯:
+no Last workout tab (`freestyle` prop). Session list = Last week | This week | This workout;
+lift screen = This week | This workout (that page loads this week only when freestyle).
+Their week tabs are **not** filtered to this workout's muscles — every muscle trained that
+week shows. Program sessions are unchanged.
+
 **`/log/[id]/[logId]` — one lift.** (Nov 13 2026: its ⋯ drawer keeps only **Last workout |
 This workout**; the week tabs moved to the session list. Same `MusclePanel`, weeks not passed.
 The paragraph below describes the drawer before that split.) The notes card (last note | today's note), then last session's complete set

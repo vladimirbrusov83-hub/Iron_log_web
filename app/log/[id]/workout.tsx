@@ -24,6 +24,8 @@ type Props = {
   previous: PreviousWorkout | null;
   lastWeek: LastWeek;
   thisWeek: LastWeek;
+  /** No program: the ⋯ panel drops its Last workout tab. */
+  freestyle: boolean;
 };
 
 /**
@@ -35,7 +37,7 @@ type Props = {
  * split in September 2026 — the old two-column cards stacked down one page
  * left no room to read either side.
  */
-export function Workout({ session, settings, library: initialLibrary, previous, lastWeek, thisWeek }: Props) {
+export function Workout({ session, settings, library: initialLibrary, previous, lastWeek, thisWeek, freestyle }: Props) {
   const [menu, setMenu] = useState(false);
   const [pending, startTransition] = useTransition();
   const [picking, setPicking] = useState(false);
@@ -118,7 +120,7 @@ export function Workout({ session, settings, library: initialLibrary, previous, 
       <main className="mx-auto max-w-2xl px-4 pt-4" style={{ paddingBottom: "7.5rem" }}>
         {menu && (
           <div className="mb-3 rounded-2xl border border-line bg-panel p-3">
-            <MusclePanel byMuscle={byMuscle} previous={previous} lastWeek={lastWeek} thisWeek={thisWeek} />
+            <MusclePanel byMuscle={byMuscle} previous={previous} lastWeek={lastWeek} thisWeek={thisWeek} freestyle={freestyle} />
           </div>
         )}
 

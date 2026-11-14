@@ -21,7 +21,10 @@ export default async function LogPage({ params }: { params: Promise<{ id: string
   // The muscles this workout trains, main then helpers, in lift order — the
   // ⋯ panel's week tabs show those, zeros included, not every muscle.
   const trained = [...new Set(session.exercises.flatMap((e) => [e.muscleGroup, ...e.secondaryMuscles]))];
-  const weekRows = (w: typeof lastWeek) => ({
+  // Freestyle (Nov 14 2026, Vladimir): no plan to filter by, so the week tabs
+  // show every muscle trained that week.
+  const freestyle = !session.programName;
+  const weekRows = (w: typeof lastWeek) => freestyle ? w : ({
     weekStart: w.weekStart,
     rows: trained.map((m) => w.rows.find((r) => r.muscleGroup === m)
       ?? { muscleGroup: m, workingSets: 0, hardSets: 0, effectiveReps: 0, sessions: 0 }),
@@ -39,6 +42,7 @@ export default async function LogPage({ params }: { params: Promise<{ id: string
       }}
       lastWeek={weekRows(lastWeek)}
       thisWeek={weekRows(thisWeek)}
+      freestyle={freestyle}
     />
   );
 }

@@ -34,20 +34,26 @@ export type LastWeek = { weekStart: string; rows: LastWeekRow[] };
  * names and bars never move. Workout tabs are coloured against the paper's 20–40
  * per session, the week against 40–80 a week, hard sets against 10–16 a week.
  * They describe what happened; they never suggest a load.
+ *
+ * Nov 14 2026 (Vladimir): a freestyle workout has no "last workout" to line
+ * up with, so `freestyle` drops that tab — the session list shows Last week |
+ * This week | This workout, the lift screen This week | This workout. Each
+ * week tab appears when its week is passed, independently.
  */
 type PanelTab = "last" | "week" | "thisWeek" | "today";
 
 export function MusclePanel({
-  byMuscle, previous, lastWeek, thisWeek, current,
+  byMuscle, previous, lastWeek, thisWeek, current, freestyle = false,
 }: {
   byMuscle: MuscleSlice[]; previous: PreviousWorkout | null;
-  lastWeek?: LastWeek; thisWeek?: LastWeek; current?: string;
+  lastWeek?: LastWeek; thisWeek?: LastWeek; current?: string; freestyle?: boolean;
 }) {
   const [tab, setTab] = useState<PanelTab>("today");
-  const weeks = !!(lastWeek && thisWeek);
+  const weeks = !!(lastWeek || thisWeek);
   const tabs: PanelTab[] = [
-    ...(previous ? ["last" as const] : []),
-    ...(weeks ? ["week" as const, "thisWeek" as const] : []),
+    ...(previous && !freestyle ? ["last" as const] : []),
+    ...(lastWeek ? ["week" as const] : []),
+    ...(thisWeek ? ["thisWeek" as const] : []),
     "today",
   ];
   const swipe = useSideSwipe((dir) => {
@@ -88,20 +94,24 @@ export function MusclePanel({
   return (
     <div style={swipe.style} onTouchStart={swipe.onTouchStart} onTouchEnd={swipe.onTouchEnd}>
       <div className="mb-2.5 flex gap-1 rounded-lg bg-panel-2 p-1" role="tablist">
-        <button role="tab" aria-selected={tab === "last"} className={tabClass(tab === "last")}
-          onClick={() => setTab("last")} disabled={!previous}>
-          {previous ? (weeks ? `Last · ${lastLabel}` : `Last workout · ${lastLabel}`) : "No last"}
-        </button>
-        {weeks && (<>
+        {!freestyle && (
+          <button role="tab" aria-selected={tab === "last"} className={tabClass(tab === "last")}
+            onClick={() => setTab("last")} disabled={!previous}>
+            {previous ? (weeks ? `Last · ${lastLabel}` : `Last workout · ${lastLabel}`) : "No last"}
+          </button>
+        )}
+        {lastWeek && (
           <button role="tab" aria-selected={tab === "week"} className={tabClass(tab === "week")}
             onClick={() => setTab("week")}>
             Last week
           </button>
+        )}
+        {thisWeek && (
           <button role="tab" aria-selected={tab === "thisWeek"} className={tabClass(tab === "thisWeek")}
             onClick={() => setTab("thisWeek")}>
             This week
           </button>
-        </>)}
+        )}
         <button role="tab" aria-selected={tab === "today"} className={tabClass(tab === "today")}
           onClick={() => setTab("today")}>
           This workout
