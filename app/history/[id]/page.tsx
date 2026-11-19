@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { removeSession } from "@/app/actions";
-import { getSession, getSettings } from "@/lib/db";
+import { getPreviousSession, getSession, getSettings } from "@/lib/db";
 import { BAND_COLOR, Button, Header, Page, Panel, SectionTitle, Stat } from "@/components/ui";
 import {
   effectiveReps, effectiveRepsByMuscle, effectiveRepsCoverage, totalEffectiveReps,
@@ -21,6 +21,14 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
   const peak = Math.max(1, ...byMuscle.map((m) => m.effectiveReps));
   const unit = settings.weightUnit;
 
+  // The same program day's previous run — for a weekly split, last week's.
+  // Freestyle or a first run gets no comparison rather than a mismatched one.
+  const prevAny = session.dayId ? await getPreviousSession(session) : null;
+  const prev = prevAny && prevAny.dayId === session.dayId ? prevAny : null;
+  const prevLabel = prev ? compareLabel(session.startedAt, prev.startedAt) : "";
+  const er = totalEffectiveReps(sets);
+  const volume = Math.round(sessionVolume(session));
+
   return (
     <Page>
       <Header
@@ -35,14 +43,51 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
       <section className="rise rise-1 mb-5 grid grid-cols-2 gap-2">
         <Stat
           label="Effective reps"
-          value={totalEffectiveReps(sets)}
-          hint={`${coverage.scored} of ${coverage.working} sets rated`}
+          value={er}
+          hint={
+            <>
+              {coverage.scored} of {coverage.working} sets rated
+              {prev && (
+                <Compare label={prevLabel} value={totalEffectiveReps(prev.exercises.flatMap((e) => e.sets))} now={er} />
+              )}
+            </>
+          }
           accent
           big
         />
         <div className="grid gap-2">
-          <Stat label="Volume" value={Math.round(sessionVolume(session)).toLocaleString("en-US")} hint={unit} />
-          <Stat label="Duration" value={formatDuration(session.durationSeconds)} />
+          <Stat
+            label="Volume"
+            value={volume.toLocaleString("en-US")}
+            hint={
+              <>
+                {unit}
+                {prev && (
+                  <Compare
+                    label={prevLabel}
+                    value={Math.round(sessionVolume(prev))}
+                    now={volume}
+                    format={(n) => n.toLocaleString("en-US")}
+                  />
+                )}
+              </>
+            }
+          />
+          <Stat
+            label="Duration"
+            value={formatDuration(session.durationSeconds)}
+            hint={
+              prev && prev.durationSeconds > 0 ? (
+                <Compare
+                  label={prevLabel}
+                  value={prev.durationSeconds}
+                  now={session.durationSeconds}
+                  format={formatDuration}
+                  formatDelta={(n) => formatDuration(n)}
+                />
+              ) : undefined
+            }
+          />
         </div>
       </section>
 
@@ -146,5 +191,32 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
         <Button variant="danger" className="w-full">Delete this session</Button>
       </form>
     </Page>
+  );
+}
+
+/** "Last week" when the previous run of this day was 5–9 days earlier,
+ *  otherwise its date — so the label never claims a week that wasn't. */
+function compareLabel(now: string, then: string): string {
+  const days = Math.round((new Date(now).getTime() - new Date(then).getTime()) / 86_400_000);
+  if (days >= 5 && days <= 9) return "Last week";
+  return new Date(then).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/** One line under a stat: the previous run's figure and the change since. */
+function Compare({
+  label, value, now, format = String, formatDelta,
+}: {
+  label: string; value: number; now: number;
+  format?: (n: number) => string; formatDelta?: (n: number) => string;
+}) {
+  const diff = now - value;
+  const fmtDelta = formatDelta ?? format;
+  return (
+    <span className="mt-1.5 block tnum">
+      {label} <span className="font-semibold text-ink-dim">{format(value)}</span>
+      {diff !== 0 && (
+        <span className="text-ink-dim"> {diff > 0 ? "▲" : "▼"} {fmtDelta(Math.abs(diff))}</span>
+      )}
+    </span>
   );
 }
