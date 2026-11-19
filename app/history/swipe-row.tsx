@@ -5,7 +5,7 @@ import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { removeSessionFromList } from "@/app/actions";
 
 const REVEAL_FULL = 88;    // how far the row slides to park the Delete button open
-const REVEAL_COMPACT = 64; // the same for a short set row
+const REVEAL_COMPACT = 84; // the same for a short set row
 const OPEN_AT = 44;     // drag past this and it snaps open instead of back
 const SLOP = 8;         // px before a gesture is judged horizontal or vertical
 
@@ -90,7 +90,7 @@ export function SwipeRow({
     }
 
     function up(ev: PointerEvent) {
-      if (axis === "x") onOpen(ev.clientX - startX + offset < -(compact ? 32 : OPEN_AT) ? id : null);
+      if (axis === "x") onOpen(ev.clientX - startX + offset < -(compact ? 40 : OPEN_AT) ? id : null);
       end();
     }
 
@@ -129,11 +129,11 @@ export function SwipeRow({
           className="flex flex-col items-center justify-center gap-1
                      bg-bad/15 text-bad active:bg-bad/25"
         >
-          <svg width={compact ? 14 : 18} height={compact ? 14 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          <svg width={compact ? 17 : 18} height={compact ? 17 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor"
                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" />
           </svg>
-          <span className="eyebrow" style={{ fontSize: compact ? 8 : 9 }}>Delete</span>
+          <span className="eyebrow" style={{ fontSize: compact ? 9.5 : 9 }}>Delete</span>
         </button>
       </div>
 
