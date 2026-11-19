@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { removeSession } from "@/app/actions";
 import { getPreviousSession, getSession, getSettings } from "@/lib/db";
-import { BAND_COLOR, Button, Header, Page, Panel, SectionTitle, Stat } from "@/components/ui";
+import { BAND_COLOR, Button, Header, Page, Panel, SectionTitle } from "@/components/ui";
 import {
   effectiveReps, effectiveRepsByMuscle, effectiveRepsCoverage, totalEffectiveReps,
 } from "@/lib/effective-reps";
@@ -41,52 +41,29 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
       />
 
       <section className="rise rise-1 mb-5 grid grid-cols-2 gap-2">
-        <Stat
+        <SummaryBox
           label="Effective reps"
-          value={er}
-          hint={
-            <>
-              {coverage.scored} of {coverage.working} sets rated
-              {prev && (
-                <Compare label={prevLabel} value={totalEffectiveReps(prev.exercises.flatMap((e) => e.sets))} now={er} />
-              )}
-            </>
-          }
-          accent
+          now={er}
+          hint={`${coverage.scored} of ${coverage.working} sets rated`}
+          prevLabel={prevLabel}
+          prev={prev ? totalEffectiveReps(prev.exercises.flatMap((e) => e.sets)) : null}
           big
         />
         <div className="grid gap-2">
-          <Stat
+          <SummaryBox
             label="Volume"
-            value={volume.toLocaleString("en-US")}
-            hint={
-              <>
-                {unit}
-                {prev && (
-                  <Compare
-                    label={prevLabel}
-                    value={Math.round(sessionVolume(prev))}
-                    now={volume}
-                    format={(n) => n.toLocaleString("en-US")}
-                  />
-                )}
-              </>
-            }
+            now={volume}
+            unit={unit}
+            prevLabel={prevLabel}
+            prev={prev ? Math.round(sessionVolume(prev)) : null}
+            format={(n) => n.toLocaleString("en-US")}
           />
-          <Stat
+          <SummaryBox
             label="Duration"
-            value={formatDuration(session.durationSeconds)}
-            hint={
-              prev && prev.durationSeconds > 0 ? (
-                <Compare
-                  label={prevLabel}
-                  value={prev.durationSeconds}
-                  now={session.durationSeconds}
-                  format={formatDuration}
-                  formatDelta={(n) => formatDuration(n)}
-                />
-              ) : undefined
-            }
+            now={session.durationSeconds}
+            prevLabel={prevLabel}
+            prev={prev && prev.durationSeconds > 0 ? prev.durationSeconds : null}
+            format={formatDuration}
           />
         </div>
       </section>
@@ -202,21 +179,39 @@ function compareLabel(now: string, then: string): string {
   return new Date(then).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-/** One line under a stat: the previous run's figure and the change since. */
-function Compare({
-  label, value, now, format = String, formatDelta,
+/** A summary stat: this workout's figure in orange, and under it the
+ *  previous run's in white with the change since. */
+function SummaryBox({
+  label, now, unit, hint, prevLabel, prev, format = String, big = false,
 }: {
-  label: string; value: number; now: number;
-  format?: (n: number) => string; formatDelta?: (n: number) => string;
+  label: string; now: number; unit?: string; hint?: string;
+  prevLabel: string; prev: number | null;
+  format?: (n: number) => string; big?: boolean;
 }) {
-  const diff = now - value;
-  const fmtDelta = formatDelta ?? format;
+  const diff = prev === null ? 0 : now - prev;
   return (
-    <span className="mt-1.5 block tnum">
-      {label} <span className="font-semibold text-ink-dim">{format(value)}</span>
-      {diff !== 0 && (
-        <span className="text-ink-dim"> {diff > 0 ? "▲" : "▼"} {fmtDelta(Math.abs(diff))}</span>
+    <div className="flex flex-col rounded-2xl border border-line bg-panel px-3.5 py-3">
+      <div className="eyebrow">{label}</div>
+      <div className={`display tnum mt-1 font-semibold text-accent ${big ? "text-6xl" : "text-3xl"}`}>
+        {format(now)}
+        {unit && <span className="ml-1 text-sm font-medium text-ink-faint">{unit}</span>}
+      </div>
+      {hint && <div className="mt-1 text-[11px] leading-tight text-ink-faint">{hint}</div>}
+      {prev !== null && (
+        <div className={big ? "mt-auto pt-4" : "mt-2"}>
+          <div className="text-[11px] leading-tight text-ink-faint">{prevLabel}</div>
+          <div className="tnum flex items-baseline gap-2">
+            <span className={`display font-semibold text-ink ${big ? "text-5xl" : "text-2xl"}`}>
+              {format(prev)}
+            </span>
+            {diff !== 0 && (
+              <span className={`text-ink-dim ${big ? "text-sm" : "text-xs"}`}>
+                {diff > 0 ? "▲" : "▼"} {format(Math.abs(diff))}
+              </span>
+            )}
+          </div>
+        </div>
       )}
-    </span>
+    </div>
   );
 }
