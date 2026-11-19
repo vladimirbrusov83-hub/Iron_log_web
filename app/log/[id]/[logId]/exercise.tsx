@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   logSet, markExerciseDone, noteExercise, removeSet, setLiftSecondary,
 } from "@/app/actions";
+import { SwipeRow } from "@/app/history/swipe-row";
 import { SecondaryMuscles } from "@/components/secondary-muscles";
 import { RestTimer } from "@/components/rest-timer";
 import { WorkoutClock } from "@/components/workout-clock";
@@ -77,6 +78,7 @@ export function ExerciseScreen({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [sheet, setSheet] = useState<SheetTarget | null>(null);
+  const [openSet, setOpenSet] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [choosingLast, setChoosingLast] = useState(false);
   const [helping, setHelping] = useState(false);
@@ -287,6 +289,15 @@ export function ExerciseScreen({
                     const score = effectiveReps(s);
                     return (
                       <li key={s.id} className="box-border h-9 border-b border-line/60 last:border-line">
+                        {/* Swipe left to delete; tap still opens the set. */}
+                        <SwipeRow
+                          id={s.id}
+                          label={`set ${numberAt(i)}`}
+                          open={openSet === s.id}
+                          onOpen={setOpenSet}
+                          onDelete={() => removeSet(sessionId, s.id)}
+                          compact
+                        >
                         <button
                           onClick={(e) => { e.stopPropagation(); setSheet({
                             set: s, fillId: null,
@@ -315,6 +326,7 @@ export function ExerciseScreen({
                             {score === null ? "–" : score}
                           </span>
                         </button>
+                        </SwipeRow>
                       </li>
                     );
                   })}

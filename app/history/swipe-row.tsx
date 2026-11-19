@@ -4,7 +4,8 @@ import { useRef, useState, useTransition } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { removeSessionFromList } from "@/app/actions";
 
-const REVEAL = 88;      // how far the row slides to park the Delete button open
+const REVEAL_FULL = 88;    // how far the row slides to park the Delete button open
+const REVEAL_COMPACT = 64; // the same for a short set row
 const OPEN_AT = 44;     // drag past this and it snaps open instead of back
 const SLOP = 8;         // px before a gesture is judged horizontal or vertical
 
@@ -33,7 +34,7 @@ const SLOP = 8;         // px before a gesture is judged horizontal or vertical
  * which says what is going. Same shape as the exercise library's delete.
  */
 export function SwipeRow({
-  id, label, open, onOpen, onDelete, children,
+  id, label, open, onOpen, onDelete, compact = false, children,
 }: {
   id: string;
   label: string;
@@ -41,8 +42,13 @@ export function SwipeRow({
   onOpen: (id: string | null) => void;
   /** What Delete does once confirmed. Defaults to deleting a history session. */
   onDelete?: () => Promise<void>;
+  /** A short row (a set on the gym screen): narrower button, square corners,
+   *  and Delete acts straight away — the swipe is the first step, and a h-9
+   *  row has no room for a confirm panel. */
+  compact?: boolean;
   children: ReactNode;
 }) {
+  const REVEAL = compact ? REVEAL_COMPACT : REVEAL_FULL;
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -84,7 +90,7 @@ export function SwipeRow({
     }
 
     function up(ev: PointerEvent) {
-      if (axis === "x") onOpen(ev.clientX - startX + offset < -OPEN_AT ? id : null);
+      if (axis === "x") onOpen(ev.clientX - startX + offset < -(compact ? 32 : OPEN_AT) ? id : null);
       end();
     }
 
@@ -104,22 +110,30 @@ export function SwipeRow({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-panel">
+    <div className={`relative overflow-hidden ${compact ? "h-full" : "rounded-2xl bg-panel"}`}>
       {/* The button parked under the card. */}
       <div className="absolute inset-y-0 right-0 flex items-stretch">
         <button
           type="button"
-          onClick={() => setConfirming(true)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!compact) return setConfirming(true);
+            startTransition(async () => {
+              try { await (onDelete ? onDelete() : removeSessionFromList(id)); }
+              finally { onOpen(null); }
+            });
+          }}
           aria-label={`Delete ${label}`}
           tabIndex={open ? 0 : -1}
-          className="flex w-[88px] flex-col items-center justify-center gap-1
+          style={{ width: REVEAL }}
+          className="flex flex-col items-center justify-center gap-1
                      bg-bad/15 text-bad active:bg-bad/25"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          <svg width={compact ? 14 : 18} height={compact ? 14 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor"
                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" />
           </svg>
-          <span className="eyebrow" style={{ fontSize: 9 }}>Delete</span>
+          <span className="eyebrow" style={{ fontSize: compact ? 8 : 9 }}>Delete</span>
         </button>
       </div>
 
@@ -140,7 +154,7 @@ export function SwipeRow({
           transition: dragging ? "none" : "transform 220ms ease",
           touchAction: "pan-y",
         }}
-        className={`relative bg-panel ${pending ? "opacity-40" : ""}`}
+        className={`relative bg-panel ${compact ? "h-full" : ""} ${pending ? "opacity-40" : ""}`}
       >
         {children}
       </div>
