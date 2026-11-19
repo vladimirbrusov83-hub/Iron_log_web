@@ -5,7 +5,7 @@ import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { removeSessionFromList } from "@/app/actions";
 
 const REVEAL_FULL = 88;    // how far the row slides to park the Delete button open
-const REVEAL_COMPACT = 84; // the same for a short set row
+const REVEAL_COMPACT = 104; // the same for a short set row
 const OPEN_AT = 44;     // drag past this and it snaps open instead of back
 const SLOP = 8;         // px before a gesture is judged horizontal or vertical
 
@@ -90,7 +90,7 @@ export function SwipeRow({
     }
 
     function up(ev: PointerEvent) {
-      if (axis === "x") onOpen(ev.clientX - startX + offset < -(compact ? 40 : OPEN_AT) ? id : null);
+      if (axis === "x") onOpen(ev.clientX - startX + offset < -(compact ? 48 : OPEN_AT) ? id : null);
       end();
     }
 
